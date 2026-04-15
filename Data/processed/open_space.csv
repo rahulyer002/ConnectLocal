@@ -1,0 +1,61 @@
+space_id,suburb_id,space_name,space_type,category,area_ha,public_access,managed_by,lat,lng,walkability_score,has_toilet_nearby
+1,206071140,Carlton Football Club,Leisure/Recreation,Recreation,,True,Local Council,-37.7840864379557,144.961967841559,,True
+2,206041507,Kings Domain,Leisure/Recreation,Green Space,,True,Local Council,-37.8255239795833,144.974107925144,0.00306650426319186,True
+3,206041503,Federation Square,Leisure/Recreation,Urban Space,,True,Local Council,-37.8178516571684,144.968963600783,0.0019847918774366876,True
+4,206041510,Flagstaff Gardens,Leisure/Recreation,Green Space,,True,Local Council,-37.8111222889277,144.954696055235,0.0023081634309760164,True
+5,206051511,Westgate Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8314918578874,144.908824792698,,False
+6,206041121,Newmarket Reserve,Leisure/Recreation,Green Space,,True,Local Council,-37.7878473341234,144.922972125346,0.012273341265277909,True
+7,206041121,J.J Holland Park,Leisure/Recreation,Green Space,,True,Local Council,-37.7982358832177,144.923837074813,0.012273341265277909,True
+8,206041120,Riverside Park,Leisure/Recreation,Green Space,,True,Local Council,-37.7948375315825,144.915607065132,,False
+9,206041119,Fitzroy Gardens,Leisure/Recreation,Green Space,,True,Local Council,-37.8129616331579,144.980455714669,0.006912418757997969,True
+10,206041119,Richmond Football Club,Leisure/Recreation,Recreation,,True,Local Council,-37.8216740022008,144.988156318781,,False
+11,206041506,North Melbourne Recreation Reserve,Leisure/Recreation,Green Space,,True,Local Council,-37.7988345257153,144.941452061463,0.010127661136625762,False
+12,206071140,Princes Park,Leisure/Recreation,Green Space,,True,Local Council,-37.7870161727156,144.961115214367,,True
+13,206041117,Argyle Square,Leisure/Recreation,Urban Space,,True,Local Council,-37.8031480577285,144.965761295089,0.0023455578884032102,True
+14,206041507,Westpac Centre,Leisure/Recreation,Other,,True,Local Council,-37.8242456858593,144.979720306309,0.01246880751115316,True
+15,206041507,Royal Botanic Gardens,Leisure/Recreation,Green Space,,True,Local Council,-37.8306631583233,144.980850432751,,True
+16,206041119,Darling Square,Leisure/Recreation,Urban Space,,True,Local Council,-37.81299206932,144.989062559512,,True
+17,206041503,Parliament Reserve,Leisure/Recreation,Green Space,,True,Local Council,-37.809852620638,144.973462202839,0.002159342588980379,True
+18,206041117,Macarthur Square,Leisure/Recreation,Urban Space,,True,Local Council,-37.7983318676737,144.971514146104,0.005916290411268514,True
+19,206041509,Eureka Skydeck 88,Leisure/Recreation,Other,,True,Local Council,-37.8216187583314,144.964622218598,0.002008159180359767,True
+20,206041507,Shrine of Rembrance Reserve,Leisure/Recreation,Green Space,,True,Local Council,-37.8320733992876,144.973628364465,,True
+21,206041118,Icehouse,Leisure/Recreation,Other,,True,Local Council,-37.8121881194053,144.935684018873,0.006963533385706189,False
+22,206041117,Carlton Baths,Leisure/Recreation,Other,,True,Local Council,-37.7934377042609,144.971696548624,0.006183908966711185,True
+23,206041120,Flemington Racecourse,Leisure/Recreation,Other,,True,Local Council,-37.7908082646624,144.912142987372,,False
+24,206041119,Treasury Gardens,Leisure/Recreation,Green Space,,True,Local Council,-37.8143993575938,144.975952335785,0.002372639555867348,True
+25,206041119,Melbourne Cricket Ground (MCG),Leisure/Recreation,Other,,True,Local Council,-37.8194921618419,144.983402879078,0.00787931317129016,False
+26,206041509,Queen Victoria Gardens,Leisure/Recreation,Green Space,,True,Local Council,-37.8216381244891,144.971049530478,0.0020527278736115337,True
+27,206041118,New Quay,Leisure/Recreation,Other,,True,Local Council,-37.8152178789077,144.941617889032,0.008185726708268707,True
+28,206041119,Rod Laver Arena,Leisure/Recreation,Other,,True,Local Council,-37.8220456119807,144.978487173787,0.004300575198137289,True
+29,206041119,Melbourne Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8209085970021,144.978735802793,0.004603187156954636,True
+30,206041119,Hisense Arena,Leisure/Recreation,Other,,True,Local Council,-37.823110002667,144.981834802535,0.005402019446522064,True
+31,206041505,Sandridge Rail Bridge,Leisure/Recreation,Other,,True,Local Council,-37.8201763042794,144.96298113724,0.0018618099764219143,True
+32,206041118,Melbourne Star Observation Wheel,Leisure/Recreation,Other,,True,Local Council,-37.8116163666726,144.937588920436,0.006963533385706189,True
+33,206041503,Birrarung Marr,Leisure/Recreation,Other,,True,Local Council,-37.81806108403,144.97314667014,0.002002197327959326,True
+34,206041503,Artplay,Leisure/Recreation,Other,,True,Local Council,-37.8184198800044,144.971542586509,0.001993710865092637,True
+35,206041506,North Melbourne Recreation Centre (Aquatic),Leisure/Recreation,Recreation,,True,Local Council,-37.7999470049655,144.943290801869,0.010127661136625762,False
+36,206041124,State Netball Hockey Centre,Leisure/Recreation,Other,,True,Local Council,-37.7857860016289,144.947580972027,,False
+37,206041117,University Square,Leisure/Recreation,Urban Space,,True,Local Council,-37.800410711209,144.960398319302,0.0030312417702036826,True
+38,206041124,Melbourne Zoo,Leisure/Recreation,Other,,True,Local Council,-37.7844449253712,144.951371205938,,True
+39,206041118,Docklands Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8209956785618,144.946781702342,0.0029753176781104544,True
+40,206041118,Point Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8233522700646,144.942102276731,0.005473618979938064,True
+41,206041509,Alexandra Gardens,Leisure/Recreation,Green Space,,True,Local Council,-37.8206051404251,144.971796067365,0.002037771335602193,True
+42,206041120,Melbourne Showgrounds,Leisure/Recreation,Other,,True,Local Council,-37.7823097850883,144.910822117306,,False
+43,206041117,Piazza Italia,Leisure/Recreation,Other,,True,Local Council,-37.8025164192523,144.965863092947,0.0024138510631370024,True
+44,206041117,Murchinson Square,Leisure/Recreation,Urban Space,,True,Local Council,-37.8002735025371,144.973059252203,0.005638471359063435,True
+45,206041119,Powlett Reserve,Leisure/Recreation,Green Space,,True,Local Council,-37.8116929882498,144.987275671763,,True
+46,206041118,Etihad Stadium,Leisure/Recreation,Other,,True,Local Council,-37.8161760471742,144.947496254547,0.003474091104897771,False
+47,206041117,Lincoln Square,Leisure/Recreation,Urban Space,,True,Local Council,-37.8027919689732,144.962760852233,0.0023104044370439113,True
+48,206041117,Carlton Gardens North,Leisure/Recreation,Green Space,,True,Local Council,-37.8017690847403,144.971997551189,0.005608022068368679,True
+49,206041118,Wonderland Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8116945351989,144.936833674975,0.006963533385706189,False
+50,206041125,Fawkner Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8413996708186,144.981625667877,,True
+51,206041505,Enterprize Park,Leisure/Recreation,Green Space,,True,Local Council,-37.820210269629,144.959276859602,0.0018469224210704096,True
+52,206041504,City Baths,Leisure/Recreation,Other,,True,Local Council,-37.8071585350561,144.963189789721,0.0021714442653269625,True
+53,206041117,Carlton Gardens South,Leisure/Recreation,Green Space,,True,Local Council,-37.8060684577258,144.971266479841,0.0024214229605513914,True
+54,206071140,Visy Park,Leisure/Recreation,Green Space,,True,Local Council,-37.7834303940347,144.961982577553,,True
+55,206041508,Batman Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8218460949601,144.956665812218,0.0021895155991327312,True
+56,206041507,AAMI Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8247252673963,144.98380297866,,True
+57,206041119,Margaret Court Arena,Leisure/Recreation,Other,,True,Local Council,-37.8213252086842,144.977591098955,0.0038364619733317696,True
+58,206041507,Riverslide Skate Park,Leisure/Recreation,Green Space,,True,Local Council,-37.8207887122448,144.972951789291,0.002031766186208693,True
+59,206041124,Royal Park,Leisure/Recreation,Green Space,,True,Local Council,-37.7906174256581,144.953834240647,,True
+60,206041119,Yarra Park,Leisure/Recreation,Green Space,,True,Local Council,-37.820469374101,144.986671109615,,False
