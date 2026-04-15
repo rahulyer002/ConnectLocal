@@ -1,0 +1,16 @@
+# Ignore raw data
+Data/Raw/
+
+# Mac system files
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual env
+venv/
+.env
