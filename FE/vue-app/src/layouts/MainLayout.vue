@@ -4,7 +4,7 @@
     <aside class="sidebar">
       <div class="brand-card">
         <h1><span>Connect</span>Local</h1>
-        <p>Emily · Sunshine, VIC</p>
+        <p>Emily · {{ detectedLocationText }}</p>
       </div>
 
       <nav class="side-nav">
@@ -36,8 +36,10 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
+import { useLocationState } from '../composables/useLocationState'
 
 const route = useRoute()
+const { detectedLocationText } = useLocationState()
 </script>
 
 <style scoped>
