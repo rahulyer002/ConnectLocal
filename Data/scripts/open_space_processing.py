@@ -214,6 +214,26 @@ def add_walkability_score(open_space: pd.DataFrame, ped_counts: pd.DataFrame) ->
     return open_space
 
 
+def compute_comfort_score(row):
+    score = 0
+
+    # Walkability (higher = quieter)
+    if pd.notna(row["walkability_score"]):
+        score += min(row["walkability_score"] * 5000, 50)
+
+    # Toilet proximity
+    if row["has_toilet_nearby"]:
+        score += 20
+
+    # Category bonus
+    if row["category"] == "Green Space":
+        score += 20
+    elif row["category"] == "Urban Space":
+        score += 10
+
+    return round(score, 2)
+
+
 def main():
     landmarks = load_landmarks()
     toilets = load_public_toilets()
@@ -239,6 +259,7 @@ def main():
 
     open_space["category"] = open_space.apply(derive_category, axis=1)
 
+    open_space["comfort_score"] = open_space.apply(compute_comfort_score, axis=1)
 
     export_open_space(open_space)
     # print("\nToilet coverage summary:")
