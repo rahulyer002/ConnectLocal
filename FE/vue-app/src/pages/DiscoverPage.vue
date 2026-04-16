@@ -10,13 +10,22 @@
           v-model="locationInput"
           type="text"
           aria-label="Location"
-          placeholder="Enter suburb or postcode"
+          placeholder="Please enter suburb or postcode in Australia."
         />
-        <button type="button" class="change-btn" :disabled="isLocating" @click="getLocation">
-          {{ isLocating ? 'Locating...' : 'Locate' }}
+        <button
+          type="button"
+          class="change-btn"
+          :disabled="isLocating"
+          @click="getLocation"
+        >
+          {{ isLocating ? "Locating..." : "Locate" }}
         </button>
-        <button type="submit" class="apply-btn" :disabled="isApplying || !locationInput.trim()">
-          {{ isApplying ? 'Updating...' : 'Change' }}
+        <button
+          type="submit"
+          class="apply-btn"
+          :disabled="isApplying || !locationInput.trim()"
+        >
+          {{ isApplying ? "Updating..." : "Change" }}
         </button>
       </form>
 
@@ -35,57 +44,119 @@
 
     <section class="results-header">
       <h3>{{ filteredActivities.length }} activities</h3>
-      <button class="print-btn" type="button" @click="printList">Print list</button>
+      <button class="print-btn" type="button" @click="printList">
+        Print list
+      </button>
     </section>
 
-    <section class="activity-list" v-if="!isLoading && !loadError && filteredActivities.length">
-      <article class="event-card" v-for="activity in filteredActivities" :key="activity.id">
+    <section
+      class="activity-list"
+      v-if="!isLoading && !loadError && filteredActivities.length"
+    >
+      <article
+        class="event-card"
+        v-for="activity in pagedActivities"
+        :key="activity.id"
+      >
         <div class="tags">
-          <span class="tag green" v-if="activity.isFree">Free / Low-cost</span>
-          <span class="tag lilac" v-if="activity.indoor">Indoor</span>
-          <span class="tag lilac" v-if="activity.easyAccess">Easy Access</span>
-          <span class="distance" v-if="activity.distanceKm !== null">{{ activity.distanceKm.toFixed(1) }} km</span>
+          <span
+            v-for="tag in activity.displayTags"
+            :key="`${activity.id}-${tag.text}`"
+            class="tag"
+            :class="tag.tone"
+          >
+            {{ tag.text }}
+          </span>
+          <span class="distance" v-if="activity.distanceKm !== null"
+            >{{ activity.distanceKm.toFixed(1) }} km</span
+          >
         </div>
         <h4>{{ activity.title }}</h4>
         <p class="meta">{{ formatMeta(activity) }}</p>
         <p class="desc">{{ activity.description }}</p>
         <div class="event-foot">
           <span>{{ activity.spotsLeftText }}</span>
-          <a v-if="activity.link" :href="activity.link" target="_blank" rel="noreferrer">View details →</a>
+          <a
+            v-if="activity.link"
+            :href="activity.link"
+            target="_blank"
+            rel="noreferrer"
+            >View details →</a
+          >
           <span v-else>Details coming soon</span>
         </div>
       </article>
+
+      <nav class="pagination" v-if="totalPages > 1" aria-label="Activity pages">
+        <button
+          class="page-btn"
+          type="button"
+          :disabled="currentPage === 1"
+          @click="goToPage(currentPage - 1)"
+        >
+          Prev
+        </button>
+
+        <button
+          v-for="page in visiblePages"
+          :key="page"
+          class="page-btn"
+          type="button"
+          :class="{ active: page === currentPage }"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+
+        <button
+          class="page-btn"
+          type="button"
+          :disabled="currentPage === totalPages"
+          @click="goToPage(currentPage + 1)"
+        >
+          Next
+        </button>
+      </nav>
     </section>
 
     <section class="activity-list" v-else>
-      <article class="event-card state-card" v-if="isLoading">Loading activities...</article>
-      <article class="event-card state-card" v-else-if="loadError">{{ loadError }}</article>
+      <article class="event-card state-card" v-if="isLoading">
+        Loading activities...
+      </article>
+      <article class="event-card state-card" v-else-if="loadError">
+        {{ loadError }}
+      </article>
       <article class="event-card state-card" v-else>
-        No activities match current filters. Try removing one or two filters.
+        <template v-if="activities.length">
+          Loaded {{ activities.length }} activities, but none match current
+          filters. Try removing one or two filters.
+        </template>
+        <template v-else> No activities found from the API. </template>
       </article>
     </section>
   </MainLayout>
 </template>
 
 <script setup>
-import MainLayout from '../layouts/MainLayout.vue'
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useLocationState } from '../composables/useLocationState'
+import MainLayout from "../layouts/MainLayout.vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useLocationState } from "../composables/useLocationState";
 
-const { setDetectedLocation, setDetectedUnavailable } = useLocationState()
+const { setDetectedLocation, setDetectedUnavailable } = useLocationState();
+const API = import.meta.env.VITE_ACTIVITIES_API_URL || "/api/events/search";
+const CLOSE_KM = 5;
+const FETCH_LIMIT = 50;
+const MAX_FETCH = 30;
+const UI_PAGE_SIZE = 3;
 
-const ACTIVITIES_API_URL = import.meta.env.VITE_ACTIVITIES_API_URL || '/api/activities'
-const LOW_COST_THRESHOLD = 10
-const CLOSE_HOME_KM = 5
-
-const locationInput = ref('')
-const nearbyLabel = ref('your area')
-const isLocating = ref(false)
-const isApplying = ref(false)
-
-const activities = ref([])
-const isLoading = ref(false)
-const loadError = ref('')
+const locationInput = ref("");
+const nearbyLabel = ref("your area");
+const isLocating = ref(false);
+const isApplying = ref(false);
+const activities = ref([]);
+const isLoading = ref(false);
+const loadError = ref("");
+const currentPage = ref(1);
 
 const activeFilters = reactive({
   free: true,
@@ -93,310 +164,311 @@ const activeFilters = reactive({
   closeHome: true,
   indoor: false,
   easyAccess: false,
-})
-
+});
 const chips = [
-  { key: 'free', label: 'Free' },
-  { key: 'thisWeek', label: 'This Week' },
-  { key: 'closeHome', label: 'Close to Home' },
-  { key: 'indoor', label: 'Indoor' },
-  { key: 'easyAccess', label: 'Easy Access' },
-]
+  { key: "free", label: "Free" },
+  { key: "thisWeek", label: "This Week" },
+  { key: "closeHome", label: "Close to Home" },
+  { key: "indoor", label: "Indoor" },
+  { key: "easyAccess", label: "Easy Access" },
+];
 
-const AU_STATE_MAP = {
-  Victoria: 'VIC',
-  Queensland: 'QLD',
-  'New South Wales': 'NSW',
-  Tasmania: 'TAS',
-  'South Australia': 'SA',
-  'Western Australia': 'WA',
-  'Northern Territory': 'NT',
-  'Australian Capital Territory': 'ACT',
-}
+const n = (v) => (Number.isFinite(+v) ? +v : null);
+const b = (v) =>
+  v === true || v === 1 || /^true|yes|y|1$/i.test(String(v || ""));
+const d = (v) => {
+  const x = v ? new Date(String(v).replace(" ", "T")) : null;
+  return x && !Number.isNaN(x.getTime()) ? x : null;
+};
+const arr = (p) =>
+  p?.events ||
+  p?.activities ||
+  p?.results ||
+  p?.items ||
+  p?.data?.events ||
+  p?.data ||
+  (Array.isArray(p) ? p : []);
+const total = (p) => n(p?.total ?? p?.count ?? p?.data?.total);
+const pick = (o, keys, fallback = "") =>
+  keys
+    .map((k) => o?.[k])
+    .find((v) => v !== undefined && v !== null && v !== "") ?? fallback;
 
-const parseBoolean = (value) => {
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value > 0
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase()
-    return ['true', 'yes', 'y', '1'].includes(normalized)
-  }
-  return false
-}
-
-const parseNumber = (value) => {
-  if (value === null || value === undefined || value === '') return null
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-const parseDate = (value) => {
-  if (!value) return null
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
-const toArray = (value) => {
-  if (Array.isArray(value)) return value
-  if (typeof value === 'string') {
-    return value
-      .split(',')
-      .map((part) => part.trim())
-      .filter(Boolean)
-  }
-  return []
-}
-
-const normalizeActivity = (raw, idx) => {
-  const title = raw.title || raw.name || raw.eventName || `Activity ${idx + 1}`
-  const description =
-    raw.description || raw.summary || raw.details || 'Community activity details available soon.'
-
-  const venue = raw.venue || raw.location || raw.address || raw.place || 'Location TBC'
-  const suburb = raw.suburb || raw.city || raw.area || ''
-
-  const dateRaw = raw.startDate || raw.date || raw.start_time || raw.datetime || raw.start
-  const date = parseDate(dateRaw)
-  const dateText = date ? date.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Date TBC'
-  const timeText = raw.time || (date ? date.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) : 'Time TBC')
-
-  const tags = toArray(raw.tags).map((tag) => tag.toLowerCase())
-  const cost = parseNumber(raw.cost ?? raw.price ?? raw.fee)
-  const isFreeFlag = parseBoolean(raw.isFree ?? raw.free)
-  const isLowCost = cost !== null ? cost <= LOW_COST_THRESHOLD : false
-  const hasFreeTag = tags.includes('free') || tags.includes('low-cost')
-  const isFree = isFreeFlag || isLowCost || hasFreeTag
-
-  const indoor =
-    parseBoolean(raw.indoor ?? raw.isIndoor) ||
-    tags.includes('indoor') ||
-    String(raw.venueType || '').toLowerCase() === 'indoor'
-
-  const easyAccess =
-    parseBoolean(raw.easyAccess ?? raw.accessible ?? raw.wheelchairAccessible) ||
-    tags.includes('easy access') ||
-    tags.includes('accessible')
-
-  const distanceKm = parseNumber(raw.distanceKm ?? raw.distance_km ?? raw.distance)
-
-  const spotsLeft = parseNumber(raw.spotsLeft ?? raw.remainingSpots ?? raw.capacityRemaining)
-  const spotsLeftText = spotsLeft === null ? 'Spots info unavailable' : `${Math.max(0, Math.floor(spotsLeft))} spots left`
-
+const normalize = (r, i) => {
+  const date = d(
+    pick(r, [
+      "datetime_start",
+      "startDate",
+      "date",
+      "start_time",
+      "datetime",
+      "start",
+    ]),
+  );
+  const km = n(pick(r, ["distance_km", "distanceKm", "distance"]));
+  const cost = n(pick(r, ["min_price", "cost", "price", "fee"]));
+  const isFree =
+    b(pick(r, ["is_free", "isFree", "free"])) ||
+    (cost != null && cost <= 10) ||
+    String(r?.tags || "")
+      .toLowerCase()
+      .includes("free");
+  const indoor = b(pick(r, ["indoor", "isIndoor"]));
+  const easyAccess = b(
+    pick(r, ["easyAccess", "accessible", "wheelchairAccessible"]),
+  );
+  const venue = pick(
+    r,
+    ["venue", "location", "address", "place"],
+    "Location TBC",
+  );
+  const suburb = pick(r, ["suburb", "city", "area"], "");
+  const spots = n(
+    pick(r, ["spotsLeft", "remainingSpots", "capacityRemaining"]),
+  );
+  const category = String(r?.category || "").trim();
+  const source = String(r?.source || "").trim();
+  const cancelled = b(pick(r, ["is_cancelled", "isCancelled"]));
   return {
-    id: raw.id || raw._id || `${title}-${idx}`,
-    title,
-    description,
+    id: pick(r, ["id", "_id"], `event-${i}`),
+    title: pick(r, ["name", "title", "eventName"], `Activity ${i + 1}`),
+    description: pick(
+      r,
+      ["description", "summary", "details"],
+      "Community activity details available soon.",
+    ),
     venue,
     suburb,
     date,
-    dateText,
-    timeText,
+    dateText: date
+      ? date.toLocaleDateString("en-AU", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        })
+      : pick(r, ["datetime_summary"], "Date TBC"),
+    timeText: date
+      ? date.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
+      : pick(r, ["time"], "Time TBC"),
     isFree,
     indoor,
     easyAccess,
-    distanceKm,
-    spotsLeftText,
-    link: raw.link || raw.url || raw.detailsUrl || '',
-  }
-}
+    distanceKm: km,
+    spotsLeftText:
+      spots == null
+        ? "Spots info unavailable"
+        : `${Math.max(0, Math.floor(spots))} spots left`,
+    link: pick(r, ["url", "link", "detailsUrl"], ""),
+    displayTags: [
+      isFree && { text: "Free / Low-cost", tone: "green" },
+      km != null && km <= CLOSE_KM && { text: "Near You", tone: "lilac" },
+      category && { text: category, tone: "soft" },
+      source && { text: source, tone: "soft" },
+      cancelled && { text: "Cancelled", tone: "warn" },
+    ].filter(Boolean),
+  };
+};
 
 const fetchActivities = async () => {
-  isLoading.value = true
-  loadError.value = ''
-
+  isLoading.value = true;
+  loadError.value = "";
   try {
-    const response = await fetch(ACTIVITIES_API_URL)
-    if (!response.ok) {
-      throw new Error(`Failed to load activities (${response.status})`)
+    const out = [];
+    const seen = new Set();
+    let off = 0;
+    let hint = null;
+    let req = 0;
+    for (let i = 0; i < MAX_FETCH; i += 1) {
+      const u = new URL(API, window.location.origin);
+      u.searchParams.set("offset", off);
+      u.searchParams.set("limit", FETCH_LIMIT);
+      const r = await fetch(`${u.pathname}${u.search}`);
+      if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
+      const p = await r.json();
+      const list = arr(p);
+      hint = total(p) ?? hint;
+      req += 1;
+      if (!list.length) break;
+      let added = 0;
+      for (const e of list) {
+        const k = String(e?.id ?? e?._id ?? JSON.stringify(e));
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(e);
+        added += 1;
+      }
+      if (!added) break;
+      off += list.length;
+      if (hint != null && out.length >= hint) break;
     }
-
-    const payload = await response.json()
-    const source = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.activities)
-        ? payload.activities
-        : Array.isArray(payload?.data)
-          ? payload.data
-          : []
-
-    activities.value = source.map(normalizeActivity)
-  } catch (error) {
-    console.warn('Load activities failed', error)
-    loadError.value = 'Unable to load activities from API right now.'
-    activities.value = []
+    if (!out.length) {
+      const r = await fetch(API);
+      if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
+      out.push(...arr(await r.json()));
+    }
+    activities.value = out.map(normalize);
+    console.info(
+      `Loaded ${activities.value.length} activities${hint ? ` total=${hint}` : ""}`,
+    );
+  } catch (e) {
+    loadError.value =
+      e?.message === "Failed to fetch"
+        ? "Cannot reach events API. This is usually a network or CORS issue."
+        : `Unable to load activities from API right now: ${e?.message || "Unknown error"}`;
+    activities.value = [];
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
-const formatFromNominatim = (address = {}) => {
-  const suburb =
-    address.suburb ||
-    address.neighbourhood ||
-    address.city_district ||
-    address.town ||
-    address.village ||
-    address.city ||
-    ''
+const setLocation = (text, suburb = "") => {
+  locationInput.value = text;
+  nearbyLabel.value = suburb || text.split(",")[0] || "your area";
+  setDetectedLocation(text);
+};
 
-  const stateCodeFromIso =
-    address['ISO3166-2-lvl4']?.split('-')?.[1] || ''
+const parseAddress = (a = {}) => {
+  const suburb = pick(
+    a,
+    ["suburb", "neighbourhood", "city_district", "town", "village", "city"],
+    "",
+  );
   const state =
-    stateCodeFromIso || AU_STATE_MAP[address.state] || address.state || ''
-  const postcode = address.postcode || ''
-
-  const region = [suburb, state].filter(Boolean).join(', ')
-  return {
-    text: [region, postcode].filter(Boolean).join(' '),
-    suburb,
-  }
-}
-
-const setLocationText = (text, suburbFallback = '') => {
-  locationInput.value = text
-  nearbyLabel.value = suburbFallback || text.split(',')[0] || 'your area'
-}
+    pick(a, ["ISO3166-2-lvl4"], "").split("-")[1] || pick(a, ["state"], "");
+  const text =
+    `${[suburb, state].filter(Boolean).join(", ")} ${pick(a, ["postcode"], "")}`.trim();
+  return { suburb, text };
+};
 
 const getLocation = () => {
-  if (!navigator.geolocation) {
-    locationInput.value = 'Geolocation not supported'
-    setDetectedUnavailable()
-    return
-  }
-
-  isLocating.value = true
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      const lat = pos.coords.latitude
-      const lon = pos.coords.longitude
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=en`,
-          { headers: { 'User-Agent': 'ConnectLocal App' } }
-        )
-        const data = await response.json()
-        const formatted = formatFromNominatim(data.address)
-        if (formatted.text) {
-          setLocationText(formatted.text, formatted.suburb)
-          setDetectedLocation(formatted.text)
-        } else {
-          const latLonText = `${lat.toFixed(5)}, ${lon.toFixed(5)}`
-          setLocationText(latLonText, '')
-          setDetectedLocation(latLonText)
-        }
-      } catch (error) {
-        console.warn('Reverse geocode failed', error)
-        const latLonText = `${lat.toFixed(5)}, ${lon.toFixed(5)}`
-        setLocationText(latLonText, '')
-        setDetectedLocation(latLonText)
-      } finally {
-        isLocating.value = false
-      }
-    },
-    (error) => {
-      console.warn('Geolocation failed', error)
-      locationInput.value = 'Unable to get location'
+  if (!navigator.geolocation)
+    return (
+      (locationInput.value = "Geolocation not supported"),
       setDetectedUnavailable()
-      isLocating.value = false
-    }
-  )
-}
+    );
+  isLocating.value = true;
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      try {
+        const r = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&accept-language=en`,
+        );
+        const f = parseAddress((await r.json()).address || {});
+        setLocation(
+          f.text ||
+            `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+          f.suburb,
+        );
+      } catch {
+        setLocation(
+          `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+        );
+      }
+      isLocating.value = false;
+    },
+    () => {
+      locationInput.value = "Unable to get location";
+      setDetectedUnavailable();
+      isLocating.value = false;
+    },
+  );
+};
 
 const applyManualLocation = async () => {
-  const query = locationInput.value.trim()
-  if (!query) return
-
-  isApplying.value = true
+  const q = locationInput.value.trim();
+  if (!q) return;
+  isApplying.value = true;
   try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&addressdetails=1&limit=1&accept-language=en`,
-      { headers: { 'User-Agent': 'ConnectLocal App' } }
-    )
-    const data = await response.json()
-    const top = data?.[0]
-    if (!top) {
-      locationInput.value = 'Address not found'
-      return
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&addressdetails=1&limit=1&accept-language=en`,
+    );
+    const top = (await r.json())?.[0];
+    if (!top) locationInput.value = "Address not found";
+    else {
+      const f = parseAddress(top.address || {});
+      setLocation(f.text || top.display_name || q, f.suburb || q);
     }
-
-    const formatted = formatFromNominatim(top.address || {})
-    if (formatted.text) {
-      setLocationText(formatted.text, formatted.suburb)
-      setDetectedLocation(formatted.text)
-    } else {
-      const fallbackText = top.display_name || query
-      setLocationText(fallbackText, query)
-      setDetectedLocation(fallbackText)
-    }
-  } catch (error) {
-    console.warn('Manual geocode failed', error)
-    locationInput.value = 'Unable to update location'
-  } finally {
-    isApplying.value = false
+  } catch {
+    locationInput.value = "Unable to update location";
   }
-}
+  isApplying.value = false;
+};
 
-const homeSuburb = computed(() => nearbyLabel.value.trim().toLowerCase())
+const isThisWeek = (a) =>
+  a.date &&
+  a.date >= new Date() &&
+  a.date <= new Date(Date.now() + 7 * 86400000);
+const isClose = (a) =>
+  a.distanceKm != null
+    ? a.distanceKm <= CLOSE_KM
+    : !nearbyLabel.value ||
+      nearbyLabel.value === "your area" ||
+      `${a.suburb || a.venue}`
+        .toLowerCase()
+        .includes(nearbyLabel.value.toLowerCase());
 
-const isThisWeek = (activity) => {
-  if (!activity.date) return false
-  const now = new Date()
-  const nextWeek = new Date(now)
-  nextWeek.setDate(now.getDate() + 7)
-  return activity.date >= now && activity.date <= nextWeek
-}
+const filteredActivities = computed(() =>
+  activities.value.filter(
+    (a) =>
+      (!activeFilters.free || a.isFree) &&
+      (!activeFilters.thisWeek || isThisWeek(a)) &&
+      (!activeFilters.closeHome || isClose(a)) &&
+      (!activeFilters.indoor || a.indoor) &&
+      (!activeFilters.easyAccess || a.easyAccess),
+  ),
+);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredActivities.value.length / UI_PAGE_SIZE)),
+);
+const pagedActivities = computed(() =>
+  filteredActivities.value.slice(
+    (currentPage.value - 1) * UI_PAGE_SIZE,
+    currentPage.value * UI_PAGE_SIZE,
+  ),
+);
+const visiblePages = computed(() => {
+  const all = Array.from({ length: totalPages.value }, (_, i) => i + 1);
+  return all.slice(
+    Math.max(0, currentPage.value - 4),
+    Math.max(7, currentPage.value + 3),
+  );
+});
+const formatMeta = (a) => `${a.dateText} · ${a.timeText} · ${a.venue}`;
+const toggleFilter = (k) => (activeFilters[k] = !activeFilters[k]);
+const goToPage = (p) =>
+  (currentPage.value = Math.min(totalPages.value, Math.max(1, p)));
+const printList = () => window.print();
 
-const isCloseToHome = (activity) => {
-  if (activity.distanceKm !== null) {
-    return activity.distanceKm <= CLOSE_HOME_KM
-  }
+watch(filteredActivities, () => {
+  if (currentPage.value > totalPages.value)
+    currentPage.value = totalPages.value;
+});
 
-  if (homeSuburb.value && homeSuburb.value !== 'your area') {
-    const suburbText = String(activity.suburb || activity.venue).toLowerCase()
-    return suburbText.includes(homeSuburb.value) || homeSuburb.value.includes(suburbText)
-  }
-
-  return true
-}
-
-const filteredActivities = computed(() => {
-  return activities.value.filter((activity) => {
-    if (activeFilters.free && !activity.isFree) return false
-    if (activeFilters.thisWeek && !isThisWeek(activity)) return false
-    if (activeFilters.closeHome && !isCloseToHome(activity)) return false
-    if (activeFilters.indoor && !activity.indoor) return false
-    if (activeFilters.easyAccess && !activity.easyAccess) return false
-    return true
-  })
-})
-
-const formatMeta = (activity) => `${activity.dateText} · ${activity.timeText} · ${activity.venue}`
-
-const toggleFilter = (key) => {
-  activeFilters[key] = !activeFilters[key]
-}
-
-const printList = () => {
-  window.print()
-}
-
-onMounted(() => {
-  fetchActivities()
-  getLocation()
-})
+onMounted(async () => {
+  await fetchActivities();
+  getLocation();
+});
 </script>
 
 <style scoped>
 .hero {
-  background: linear-gradient(135deg, var(--orange) 0%, var(--orange-deep) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--orange) 0%,
+    var(--orange-deep) 100%
+  );
   color: #fff;
   padding: 30px 28px;
 }
 
 .hero h2 {
   margin: 0;
-  font-family: 'Fraunces', serif;
-  font-size: clamp(36px, 4vw, 56px);
+  font-family: "Fraunces", serif;
+  font-size: clamp(
+    calc(36px * var(--font-scale)),
+    calc(4vw * var(--font-scale)),
+    calc(56px * var(--font-scale))
+  );
   line-height: 1;
 }
 
@@ -407,7 +479,11 @@ onMounted(() => {
 
 .hero p {
   margin: 10px 0 20px;
-  font-size: clamp(18px, 2.2vw, 34px);
+  font-size: clamp(
+    calc(18px * var(--font-scale)),
+    calc(2.2vw * var(--font-scale)),
+    calc(34px * var(--font-scale))
+  );
   font-weight: 600;
 }
 
@@ -428,7 +504,11 @@ onMounted(() => {
   border: none;
   background: transparent;
   color: #fff;
-  font-size: clamp(18px, 2vw, 28px);
+  font-size: clamp(
+    calc(18px * var(--font-scale)),
+    calc(2vw * var(--font-scale)),
+    calc(28px * var(--font-scale))
+  );
   font-weight: 800;
   outline: none;
   min-width: 0;
@@ -444,7 +524,7 @@ onMounted(() => {
   border-radius: 999px;
   color: #fff;
   padding: 10px 18px;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   font-weight: 800;
   cursor: pointer;
 }
@@ -484,7 +564,7 @@ onMounted(() => {
   background: transparent;
   color: #fff;
   padding: 10px 16px;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   font-weight: 800;
   cursor: pointer;
 }
@@ -504,7 +584,11 @@ onMounted(() => {
 
 .results-header h3 {
   margin: 0;
-  font-size: clamp(24px, 2.5vw, 36px);
+  font-size: clamp(
+    calc(24px * var(--font-scale)),
+    calc(2.5vw * var(--font-scale)),
+    calc(36px * var(--font-scale))
+  );
 }
 
 .print-btn {
@@ -512,7 +596,7 @@ onMounted(() => {
   border-radius: 999px;
   background: transparent;
   color: #616580;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   padding: 8px 14px;
   font-weight: 700;
   cursor: pointer;
@@ -524,6 +608,38 @@ onMounted(() => {
   gap: 14px;
 }
 
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.page-btn {
+  border: 2px solid #c7c8dc;
+  border-radius: 10px;
+  background: #fff;
+  color: #4b4f68;
+  min-width: 44px;
+  padding: 8px 10px;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.page-btn.active {
+  border-color: #f06e50;
+  background: #f06e50;
+  color: #fff;
+}
+
+.page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .event-card {
   background: var(--panel-2);
   border: 2px solid #cbccdf;
@@ -532,7 +648,7 @@ onMounted(() => {
 }
 
 .state-card {
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   font-weight: 700;
   color: #565973;
 }
@@ -547,7 +663,7 @@ onMounted(() => {
 .tag {
   border-radius: 999px;
   padding: 7px 13px;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   font-weight: 800;
 }
 
@@ -561,6 +677,16 @@ onMounted(() => {
   color: #4a42a8;
 }
 
+.tag.soft {
+  background: #e6edf8;
+  color: #365279;
+}
+
+.tag.warn {
+  background: #ffe1e1;
+  color: #a22b2b;
+}
+
 .distance {
   margin-left: auto;
   background: #caece7;
@@ -568,27 +694,31 @@ onMounted(() => {
   color: #0c7f72;
   border-radius: 14px;
   padding: 7px 11px;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   font-weight: 800;
 }
 
 .event-card h4 {
   margin: 16px 0 8px;
-  font-family: 'Fraunces', serif;
-  font-size: clamp(30px, 3vw, 46px);
+  font-family: "Fraunces", serif;
+  font-size: clamp(
+    calc(30px * var(--font-scale)),
+    calc(3vw * var(--font-scale)),
+    calc(46px * var(--font-scale))
+  );
   line-height: 1.08;
 }
 
 .meta {
   margin: 0;
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale));
   font-weight: 700;
   color: #565973;
 }
 
 .desc {
   margin: 14px 0 18px;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   line-height: 1.35;
   color: #41445b;
 }
@@ -600,7 +730,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   font-weight: 800;
 }
 
@@ -616,13 +746,13 @@ onMounted(() => {
   }
 
   .event-foot {
-    font-size: 17px;
+    font-size: calc(17px * var(--font-scale));
     flex-direction: column;
     align-items: flex-start;
   }
 
   .chip {
-    font-size: 16px;
+    font-size: calc(16px * var(--font-scale));
   }
 }
 </style>
