@@ -143,7 +143,11 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useLocationState } from "../composables/useLocationState";
 
 const { setDetectedLocation, setDetectedUnavailable } = useLocationState();
-const API = import.meta.env.VITE_ACTIVITIES_API_URL || "/api/events/search";
+
+// Base URL from env, fallback to EC2 IP
+const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "http://16.26.250.110:8000";
+const API = `${BASE_URL}/api/events/search`;
+
 const CLOSE_KM = 5;
 const FETCH_LIMIT = 50;
 const MAX_FETCH = 30;
@@ -277,17 +281,17 @@ const fetchActivities = async () => {
     const seen = new Set();
     let off = 0;
     let hint = null;
-    let req = 0;
     for (let i = 0; i < MAX_FETCH; i += 1) {
-      const u = new URL(API, window.location.origin);
+      const u = new URL(API);
       u.searchParams.set("offset", off);
-      u.searchParams.set("limit", FETCH_LIMIT);
-      const r = await fetch(`${u.pathname}${u.search}`);
+      u.searchParams.set("rows", FETCH_LIMIT);
+      u.searchParams.set("is_free", "false");
+      const r = await fetch(u.toString());
       if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
       const p = await r.json();
       const list = arr(p);
       hint = total(p) ?? hint;
-      req += 1;
+       req += 1;
       if (!list.length) break;
       let added = 0;
       for (const e of list) {
@@ -309,7 +313,7 @@ const fetchActivities = async () => {
     activities.value = out.map(normalize);
     console.info(
       `Loaded ${activities.value.length} activities${hint ? ` total=${hint}` : ""}`,
-    );
+ );
   } catch (e) {
     loadError.value =
       e?.message === "Failed to fetch"
