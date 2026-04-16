@@ -143,10 +143,11 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useLocationState } from "../composables/useLocationState";
 
 const { setDetectedLocation, setDetectedUnavailable } = useLocationState();
-const API = import.meta.env.VITE_ACTIVITIES_API_URL || "/api/events/search";
+const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectlocal.duckdns.org";
+const API = `${BASE_URL}/api/events/search`;
 const CLOSE_KM = 5;
-const FETCH_LIMIT = 50;
-const MAX_FETCH = 30;
+const FETCH_LIMIT = 20;
+const MAX_FETCH = 20;
 const UI_PAGE_SIZE = 3;
 
 const locationInput = ref("");
@@ -180,63 +181,26 @@ const d = (v) => {
   const x = v ? new Date(String(v).replace(" ", "T")) : null;
   return x && !Number.isNaN(x.getTime()) ? x : null;
 };
-const arr = (p) =>
-  p?.events ||
-  p?.activities ||
-  p?.results ||
-  p?.items ||
-  p?.data?.events ||
-  p?.data ||
-  (Array.isArray(p) ? p : []);
-const total = (p) => n(p?.total ?? p?.count ?? p?.data?.total);
-const pick = (o, keys, fallback = "") =>
-  keys
-    .map((k) => o?.[k])
-    .find((v) => v !== undefined && v !== null && v !== "") ?? fallback;
+const arr = (p) => (Array.isArray(p?.events) ? p.events : []);
+const total = (p) => n(p?.total);
 
 const normalize = (r, i) => {
-  const date = d(
-    pick(r, [
-      "datetime_start",
-      "startDate",
-      "date",
-      "start_time",
-      "datetime",
-      "start",
-    ]),
-  );
-  const km = n(pick(r, ["distance_km", "distanceKm", "distance"]));
-  const cost = n(pick(r, ["min_price", "cost", "price", "fee"]));
-  const isFree =
-    b(pick(r, ["is_free", "isFree", "free"])) ||
-    (cost != null && cost <= 10) ||
-    String(r?.tags || "")
-      .toLowerCase()
-      .includes("free");
-  const indoor = b(pick(r, ["indoor", "isIndoor"]));
-  const easyAccess = b(
-    pick(r, ["easyAccess", "accessible", "wheelchairAccessible"]),
-  );
-  const venue = pick(
-    r,
-    ["venue", "location", "address", "place"],
-    "Location TBC",
-  );
-  const suburb = pick(r, ["suburb", "city", "area"], "");
-  const spots = n(
-    pick(r, ["spotsLeft", "remainingSpots", "capacityRemaining"]),
-  );
+  const date = d(r.datetime_start);
+  const km = n(r.distance_km);
+  const cost = n(r.min_price);
+  const isFree = b(r.is_free) || (cost != null && cost <= 10);
+  const indoor = b(r.indoor);
+  const easyAccess = b(r.easy_access);
+  const venue = r.venue || "Location TBC";
+  const suburb = r.suburb || "";
+  const spots = n(r.spots_left);
   const category = String(r?.category || "").trim();
   const source = String(r?.source || "").trim();
-  const cancelled = b(pick(r, ["is_cancelled", "isCancelled"]));
+  const cancelled = b(r.is_cancelled);
   return {
-    id: pick(r, ["id", "_id"], `event-${i}`),
-    title: pick(r, ["name", "title", "eventName"], `Activity ${i + 1}`),
-    description: pick(
-      r,
-      ["description", "summary", "details"],
-      "Community activity details available soon.",
-    ),
+    id: r.id ?? `event-${i}`,
+    title: r.name || `Activity ${i + 1}`,
+    description: r.description || "Community activity details available soon.",
     venue,
     suburb,
     date,
@@ -246,10 +210,10 @@ const normalize = (r, i) => {
           day: "numeric",
           month: "short",
         })
-      : pick(r, ["datetime_summary"], "Date TBC"),
+      : r.datetime_summary || "Date TBC",
     timeText: date
       ? date.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
-      : pick(r, ["time"], "Time TBC"),
+      : "Time TBC",
     isFree,
     indoor,
     easyAccess,
@@ -258,7 +222,7 @@ const normalize = (r, i) => {
       spots == null
         ? "Spots info unavailable"
         : `${Math.max(0, Math.floor(spots))} spots left`,
-    link: pick(r, ["url", "link", "detailsUrl"], ""),
+    link: r.url || "",
     displayTags: [
       isFree && { text: "Free / Low-cost", tone: "green" },
       km != null && km <= CLOSE_KM && { text: "Near You", tone: "lilac" },
@@ -279,10 +243,14 @@ const fetchActivities = async () => {
     let hint = null;
     let req = 0;
     for (let i = 0; i < MAX_FETCH; i += 1) {
-      const u = new URL(API, window.location.origin);
+     const u = new URL(API);
       u.searchParams.set("offset", off);
-      u.searchParams.set("limit", FETCH_LIMIT);
-      const r = await fetch(`${u.pathname}${u.search}`);
+      u.searchParams.set("rows", FETCH_LIMIT);
+      u.searchParams.set("is_free", activeFilters.free ? "true" : "false");
+      if (locationInput.value.trim()) {
+        u.searchParams.set("suburb", locationInput.value.trim().toLowerCase());
+      }
+const r = await fetch(u.toString());
       if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
       const p = await r.json();
       const list = arr(p);
@@ -311,10 +279,7 @@ const fetchActivities = async () => {
       `Loaded ${activities.value.length} activities${hint ? ` total=${hint}` : ""}`,
     );
   } catch (e) {
-    loadError.value =
-      e?.message === "Failed to fetch"
-        ? "Cannot reach events API. This is usually a network or CORS issue."
-        : `Unable to load activities from API right now: ${e?.message || "Unknown error"}`;
+    loadError.value = "Unable to load activities right now. Please try again later.";
     activities.value = [];
   } finally {
     isLoading.value = false;
@@ -328,15 +293,10 @@ const setLocation = (text, suburb = "") => {
 };
 
 const parseAddress = (a = {}) => {
-  const suburb = pick(
-    a,
-    ["suburb", "neighbourhood", "city_district", "town", "village", "city"],
-    "",
-  );
-  const state =
-    pick(a, ["ISO3166-2-lvl4"], "").split("-")[1] || pick(a, ["state"], "");
-  const text =
-    `${[suburb, state].filter(Boolean).join(", ")} ${pick(a, ["postcode"], "")}`.trim();
+  const suburb =
+    a.suburb || a.neighbourhood || a.city_district || a.town || a.village || a.city || "";
+  const state = (a["ISO3166-2-lvl4"] || "").split("-")[1] || a.state || "";
+  const text = `${[suburb, state].filter(Boolean).join(", ")} ${a.postcode || ""}`.trim();
   return { suburb, text };
 };
 
@@ -427,10 +387,11 @@ const pagedActivities = computed(() =>
   ),
 );
 const visiblePages = computed(() => {
-  const all = Array.from({ length: totalPages.value }, (_, i) => i + 1);
-  return all.slice(
-    Math.max(0, currentPage.value - 4),
-    Math.max(7, currentPage.value + 3),
+  const total = totalPages.value;
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  return Array.from({ length: total }, (_, i) => i + 1).slice(
+    Math.max(0, currentPage.value - 3),
+    Math.min(total, currentPage.value + 3)
   );
 });
 const formatMeta = (a) => `${a.dateText} · ${a.timeText} · ${a.venue}`;
