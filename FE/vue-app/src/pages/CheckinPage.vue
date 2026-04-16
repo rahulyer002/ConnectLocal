@@ -300,3 +300,199 @@ function finishCheckIn() {
   router.push('/results')
 }
 </script>
+
+<style scoped>
+.checkin-page {
+  margin: 28px;
+}
+
+.checkin-card {
+  background: #fff;
+  border: 1px solid #e5e6ef;
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  box-shadow: 0 10px 30px rgba(25, 32, 72, 0.06);
+}
+
+.checkin-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6d7290;
+}
+
+.checkin-header h2 {
+  margin: 0 0 10px;
+  font-family: 'Fraunces', serif;
+  font-size: clamp(30px, 3vw, 42px);
+  color: #2f3152;
+}
+
+.intro {
+  margin: 0;
+  max-width: 760px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: #555973;
+}
+
+.progress-block {
+  min-width: 280px;
+  flex: 1;
+  max-width: 360px;
+}
+
+.progress-text {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6d7290;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background: #ececf3;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff7d57, #ffb061);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.question-card {
+  border: 1px solid #e8e9f3;
+  border-radius: 24px;
+  padding: 28px;
+  background: #fcfcff;
+}
+
+.question-number {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6d7290;
+}
+
+.question-text {
+  margin: 0 0 24px;
+  font-size: clamp(24px, 2.2vw, 34px);
+  line-height: 1.3;
+  font-family: 'Fraunces', serif;
+  color: #2f3152;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.option-btn {
+  border: 2px solid #e2e3ef;
+  border-radius: 18px;
+  background: #fff;
+  padding: 18px 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 18px;
+  font-weight: 600;
+  color: #444866;
+}
+
+.option-btn:hover {
+  border-color: #ff9b77;
+  transform: translateY(-1px);
+}
+
+.option-btn.selected {
+  border-color: #ff7d57;
+  background: #fff1eb;
+  color: #d95d35;
+}
+
+.option-label {
+  display: block;
+}
+
+.validation-text {
+  margin: 16px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #c84848;
+}
+
+.nav-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.primary-btn,
+.secondary-btn {
+  border: none;
+  border-radius: 14px;
+  padding: 14px 22px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.primary-btn {
+  background: #ff7d57;
+  color: #fff;
+}
+
+.primary-btn:hover {
+  background: #ef6e47;
+}
+
+.secondary-btn {
+  background: #eef0f7;
+  color: #3f4568;
+}
+
+.secondary-btn:hover {
+  background: #e2e6f2;
+}
+
+.secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .options {
+    grid-template-columns: 1fr;
+  }
+
+  .checkin-card {
+    padding: 22px;
+  }
+
+  .question-card {
+    padding: 22px;
+  }
+}
+</style>
