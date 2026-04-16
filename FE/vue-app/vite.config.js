@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://16.26.250.110:8000',
+        target: 'https://connectlocal.duckdns.org',
         changeOrigin: true,
       },
     },
