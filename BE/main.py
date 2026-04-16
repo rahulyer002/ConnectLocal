@@ -7,26 +7,24 @@ settings = get_settings()
 
 app = FastAPI(
     title="ConnectLocal API",
-    description="Backend API for ConnectLocal — helping older Australians find social opportunities",
+    description="Backend API for ConnectLocal",
     version="1.0.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.get_allowed_origins(),
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(events.router, prefix="/api/events", tags=["Events"])
 
-
 @app.get("/")
 async def root():
     return {"message": "ConnectLocal API is running", "version": "1.0.0"}
 
-
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "environment": settings.ENVIRONMENT}
+    return {"status": "healthy"}
