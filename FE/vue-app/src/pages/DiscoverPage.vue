@@ -143,8 +143,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useLocationState } from "../composables/useLocationState";
 
 const { setDetectedLocation, setDetectedUnavailable } = useLocationState();
-const API = import.meta.env.VITE_ACTIVITIES_API_URL || "/api/events/search";
-
+const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectlocal.duckdns.org";
+const API = `${BASE_URL}/api/events/search`;
 const CLOSE_KM = 5;
 const FETCH_LIMIT = 20;
 const MAX_FETCH = 20;
@@ -243,10 +243,14 @@ const fetchActivities = async () => {
     let hint = null;
     let req = 0;
     for (let i = 0; i < MAX_FETCH; i += 1) {
-      const u = new URL(API, window.location.origin);
+     const u = new URL(API);
       u.searchParams.set("offset", off);
-      u.searchParams.set("limit", FETCH_LIMIT);
-      const r = await fetch(u.toString());
+      u.searchParams.set("rows", FETCH_LIMIT);
+      u.searchParams.set("is_free", activeFilters.free ? "true" : "false");
+      if (locationInput.value.trim()) {
+        u.searchParams.set("suburb", locationInput.value.trim().toLowerCase());
+      }
+const r = await fetch(u.toString());
       if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
       const p = await r.json();
       const list = arr(p);
