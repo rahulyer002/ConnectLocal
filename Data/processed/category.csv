@@ -1,0 +1,68 @@
+category_id,parent_id,name,senior_tag
+1,,Community Use,True
+2,,Education Centre,False
+3,,Health Services,False
+4,,Industrial,False
+5,,Leisure/Recreation,True
+6,,Mixed Use,False
+7,,Office,False
+8,,Place Of Assembly,False
+9,,Place of Worship,False
+10,,Purpose Built,False
+11,,Residential Accommodation,False
+12,,Retail,False
+13,,Specialist Residential Accommodation,False
+14,,Transport,False
+15,,Vacant Land,False
+16,,Warehouse/Store,False
+17,1.0,Cemetery,False
+18,1.0,Fire Station,False
+19,1.0,Government Building,False
+20,1.0,Police Station,False
+21,1.0,Public Buildings,False
+22,1.0,Visitor Centre,False
+23,2.0,Further Education,False
+24,2.0,Primary Schools,False
+25,2.0,School - Primary and Secondary Education,False
+26,2.0,Secondary Schools,False
+27,2.0,Tertiary (University),False
+28,3.0,Medical Services,False
+29,3.0,Private Hospital,False
+30,3.0,Public Hospital,False
+31,4.0,Industrial (Manufacturing),False
+32,5.0,Green Space,True
+33,5.0,Gymnasium/Health Club,True
+34,5.0,Indoor Recreation Facility,True
+35,5.0,Informal Outdoor Facility (Park/Garden/Reserve),True
+36,5.0,Major Sports & Recreation Facility,True
+37,5.0,Observation Tower/Wheel,False
+38,5.0,Other,False
+39,5.0,"Outdoor Recreation Facility (Zoo, Golf Course)",True
+40,5.0,Private Sports Club/Facility,True
+41,5.0,Recreation,True
+42,5.0,Urban Space,True
+43,6.0,Retail/Office,False
+44,6.0,Retail/Office/Carpark,True
+45,6.0,Retail/Office/Residential/Carpark,True
+46,6.0,Retail/Residential,False
+47,8.0,Art Gallery/Museum,False
+48,8.0,Cinema,False
+49,8.0,Function/Conference/Exhibition Centre,False
+50,8.0,Library,False
+51,8.0,Theatre Live,False
+52,9.0,Church,False
+53,9.0,Synagogue,False
+54,10.0,Aquarium,False
+55,10.0,Casino,False
+56,10.0,Film & RV Studio,False
+57,11.0,Dwelling (House),False
+58,12.0,Department Store,False
+59,13.0,Hostel,False
+60,14.0,Bridge,False
+61,14.0,Marina,False
+62,14.0,Railway Station,False
+63,14.0,Transport Terminal,False
+64,15.0,Current Construction Site,False
+65,15.0,Current Construction Site - Commercial,False
+66,15.0,Vacant Land - Undeveloped Site,False
+67,16.0,Store Yard,False
