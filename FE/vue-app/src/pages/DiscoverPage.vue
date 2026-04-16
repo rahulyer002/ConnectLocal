@@ -283,9 +283,9 @@ const fetchActivities = async () => {
     let hint = null;
     for (let i = 0; i < MAX_FETCH; i += 1) {
       const u = new URL(API);
-      u.searchParams.set("offset", off);
-      u.searchParams.set("rows", FETCH_LIMIT);
-      u.searchParams.set("is_free", "false");
+      // u.searchParams.set("offset", off);
+      // u.searchParams.set("rows", FETCH_LIMIT);
+      // u.searchParams.set("is_free", "false");
       const r = await fetch(u.toString());
       if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
       const p = await r.json();
