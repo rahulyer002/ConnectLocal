@@ -5,38 +5,19 @@
       <p>Free and low-cost activities near {{ nearbyLabel }}</p>
 
       <form class="location-picker" @submit.prevent="applyManualLocation">
-        <input
-          class="location-input"
-          v-model="locationInput"
-          type="text"
-          aria-label="Location"
-          placeholder="Please enter suburb or postcode in Australia."
-        />
-        <button
-          type="button"
-          class="change-btn"
-          :disabled="isLocating"
-          @click="getLocation"
-        >
+        <input class="location-input" v-model="locationInput" type="text" aria-label="Location"
+          placeholder="Please enter suburb or postcode in Australia." />
+        <button type="button" class="change-btn" :disabled="isLocating" @click="getLocation">
           {{ isLocating ? "Locating..." : "Locate" }}
         </button>
-        <button
-          type="submit"
-          class="apply-btn"
-          :disabled="isApplying || !locationInput.trim()"
-        >
+        <button type="submit" class="apply-btn" :disabled="isApplying || !locationInput.trim()">
           {{ isApplying ? "Updating..." : "Change" }}
         </button>
       </form>
 
       <div class="chips">
-        <button
-          v-for="chip in chips"
-          :key="chip.key"
-          class="chip"
-          :class="{ solid: activeFilters[chip.key] }"
-          @click="toggleFilter(chip.key)"
-        >
+        <button v-for="chip in chips" :key="chip.key" class="chip" :class="{ solid: activeFilters[chip.key] }"
+          @click="toggleFilter(chip.key)">
           {{ chip.label }}
         </button>
       </div>
@@ -49,71 +30,36 @@
       </button>
     </section>
 
-    <section
-      class="activity-list"
-      v-if="!isLoading && !loadError && filteredActivities.length"
-    >
-      <article
-        class="event-card"
-        v-for="activity in pagedActivities"
-        :key="activity.id"
-      >
+    <section class="activity-list" v-if="!isLoading && !loadError && filteredActivities.length">
+      <article class="event-card" v-for="activity in pagedActivities" :key="activity.id">
         <div class="tags">
-          <span
-            v-for="tag in activity.displayTags"
-            :key="`${activity.id}-${tag.text}`"
-            class="tag"
-            :class="tag.tone"
-          >
+          <span v-for="tag in activity.displayTags" :key="`${activity.id}-${tag.text}`" class="tag" :class="tag.tone">
             {{ tag.text }}
           </span>
-          <span class="distance" v-if="activity.distanceKm !== null"
-            >{{ activity.distanceKm.toFixed(1) }} km</span
-          >
+          <span class="distance" v-if="activity.distanceKm !== null">{{ activity.distanceKm.toFixed(1) }} km</span>
         </div>
         <h4>{{ activity.title }}</h4>
         <p class="meta">{{ formatMeta(activity) }}</p>
         <p class="desc">{{ activity.description }}</p>
         <div class="event-foot">
           <span>{{ activity.spotsLeftText }}</span>
-          <a
-            v-if="activity.link"
-            :href="activity.link"
-            target="_blank"
-            rel="noreferrer"
-            >View details →</a
-          >
+          <a v-if="activity.link" :href="activity.link" target="_blank" rel="noreferrer">View details →</a>
           <span v-else>Details coming soon</span>
         </div>
       </article>
 
       <nav class="pagination" v-if="totalPages > 1" aria-label="Activity pages">
-        <button
-          class="page-btn"
-          type="button"
-          :disabled="currentPage === 1"
-          @click="goToPage(currentPage - 1)"
-        >
+        <button class="page-btn" type="button" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
           Prev
         </button>
 
-        <button
-          v-for="page in visiblePages"
-          :key="page"
-          class="page-btn"
-          type="button"
-          :class="{ active: page === currentPage }"
-          @click="goToPage(page)"
-        >
+        <button v-for="page in visiblePages" :key="page" class="page-btn" type="button"
+          :class="{ active: page === currentPage }" @click="goToPage(page)">
           {{ page }}
         </button>
 
-        <button
-          class="page-btn"
-          type="button"
-          :disabled="currentPage === totalPages"
-          @click="goToPage(currentPage + 1)"
-        >
+        <button class="page-btn" type="button" :disabled="currentPage === totalPages"
+          @click="goToPage(currentPage + 1)">
           Next
         </button>
       </nav>
@@ -147,7 +93,7 @@ const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectloca
 const API = `${BASE_URL}/api/events/search`;
 const CLOSE_KM = 5;
 const FETCH_LIMIT = 20;
-const MAX_FETCH = 20;
+const MAX_FETCH = 30;
 const UI_PAGE_SIZE = 3;
 
 const locationInput = ref("");
@@ -170,8 +116,6 @@ const chips = [
   { key: "free", label: "Free" },
   { key: "thisWeek", label: "This Week" },
   { key: "closeHome", label: "Close to Home" },
-  { key: "indoor", label: "Indoor" },
-  { key: "easyAccess", label: "Easy Access" },
 ];
 
 const n = (v) => (Number.isFinite(+v) ? +v : null);
@@ -206,10 +150,10 @@ const normalize = (r, i) => {
     date,
     dateText: date
       ? date.toLocaleDateString("en-AU", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-        })
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      })
       : r.datetime_summary || "Date TBC",
     timeText: date
       ? date.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
@@ -243,14 +187,14 @@ const fetchActivities = async () => {
     let hint = null;
     let req = 0;
     for (let i = 0; i < MAX_FETCH; i += 1) {
-     const u = new URL(API);
+      const u = new URL(API);
       u.searchParams.set("offset", off);
       u.searchParams.set("rows", FETCH_LIMIT);
       u.searchParams.set("is_free", activeFilters.free ? "true" : "false");
       if (locationInput.value.trim()) {
         u.searchParams.set("suburb", locationInput.value.trim().toLowerCase());
       }
-const r = await fetch(u.toString());
+      const r = await fetch(u.toString());
       if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
       const p = await r.json();
       const list = arr(p);
@@ -316,7 +260,7 @@ const getLocation = () => {
         const f = parseAddress((await r.json()).address || {});
         setLocation(
           f.text ||
-            `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+          `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
           f.suburb,
         );
       } catch {
@@ -362,10 +306,10 @@ const isClose = (a) =>
   a.distanceKm != null
     ? a.distanceKm <= CLOSE_KM
     : !nearbyLabel.value ||
-      nearbyLabel.value === "your area" ||
-      `${a.suburb || a.venue}`
-        .toLowerCase()
-        .includes(nearbyLabel.value.toLowerCase());
+    nearbyLabel.value === "your area" ||
+    `${a.suburb || a.venue}`
+      .toLowerCase()
+      .includes(nearbyLabel.value.toLowerCase());
 
 const filteredActivities = computed(() =>
   activities.value.filter(
@@ -413,11 +357,9 @@ onMounted(async () => {
 
 <style scoped>
 .hero {
-  background: linear-gradient(
-    135deg,
-    var(--orange) 0%,
-    var(--orange-deep) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--orange) 0%,
+      var(--orange-deep) 100%);
   color: #fff;
   padding: 30px 28px;
 }
@@ -425,11 +367,9 @@ onMounted(async () => {
 .hero h2 {
   margin: 0;
   font-family: "Fraunces", serif;
-  font-size: clamp(
-    calc(36px * var(--font-scale)),
-    calc(4vw * var(--font-scale)),
-    calc(56px * var(--font-scale))
-  );
+  font-size: clamp(calc(36px * var(--font-scale)),
+      calc(4vw * var(--font-scale)),
+      calc(56px * var(--font-scale)));
   line-height: 1;
 }
 
@@ -440,11 +380,9 @@ onMounted(async () => {
 
 .hero p {
   margin: 10px 0 20px;
-  font-size: clamp(
-    calc(18px * var(--font-scale)),
-    calc(2.2vw * var(--font-scale)),
-    calc(34px * var(--font-scale))
-  );
+  font-size: clamp(calc(18px * var(--font-scale)),
+      calc(2.2vw * var(--font-scale)),
+      calc(34px * var(--font-scale)));
   font-weight: 600;
 }
 
@@ -465,11 +403,9 @@ onMounted(async () => {
   border: none;
   background: transparent;
   color: #fff;
-  font-size: clamp(
-    calc(18px * var(--font-scale)),
-    calc(2vw * var(--font-scale)),
-    calc(28px * var(--font-scale))
-  );
+  font-size: clamp(calc(18px * var(--font-scale)),
+      calc(2vw * var(--font-scale)),
+      calc(28px * var(--font-scale)));
   font-weight: 800;
   outline: none;
   min-width: 0;
@@ -545,11 +481,9 @@ onMounted(async () => {
 
 .results-header h3 {
   margin: 0;
-  font-size: clamp(
-    calc(24px * var(--font-scale)),
-    calc(2.5vw * var(--font-scale)),
-    calc(36px * var(--font-scale))
-  );
+  font-size: clamp(calc(24px * var(--font-scale)),
+      calc(2.5vw * var(--font-scale)),
+      calc(36px * var(--font-scale)));
 }
 
 .print-btn {
@@ -662,11 +596,9 @@ onMounted(async () => {
 .event-card h4 {
   margin: 16px 0 8px;
   font-family: "Fraunces", serif;
-  font-size: clamp(
-    calc(30px * var(--font-scale)),
-    calc(3vw * var(--font-scale)),
-    calc(46px * var(--font-scale))
-  );
+  font-size: clamp(calc(30px * var(--font-scale)),
+      calc(3vw * var(--font-scale)),
+      calc(46px * var(--font-scale)));
   line-height: 1.08;
 }
 
