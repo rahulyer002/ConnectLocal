@@ -2,7 +2,7 @@
   <div class="shell">
     <aside class="side">
       <h1><span>Connect</span>Local</h1>
-      <p>Emily · {{ detectedLocationText }}</p>
+      <p>{{ detectedLocationText }}</p>
       <nav>
         <RouterLink to="/checkin" class="item">Wellbeing Check</RouterLink>
         <RouterLink to="/discover" class="item">Discover Events</RouterLink>
