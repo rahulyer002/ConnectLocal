@@ -10,7 +10,7 @@
       <label class="scale">Text size: {{ Math.round(scale * 100) }}%
         <input type="range" min="0.75" max="1.25" step="0.05" v-model.number="scale" />
       </label>
-      <section class="score"><small>WELLBEING SCORE</small><b>48</b><span>out of 80</span></section>
+      <!-- <section class="score"><small>WELLBEING SCORE</small><b>48</b><span>out of 80</span></section> -->
     </aside>
     <main>
       <nav v-if="route.path !== '/discover'" class="tabs">
