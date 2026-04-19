@@ -6,7 +6,7 @@
 
       <form class="location-picker" @submit.prevent="applyManualLocation">
         <input class="location-input" v-model="locationInput" type="text" aria-label="Location"
-          placeholder="Please enter suburb or postcode in Australia." />
+          placeholder="Please enter suburb or postcode in Melbourne." @focus="handleLocationInputFocus" />
         <button type="button" class="change-btn" :disabled="isLocating" @click="getLocation">
           {{ isLocating ? "Locating..." : "Locate" }}
         </button>
@@ -14,6 +14,9 @@
           {{ isApplying ? "Updating..." : "Change" }}
         </button>
       </form>
+      <p class="location-note">
+        Using search (not Locate) may return a representative point of the suburb/postcode, not your exact position.
+      </p>
 
       <div class="chips">
         <button v-for="chip in chips" :key="chip.key" class="chip" :class="{ solid: activeFilters[chip.key] }"
@@ -73,7 +76,10 @@
         {{ loadError }}
       </article>
       <article class="event-card state-card" v-else>
-        <template v-if="activities.length">
+        <template v-if="!hasLocationConfirmed">
+          Please locate first or enter a Melbourne suburb/postcode, then tap Change.
+        </template>
+        <template v-else-if="activities.length">
           Loaded {{ activities.length }} activities, but none match current
           filters. Try removing one or two filters.
         </template>
@@ -95,6 +101,7 @@ const CLOSE_KM = 5;
 const FETCH_LIMIT = 20;
 const MAX_FETCH = 30;
 const UI_PAGE_SIZE = 3;
+const MELBOURNE_NOT_FOUND = "The location you specified was not found in Melbourne.";
 
 const locationInput = ref("");
 const nearbyLabel = ref("your area");
@@ -104,6 +111,7 @@ const activities = ref([]);
 const isLoading = ref(false);
 const loadError = ref("");
 const currentPage = ref(1);
+const hasLocationConfirmed = ref(false);
 
 const activeFilters = reactive({
   free: true,
@@ -127,6 +135,20 @@ const d = (v) => {
 };
 const arr = (p) => (Array.isArray(p?.events) ? p.events : []);
 const total = (p) => n(p?.total);
+const isPostcodeInput = (q) => /^\d{4}$/.test(q);
+const isSuburbInput = (q) => /^[A-Za-z][A-Za-z\s'-]{1,59}$/.test(q);
+const isValidLocationInput = (q) => isPostcodeInput(q) || isSuburbInput(q);
+const isVictoriaPostcodeRange = (q) => {
+  const code = Number(q);
+  return Number.isInteger(code) && code >= 3000 && code <= 3999;
+};
+const normalizePlace = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+const normalizePostcode = (s) => (String(s || "").match(/\b\d{4}\b/) || [""])[0];
+const isInMelbourne = (a = {}, displayName = "") => {
+  const state = String(a.state || "").toLowerCase();
+  const text = String(displayName || "").toLowerCase();
+  return state.includes("victoria") && text.includes("melbourne");
+};
 
 const normalize = (r, i) => {
   const date = d(r.datetime_start);
@@ -178,6 +200,7 @@ const normalize = (r, i) => {
 };
 
 const fetchActivities = async () => {
+  if (!hasLocationConfirmed.value) return;
   isLoading.value = true;
   loadError.value = "";
   try {
@@ -185,7 +208,6 @@ const fetchActivities = async () => {
     const seen = new Set();
     let off = 0;
     let hint = null;
-    let req = 0;
     for (let i = 0; i < MAX_FETCH; i += 1) {
       const u = new URL(API);
       u.searchParams.set("offset", off);
@@ -199,7 +221,6 @@ const fetchActivities = async () => {
       const p = await r.json();
       const list = arr(p);
       hint = total(p) ?? hint;
-      req += 1;
       if (!list.length) break;
       let added = 0;
       for (const e of list) {
@@ -233,21 +254,28 @@ const fetchActivities = async () => {
 const setLocation = (text, suburb = "") => {
   locationInput.value = text;
   nearbyLabel.value = suburb || text.split(",")[0] || "your area";
+  hasLocationConfirmed.value = true;
   setDetectedLocation(text);
+};
+const handleLocationInputFocus = () => {
+  if (locationInput.value === MELBOURNE_NOT_FOUND) {
+    locationInput.value = "";
+  }
 };
 
 const parseAddress = (a = {}) => {
   const suburb =
     a.suburb || a.neighbourhood || a.city_district || a.town || a.village || a.city || "";
-  const state = (a["ISO3166-2-lvl4"] || "").split("-")[1] || a.state || "";
-  const text = `${[suburb, state].filter(Boolean).join(", ")} ${a.postcode || ""}`.trim();
-  return { suburb, text };
+  const postcode = a.postcode || "";
+  return { suburb, postcode };
 };
+const formatSuburbPostcode = ({ suburb, postcode }) =>
+  [suburb, postcode].filter(Boolean).join(" , ").trim();
 
 const getLocation = () => {
   if (!navigator.geolocation)
     return (
-      (locationInput.value = "Geolocation not supported"),
+      (locationInput.value = MELBOURNE_NOT_FOUND),
       setDetectedUnavailable()
     );
   isLocating.value = true;
@@ -257,21 +285,33 @@ const getLocation = () => {
         const r = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&accept-language=en`,
         );
-        const f = parseAddress((await r.json()).address || {});
-        setLocation(
-          f.text ||
-          `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
-          f.suburb,
-        );
+        const top = await r.json();
+        if (!isInMelbourne(top?.address || {}, top?.display_name || "")) {
+          hasLocationConfirmed.value = false;
+          locationInput.value = MELBOURNE_NOT_FOUND;
+          setDetectedUnavailable();
+        } else {
+          const f = parseAddress(top.address || {});
+          const value = formatSuburbPostcode(f);
+          if (!value) {
+            hasLocationConfirmed.value = false;
+            locationInput.value = MELBOURNE_NOT_FOUND;
+            setDetectedUnavailable();
+          } else {
+            setLocation(value, f.suburb || value);
+            await fetchActivities();
+          }
+        }
       } catch {
-        setLocation(
-          `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
-        );
+        hasLocationConfirmed.value = false;
+        locationInput.value = MELBOURNE_NOT_FOUND;
+        setDetectedUnavailable();
       }
       isLocating.value = false;
     },
     () => {
-      locationInput.value = "Unable to get location";
+      hasLocationConfirmed.value = false;
+      locationInput.value = MELBOURNE_NOT_FOUND;
       setDetectedUnavailable();
       isLocating.value = false;
     },
@@ -281,19 +321,65 @@ const getLocation = () => {
 const applyManualLocation = async () => {
   const q = locationInput.value.trim();
   if (!q) return;
+  if (!isValidLocationInput(q)) {
+    hasLocationConfirmed.value = false;
+    locationInput.value = MELBOURNE_NOT_FOUND;
+    setDetectedUnavailable();
+    return;
+  }
+  if (isPostcodeInput(q) && !isVictoriaPostcodeRange(q)) {
+    hasLocationConfirmed.value = false;
+    locationInput.value = MELBOURNE_NOT_FOUND;
+    setDetectedUnavailable();
+    return;
+  }
   isApplying.value = true;
   try {
+    const queryText = isPostcodeInput(q)
+      ? `${q}, Victoria, Australia`
+      : `${q}, Melbourne, Victoria, Australia`;
     const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&addressdetails=1&limit=1&accept-language=en`,
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(queryText)}&addressdetails=1&limit=20&accept-language=en&countrycodes=au`,
     );
-    const top = (await r.json())?.[0];
-    if (!top) locationInput.value = "Address not found";
-    else {
+    const list = (await r.json()) || [];
+    const top = list.find((item) => {
+      const state = String(item?.address?.state || "").toLowerCase();
+      const f = parseAddress(item?.address || {});
+      const isoState = String(item?.address?.["ISO3166-2-lvl4"] || "").toUpperCase();
+      const display = String(item?.display_name || "").toLowerCase();
+      const inVictoria =
+        state.includes("victoria") ||
+        isoState === "AU-VIC" ||
+        display.includes("victoria");
+      if (isPostcodeInput(q)) {
+        const postcodeMatched =
+          normalizePostcode(f.postcode) === normalizePostcode(q) ||
+          normalizePostcode(item?.display_name) === normalizePostcode(q);
+        return inVictoria && postcodeMatched;
+      }
+      if (!isInMelbourne(item?.address || {}, item?.display_name || "")) return false;
+      return normalizePlace(f.suburb) === normalizePlace(q);
+    });
+    if (!top) {
+      hasLocationConfirmed.value = false;
+      locationInput.value = MELBOURNE_NOT_FOUND;
+      setDetectedUnavailable();
+    } else {
       const f = parseAddress(top.address || {});
-      setLocation(f.text || top.display_name || q, f.suburb || q);
+      const value = formatSuburbPostcode(f);
+      if (!value) {
+        hasLocationConfirmed.value = false;
+        locationInput.value = MELBOURNE_NOT_FOUND;
+        setDetectedUnavailable();
+      } else {
+        setLocation(value, f.suburb || value);
+        await fetchActivities();
+      }
     }
   } catch {
-    locationInput.value = "Unable to update location";
+    hasLocationConfirmed.value = false;
+    locationInput.value = MELBOURNE_NOT_FOUND;
+    setDetectedUnavailable();
   }
   isApplying.value = false;
 };
@@ -350,7 +436,6 @@ watch(filteredActivities, () => {
 });
 
 onMounted(async () => {
-  await fetchActivities();
   getLocation();
 });
 </script>
@@ -413,6 +498,13 @@ onMounted(async () => {
 
 .location-input::placeholder {
   color: rgba(255, 255, 255, 0.7);
+}
+
+p.location-note {
+  margin: 10px 4px 0;
+  font-size: calc(20px * var(--font-scale));
+  line-height: 1.4;
+  color: rgba(196, 194, 194, 0.9);
 }
 
 .change-btn,
