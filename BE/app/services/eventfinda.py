@@ -1,10 +1,12 @@
 import httpx
 import base64
 import math
+import re
 from app.config import get_settings
 
 settings = get_settings()
 BASE_URL = "https://api.eventfinda.com.au/v2"
+NOMINATIM_URL = "https://nominatim.openstreetmap.org"
 
 SUBURB_COORDS = {
     "melbourne": (-37.8136, 144.9631),
@@ -92,7 +94,6 @@ SUBURB_COORDS = {
     "brunswick-east": (-37.7659, 144.9827),
     "brunswick west": (-37.7659, 144.9427),
     "brunswick-west": (-37.7659, 144.9427),
-    "fitzroy-north": (-37.7863, 144.9775),
     "alphington": (-37.7667, 145.0167),
     "ivanhoe": (-37.7667, 145.0500),
     "heidelberg west": (-37.7500, 145.0333),
@@ -151,26 +152,116 @@ SUBURB_COORDS = {
 }
 
 
+# ─── Auth ────────────────────────────────────────────────────────────────────
+
 def _get_auth_header() -> dict:
     credentials = f"{settings.EVENTFINDA_USERNAME}:{settings.EVENTFINDA_PASSWORD}"
     encoded = base64.b64encode(credentials.encode()).decode()
     return {"Authorization": f"Basic {encoded}"}
 
 
-def _get_coords(suburb: str) -> tuple:
-    return SUBURB_COORDS.get(suburb.lower().strip(), (-37.8136, 144.9631))
+# ─── Suburb cleaning ─────────────────────────────────────────────────────────
 
+def _clean_suburb(suburb: str) -> str:
+    """
+    Cleans suburb input from frontend.
+    Handles all these cases:
+      "Clayton, VIC 3168"  → "clayton"
+      "St Kilda VIC"       → "st kilda"
+      "FITZROY"            → "fitzroy"
+      "box-hill"           → "box-hill"  (kept as-is, exists in dict)
+      "3168"               → "3168"      (postcode, passed to Nominatim)
+    """
+    # Strip everything after comma (state, postcode)
+    suburb = suburb.split(",")[0].strip()
+    # Remove trailing state abbreviations e.g. "Clayton VIC" → "clayton"
+    suburb = re.sub(r'\s+(VIC|NSW|QLD|SA|WA|TAS|NT|ACT)\s*$', '', suburb, flags=re.IGNORECASE).strip()
+    # Remove standalone postcodes left over
+    suburb = re.sub(r'\s+\d{4}$', '', suburb).strip()
+    return suburb.lower()
+
+
+# ─── Coordinates ─────────────────────────────────────────────────────────────
+
+async def _nominatim_lookup(query: str) -> tuple[float | None, float | None]:
+    """
+    Calls Nominatim to resolve a suburb name or postcode to lat/lon.
+    Used as fallback when suburb not in SUBURB_COORDS.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f"{NOMINATIM_URL}/search",
+                params={
+                    "q": f"{query}, Victoria, Australia",
+                    "format": "json",
+                    "limit": 1,
+                    "addressdetails": 1,
+                },
+                headers={"User-Agent": "ConnectLocal/1.0 (university project)"},
+                timeout=5,
+            )
+            data = r.json()
+            if data:
+                return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        pass
+    return None, None
+
+
+async def _resolve_coords(
+    suburb: str,
+    user_lat: float | None,
+    user_lon: float | None,
+) -> tuple[float, float, str]:
+    """
+    Resolves the search coordinates from user input.
+    Priority:
+      1. GPS coords (lat/lon) passed directly — most accurate
+      2. Suburb name found in SUBURB_COORDS dict — fast lookup
+      3. Nominatim geocoding — for suburbs not in our dict
+      4. Melbourne CBD fallback — last resort
+
+    Returns: (lat, lon, resolution_method)
+    """
+    # 1. GPS coords provided directly
+    if user_lat is not None and user_lon is not None:
+        return user_lat, user_lon, "gps"
+
+    # 2. Clean suburb and check dict
+    cleaned = _clean_suburb(suburb)
+    if cleaned in SUBURB_COORDS:
+        lat, lon = SUBURB_COORDS[cleaned]
+        return lat, lon, "dict"
+
+    # 3. Nominatim fallback for unknown suburbs/postcodes
+    lat, lon = await _nominatim_lookup(cleaned)
+    if lat and lon:
+        return lat, lon, "nominatim"
+
+    # 4. Melbourne CBD default
+    return -37.8136, 144.9631, "default"
+
+
+# ─── Distance ─────────────────────────────────────────────────────────────────
 
 def _calc_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Haversine formula — straight line distance in km."""
     R = 6371
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a)), 1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 1)
 
 
-def _suburb_from_url(url: str) -> tuple:
+# ─── Event coord extraction ───────────────────────────────────────────────────
+
+def _suburb_from_url(url: str) -> tuple[str | None, float | None, float | None]:
+    """
+    Extracts suburb from Eventfinda URL slug.
+    e.g. /2026/event-name/melbourne/carlton → ('carlton', -37.7985, 144.9671)
+    """
     try:
         parts = url.rstrip("/").split("/")
         for part in reversed(parts[-3:]):
@@ -187,15 +278,17 @@ def _suburb_from_url(url: str) -> tuple:
     return None, None, None
 
 
-def _parse_event(e: dict, user_lat: float = None, user_lon: float = None) -> dict:
+# ─── Event parser ─────────────────────────────────────────────────────────────
+
+def _parse_event(e: dict, search_lat: float, search_lon: float) -> dict:
     location = e.get("location", {})
 
-    # point is top-level field per Eventfinda docs
+    # Try top-level point field first (Eventfinda docs)
     point = e.get("point", {})
     lat = point.get("lat") if isinstance(point, dict) else None
     lon = point.get("lng") if isinstance(point, dict) else None
 
-    # Fallback: extract from URL
+    # Fallback: parse suburb from URL slug
     suburb = location.get("suburb") if isinstance(location, dict) else None
     if not lat or not lon:
         url_suburb, url_lat, url_lon = _suburb_from_url(e.get("url", ""))
@@ -230,10 +323,10 @@ def _parse_event(e: dict, user_lat: float = None, user_lon: float = None) -> dic
     category = e.get("category", {})
     category_name = category.get("name") if isinstance(category, dict) else category
 
-    # Distance from user
+    # Distance — always calculated from search point
     distance_km = None
-    if user_lat and user_lon and lat and lon:
-        distance_km = _calc_distance(user_lat, user_lon, float(lat), float(lon))
+    if lat and lon:
+        distance_km = _calc_distance(search_lat, search_lon, float(lat), float(lon))
 
     return {
         "id": e.get("id"),
@@ -258,6 +351,8 @@ def _parse_event(e: dict, user_lat: float = None, user_lon: float = None) -> dic
     }
 
 
+# ─── Main search ──────────────────────────────────────────────────────────────
+
 async def search_events(
     suburb: str = "melbourne",
     user_lat: float = None,
@@ -271,11 +366,8 @@ async def search_events(
     rows: int = 10,
     offset: int = 0,
 ) -> dict:
-    # Use GPS if provided, otherwise look up suburb
-    if user_lat and user_lon:
-        search_lat, search_lon = user_lat, user_lon
-    else:
-        search_lat, search_lon = _get_coords(suburb)
+    # Resolve coordinates from whatever input we have
+    search_lat, search_lon, resolution = await _resolve_coords(suburb, user_lat, user_lon)
 
     params = {
         "point": f"{search_lat},{search_lon}",
@@ -311,14 +403,20 @@ async def search_events(
 
     total = data.get("@attributes", {}).get("count", len(events_raw))
 
-    events = []
-    for e in events_raw:
-        parsed = _parse_event(e, search_lat, search_lon)
-        events.append(parsed)
-
+    events = [_parse_event(e, search_lat, search_lon) for e in events_raw]
     events.sort(key=lambda x: x.get("distance_km") or 999)
 
-    return {"total": total, "events": events}
+    return {
+        "total": total,
+        "events": events,
+        #  New — tells frontend exactly what coords were used
+        "search_context": {
+            "lat": search_lat,
+            "lon": search_lon,
+            "resolution": resolution,  # "gps" | "dict" | "nominatim" | "default"
+            "suburb_input": suburb,
+        },
+    }
 
 
 async def get_event(event_id: str) -> dict:
@@ -329,4 +427,4 @@ async def get_event(event_id: str) -> dict:
             timeout=15,
         )
         response.raise_for_status()
-        return _parse_event(response.json())
+        return _parse_event(response.json(), -37.8136, 144.9631)
