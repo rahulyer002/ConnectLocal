@@ -7,7 +7,7 @@ settings = get_settings()
 
 app = FastAPI(
     title="ConnectLocal API",
-    description="Backend API for ConnectLocal",
+    description="Backend API for ConnectLocal — helping older Australians find social opportunities",
     version="1.0.0",
 )
 
@@ -27,4 +27,4 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "healthy","environment": settings.ENVIRONMENT}

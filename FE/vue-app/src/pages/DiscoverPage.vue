@@ -89,16 +89,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useLocationState } from "../composables/useLocationState";
 
 const { setDetectedLocation, setDetectedUnavailable } = useLocationState();
-<<<<<<< HEAD
-
-// Base URL from env, fallback to EC2 IP
-const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "http://16.26.250.110:8000";
-const API = `${BASE_URL}/api/events/search`;
-
-=======
 const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectlocal.duckdns.org";
 const API = `${BASE_URL}/api/events/search`;
->>>>>>> development
 const CLOSE_KM = 5;
 const FETCH_LIMIT = 20;
 const MAX_FETCH = 30;
