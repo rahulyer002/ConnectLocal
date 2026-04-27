@@ -21,12 +21,10 @@ app.add_middleware(
 
 app.include_router(events.router, prefix="/api/events", tags=["Events"])
 
-
 @app.get("/")
 async def root():
     return {"message": "ConnectLocal API is running", "version": "1.0.0"}
 
-
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "environment": settings.ENVIRONMENT}
+    return {"status": "healthy","environment": settings.ENVIRONMENT}

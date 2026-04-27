@@ -1,10 +1,12 @@
 import httpx
 import base64
 import math
+import re
 from app.config import get_settings
 
 settings = get_settings()
 BASE_URL = "https://api.eventfinda.com.au/v2"
+NOMINATIM_URL = "https://nominatim.openstreetmap.org"
 
 SUBURB_COORDS = {
     "melbourne": (-37.8136, 144.9631),
@@ -92,7 +94,6 @@ SUBURB_COORDS = {
     "brunswick-east": (-37.7659, 144.9827),
     "brunswick west": (-37.7659, 144.9427),
     "brunswick-west": (-37.7659, 144.9427),
-    "fitzroy-north": (-37.7863, 144.9775),
     "alphington": (-37.7667, 145.0167),
     "ivanhoe": (-37.7667, 145.0500),
     "heidelberg west": (-37.7500, 145.0333),
@@ -150,6 +151,10 @@ SUBURB_COORDS = {
     "waurn ponds": (-38.2500, 144.3000),
 }
 
+MELBOURNE_CBD = (-37.8136, 144.9631)
+
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
 
 def _get_auth_header() -> dict:
     credentials = f"{settings.EVENTFINDA_USERNAME}:{settings.EVENTFINDA_PASSWORD}"
@@ -157,20 +162,132 @@ def _get_auth_header() -> dict:
     return {"Authorization": f"Basic {encoded}"}
 
 
-def _get_coords(suburb: str) -> tuple:
-    return SUBURB_COORDS.get(suburb.lower().strip(), (-37.8136, 144.9631))
+# ─── Suburb cleaning ──────────────────────────────────────────────────────────
 
+def _clean_suburb(suburb: str) -> str:
+    """
+    Cleans suburb input from frontend.
+    "Clayton, VIC 3168"  → "clayton"
+    "St Kilda VIC"       → "st kilda"
+    "FITZROY"            → "fitzroy"
+    "3168"               → "3168" (postcode → Nominatim)
+    """
+    suburb = suburb.split(",")[0].strip()
+    suburb = re.sub(
+        r'\s+(VIC|NSW|QLD|SA|WA|TAS|NT|ACT)\s*$',
+        '', suburb,
+        flags=re.IGNORECASE
+    ).strip()
+    suburb = re.sub(r'\s+\d{4}$', '', suburb).strip()
+    return suburb.lower()
+
+
+# ─── Suburb from location_summary ─────────────────────────────────────────────
+
+def _extract_suburb_from_summary(summary: str) -> str | None:
+    """
+    Extracts suburb from Eventfinda location_summary string.
+    "Primrose Potter Salon, Southbank, Victoria" → "Southbank"
+    "Italy Bar Cafe, Melbourne CBD, Victoria"    → "Melbourne CBD"
+    "Crown Village Cinema, Southbank, Victoria"  → "Southbank"
+    Format is always: "Venue Name, Suburb, State"
+    """
+    if not summary:
+        return None
+    parts = [p.strip() for p in summary.split(",")]
+    if len(parts) >= 2:
+        suburb = parts[-2].strip()
+        if suburb.upper() not in (
+            "VIC", "NSW", "QLD", "SA", "WA", "TAS", "NT", "ACT"
+        ):
+            return suburb
+    return None
+
+
+# ─── Nominatim geocoding ──────────────────────────────────────────────────────
+
+async def _nominatim_lookup(query: str) -> tuple[float | None, float | None]:
+    """
+    Resolves suburb name or postcode to lat/lon via OpenStreetMap Nominatim.
+    Only called when suburb is not found in SUBURB_COORDS dict.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f"{NOMINATIM_URL}/search",
+                params={
+                    "q": f"{query}, Victoria, Australia",
+                    "format": "json",
+                    "limit": 1,
+                    "addressdetails": 1,
+                },
+                headers={"User-Agent": "ConnectLocal/1.0 (university project)"},
+                timeout=5,
+            )
+            data = r.json()
+            if data:
+                return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        pass
+    return None, None
+
+
+# ─── Coordinate resolution ────────────────────────────────────────────────────
+
+async def _resolve_coords(
+    suburb: str,
+    user_lat: float | None,
+    user_lon: float | None,
+) -> tuple[float, float, str]:
+    """
+    Resolves the from-location for distance calculations.
+    Priority:
+      1. GPS coords passed directly  → most accurate
+      2. Suburb found in SUBURB_COORDS dict → fast
+      3. Nominatim geocoding → unknown suburbs/postcodes
+      4. Melbourne CBD fallback → last resort
+
+    Returns: (lat, lon, resolution_method)
+    resolution_method: "gps" | "dict" | "nominatim" | "default"
+    """
+    if user_lat is not None and user_lon is not None:
+        return user_lat, user_lon, "gps"
+
+    cleaned = _clean_suburb(suburb)
+    if cleaned in SUBURB_COORDS:
+        lat, lon = SUBURB_COORDS[cleaned]
+        return lat, lon, "dict"
+
+    lat, lon = await _nominatim_lookup(cleaned)
+    if lat and lon:
+        return lat, lon, "nominatim"
+
+    return MELBOURNE_CBD[0], MELBOURNE_CBD[1], "default"
+
+
+# ─── Distance ─────────────────────────────────────────────────────────────────
 
 def _calc_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Haversine formula — straight-line distance in km."""
     R = 6371
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a)), 1)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
+    return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 1)
 
 
-def _suburb_from_url(url: str) -> tuple:
+# ─── URL suburb extraction ────────────────────────────────────────────────────
+
+def _suburb_from_url(url: str) -> tuple[str | None, float | None, float | None]:
+    """
+    Extracts suburb from Eventfinda URL slug as coordinate fallback.
+    /2026/event-name/melbourne/carlton → ('carlton', -37.7985, 144.9671)
+    Only used when point{} field is null.
+    """
     try:
         parts = url.rstrip("/").split("/")
         for part in reversed(parts[-3:]):
@@ -187,16 +304,32 @@ def _suburb_from_url(url: str) -> tuple:
     return None, None, None
 
 
-def _parse_event(e: dict, user_lat: float = None, user_lon: float = None) -> dict:
+# ─── Event parser ─────────────────────────────────────────────────────────────
+
+def _parse_event(e: dict, from_lat: float, from_lon: float) -> dict:
+    """
+    Parses a raw Eventfinda event dict into our response format.
+    from_lat/from_lon = user location or Melbourne CBD fallback.
+    distance_km = straight-line distance from user to event venue.
+    """
     location = e.get("location", {})
 
-    # point is top-level field per Eventfinda docs
+    # Coordinates — top-level point field
     point = e.get("point", {})
     lat = point.get("lat") if isinstance(point, dict) else None
     lon = point.get("lng") if isinstance(point, dict) else None
 
-    # Fallback: extract from URL
+    # Suburb — 3 sources in priority order:
+    # 1. location.suburb field
+    # 2. location_summary e.g. "Venue, Southbank, Victoria" → "Southbank"
+    # 3. URL slug fallback
+    location_summary = e.get("location_summary", "")
     suburb = location.get("suburb") if isinstance(location, dict) else None
+
+    if not suburb:
+        suburb = _extract_suburb_from_summary(location_summary)
+
+    # URL fallback for coords if point{} is null
     if not lat or not lon:
         url_suburb, url_lat, url_lon = _suburb_from_url(e.get("url", ""))
         if url_lat and url_lon:
@@ -207,15 +340,25 @@ def _parse_event(e: dict, user_lat: float = None, user_lon: float = None) -> dic
 
     # Ticket types
     ticket_types = e.get("ticket_types", {})
-    tickets_list = ticket_types.get("ticket_types", []) if isinstance(ticket_types, dict) else []
+    tickets_list = (
+        ticket_types.get("ticket_types", [])
+        if isinstance(ticket_types, dict) else []
+    )
     prices = [float(t["price"]) for t in tickets_list if t.get("price")]
     min_price = min(prices) if prices else None
-    is_free = e.get("is_free", False) or (min_price == 0.0 if min_price is not None else False)
+    is_free = e.get("is_free", False) or (
+        min_price == 0.0 if min_price is not None else False
+    )
+    ticket_names = [t.get("name") for t in tickets_list if t.get("name")]
 
     # Sessions
     sessions = e.get("sessions", {})
-    sessions_list = sessions.get("sessions", []) if isinstance(sessions, dict) else []
+    sessions_list = (
+        sessions.get("sessions", []) if isinstance(sessions, dict) else []
+    )
     first_session = sessions_list[0] if sessions_list else {}
+    # Full session datetime e.g. "Sat 25 Jul, 4:30pm - 6:15pm"
+    session_datetime_summary = first_session.get("datetime_summary", "")
 
     # Images
     images = e.get("images", {})
@@ -223,59 +366,72 @@ def _parse_event(e: dict, user_lat: float = None, user_lon: float = None) -> dic
     image_url = None
     if images_list:
         transforms = images_list[0].get("transforms", {}).get("transforms", [])
-        large = next((t for t in transforms if t.get("transformation_id") == 7), None)
-        image_url = large.get("url") if large else images_list[0].get("original_url")
+        large = next(
+            (t for t in transforms if t.get("transformation_id") == 7), None
+        )
+        image_url = (
+            large.get("url") if large else images_list[0].get("original_url")
+        )
 
     # Category
     category = e.get("category", {})
     category_name = category.get("name") if isinstance(category, dict) else category
 
-    # Distance from user
+    # Distance from user location to event venue
     distance_km = None
-    if user_lat and user_lon and lat and lon:
-        distance_km = _calc_distance(user_lat, user_lon, float(lat), float(lon))
+    if lat and lon:
+        distance_km = _calc_distance(from_lat, from_lon, float(lat), float(lon))
 
     return {
         "id": e.get("id"),
         "name": e.get("name"),
         "description": (e.get("description") or "")[:300],
-        "datetime_start": first_session.get("datetime_start") or e.get("datetime_start"),
-        "datetime_end": first_session.get("datetime_end") or e.get("datetime_end"),
+        "datetime_start": (
+            first_session.get("datetime_start") or e.get("datetime_start")
+        ),
+        "datetime_end": (
+            first_session.get("datetime_end") or e.get("datetime_end")
+        ),
         "datetime_summary": e.get("datetime_summary"),
+        "session_datetime_summary": session_datetime_summary,
         "is_free": is_free,
         "min_price": min_price,
+        "ticket_names": ticket_names,
         "venue": location.get("name") if isinstance(location, dict) else None,
         "suburb": suburb,
         "address": e.get("address"),
+        "location_summary": location_summary,
         "latitude": lat,
         "longitude": lon,
         "distance_km": distance_km,
         "url": e.get("url"),
         "category": category_name,
         "image_url": image_url,
+        "restrictions": e.get("restrictions", ""),
         "is_cancelled": e.get("is_cancelled", False),
+        "is_sold_out": e.get("is_sold_out", False),
         "source": "eventfinda",
     }
 
+
+# ─── Search ───────────────────────────────────────────────────────────────────
 
 async def search_events(
     suburb: str = "melbourne",
     user_lat: float = None,
     user_lon: float = None,
     radius_km: int = 5,
-    is_free: bool = True,
-    max_price: float = 20,
+    is_free: bool = False,
+    max_price: float = None,
     date_from: str = None,
     date_to: str = None,
     category: str = None,
     rows: int = 10,
     offset: int = 0,
 ) -> dict:
-    # Use GPS if provided, otherwise look up suburb
-    if user_lat and user_lon:
-        search_lat, search_lon = user_lat, user_lon
-    else:
-        search_lat, search_lon = _get_coords(suburb)
+    search_lat, search_lon, resolution = await _resolve_coords(
+        suburb, user_lat, user_lon
+    )
 
     params = {
         "point": f"{search_lat},{search_lon}",
@@ -284,10 +440,13 @@ async def search_events(
         "offset": offset,
         "order": "distance",
     }
+
+    # Use Eventfinda's dedicated free parameter — more reliable than price_max=0
     if is_free:
-        params["price_max"] = 0
-    elif max_price:
+        params["free"] = 1
+    elif max_price is not None:
         params["price_max"] = max_price
+
     if date_from:
         params["start_date"] = date_from
     if date_to:
@@ -311,17 +470,36 @@ async def search_events(
 
     total = data.get("@attributes", {}).get("count", len(events_raw))
 
-    events = []
-    for e in events_raw:
-        parsed = _parse_event(e, search_lat, search_lon)
-        events.append(parsed)
+    # Safety net filter — only confirmed free events when is_free=True
+    if is_free:
+        events_raw = [e for e in events_raw if e.get("is_free") is True]
 
+    events = [_parse_event(e, search_lat, search_lon) for e in events_raw]
     events.sort(key=lambda x: x.get("distance_km") or 999)
 
-    return {"total": total, "events": events}
+    return {
+        "total": len(events) if is_free else total,
+        "events": events,
+        "search_context": {
+            "lat": search_lat,
+            "lon": search_lon,
+            "resolution": resolution,
+            "suburb_input": suburb,
+        },
+    }
 
 
-async def get_event(event_id: str) -> dict:
+# ─── Single event detail ──────────────────────────────────────────────────────
+
+async def get_event(
+    event_id: str,
+    user_lat: float = None,
+    user_lon: float = None,
+) -> dict:
+    """
+    Fetches a single event by ID.
+    distance_km = from user location if provided, else Melbourne CBD.
+    """
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{BASE_URL}/events/{event_id}.json",
@@ -329,4 +507,9 @@ async def get_event(event_id: str) -> dict:
             timeout=15,
         )
         response.raise_for_status()
-        return _parse_event(response.json())
+        data = response.json()
+
+    from_lat = user_lat if user_lat is not None else MELBOURNE_CBD[0]
+    from_lon = user_lon if user_lon is not None else MELBOURNE_CBD[1]
+
+    return _parse_event(data, from_lat, from_lon)

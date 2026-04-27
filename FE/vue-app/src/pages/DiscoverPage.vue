@@ -185,7 +185,6 @@ const fetchActivities = async () => {
     const seen = new Set();
     let off = 0;
     let hint = null;
-    let req = 0;
     for (let i = 0; i < MAX_FETCH; i += 1) {
       const u = new URL(API);
       u.searchParams.set("offset", off);
@@ -199,7 +198,7 @@ const fetchActivities = async () => {
       const p = await r.json();
       const list = arr(p);
       hint = total(p) ?? hint;
-      req += 1;
+       req += 1;
       if (!list.length) break;
       let added = 0;
       for (const e of list) {
@@ -221,7 +220,7 @@ const fetchActivities = async () => {
     activities.value = out.map(normalize);
     console.info(
       `Loaded ${activities.value.length} activities${hint ? ` total=${hint}` : ""}`,
-    );
+ );
   } catch (e) {
     loadError.value = "Unable to load activities right now. Please try again later.";
     activities.value = [];

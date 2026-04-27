@@ -6,16 +6,16 @@ router = APIRouter()
 
 @router.get("/search")
 async def search_events(
-    suburb: str = Query(default="melbourne", description="Suburb name e.g. sunshine, fitzroy"),
-    lat: float = Query(default=None, description="User latitude — overrides suburb"),
-    lon: float = Query(default=None, description="User longitude — overrides suburb"),
+    suburb: str = Query(default="melbourne", description="Suburb name, postcode, or full address e.g. 'Clayton, VIC 3168'"),
+    lat: float = Query(default=None, description="User latitude — overrides suburb when provided"),
+    lon: float = Query(default=None, description="User longitude — overrides suburb when provided"),
     radius_km: int = Query(default=5, description="Search radius in km"),
-    is_free: bool = Query(default=True, description="Free events only"),
-    max_price: float = Query(default=20, description="Max ticket price AUD"),
+    is_free: bool = Query(default=False, description="Free events only"),
+    max_price: float = Query(default=None, description="Max ticket price AUD (optional, only applied when is_free=false)"),
     date_from: str = Query(default=None, description="Start date YYYY-MM-DD"),
     date_to: str = Query(default=None, description="End date YYYY-MM-DD"),
-    category: str = Query(default=None, description="Category: workshops-classes | exhibitions | festivals-lifestyle | performing-arts"),
-    rows: int = Query(default=10, description="Number of results"),
+    category: str = Query(default=None, description="Category slug: workshops-classes | exhibitions | festivals-lifestyle | performing-arts"),
+    rows: int = Query(default=10, description="Number of results per page"),
     offset: int = Query(default=0, description="Pagination offset"),
 ):
     try:
@@ -38,7 +38,7 @@ async def search_events(
 
 @router.get("/recommended")
 async def get_recommended_events(
-    suburb: str = Query(default="melbourne", description="User's suburb"),
+    suburb: str = Query(default="melbourne", description="User suburb"),
     lat: float = Query(default=None, description="User latitude"),
     lon: float = Query(default=None, description="User longitude"),
     companionship: int = Query(default=64, description="Companionship score 0-100"),
@@ -71,6 +71,7 @@ async def get_recommended_events(
             },
             "total": data.get("total"),
             "events": data.get("events", []),
+            "search_context": data.get("search_context"),
         }
     except Exception as ex:
         raise HTTPException(status_code=502, detail=str(ex))
@@ -101,8 +102,12 @@ async def get_cultural_events(
 
 
 @router.get("/{event_id}")
-async def get_event_detail(event_id: str):
+async def get_event_detail(
+    event_id: str,
+    lat: float = Query(default=None, description="User latitude — distance calculated from here"),
+    lon: float = Query(default=None, description="User longitude — distance calculated from here"),
+):
     try:
-        return await eventfinda.get_event(event_id)
+        return await eventfinda.get_event(event_id, user_lat=lat, user_lon=lon)
     except Exception as ex:
         raise HTTPException(status_code=502, detail=str(ex))
