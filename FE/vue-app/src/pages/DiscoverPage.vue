@@ -51,7 +51,7 @@
         </div>
       </article>
 
-      <nav class="pagination" v-if="totalPages > 1" aria-label="Activity pages">
+      <nav class="pagination" v-if="totalPages > 1 || canFetchMore" aria-label="Activity pages">
         <button class="page-btn" type="button" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
           Prev
         </button>
@@ -61,7 +61,7 @@
           {{ page }}
         </button>
 
-        <button class="page-btn" type="button" :disabled="currentPage === totalPages"
+        <button class="page-btn" type="button" :disabled="!canGoNext"
           @click="goToPage(currentPage + 1)">
           Next
         </button>
@@ -98,20 +98,26 @@ const { setDetectedLocation, setDetectedUnavailable } = useLocationState();
 const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectlocal.duckdns.org";
 const API = `${BASE_URL}/api/events/search`;
 const CLOSE_KM = 5;
-const FETCH_LIMIT = 20;
-const MAX_FETCH = 30;
 const UI_PAGE_SIZE = 3;
+const FETCH_LIMIT = 9;
 const MELBOURNE_NOT_FOUND = "The location you specified was not found in Melbourne.";
 
 const locationInput = ref("");
 const nearbyLabel = ref("your area");
 const isLocating = ref(false);
 const isApplying = ref(false);
+const rawActivities = ref([]);
 const activities = ref([]);
 const isLoading = ref(false);
 const loadError = ref("");
 const currentPage = ref(1);
 const hasLocationConfirmed = ref(false);
+const locationLat = ref(null);
+const locationLon = ref(null);
+const locationQueryMode = ref("suburb");
+const totalHint = ref(null);
+const lastBatchSize = ref(0);
+const isProgressiveLoading = ref(false);
 
 const activeFilters = reactive({
   free: true,
@@ -199,61 +205,75 @@ const normalize = (r, i) => {
   };
 };
 
-const fetchActivities = async () => {
+const fetchActivities = async (reset = true, showLoading = reset) => {
   if (!hasLocationConfirmed.value) return;
-  isLoading.value = true;
+  if (showLoading) isLoading.value = true;
   loadError.value = "";
   try {
-    const out = [];
-    const seen = new Set();
-    let off = 0;
-    let hint = null;
-    for (let i = 0; i < MAX_FETCH; i += 1) {
-      const u = new URL(API);
-      u.searchParams.set("offset", off);
-      u.searchParams.set("rows", FETCH_LIMIT);
-      u.searchParams.set("is_free", activeFilters.free ? "true" : "false");
-      if (locationInput.value.trim()) {
-        u.searchParams.set("suburb", locationInput.value.trim().toLowerCase());
-      }
-      const r = await fetch(u.toString());
-      if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
-      const p = await r.json();
-      const list = arr(p);
-      hint = total(p) ?? hint;
-      if (!list.length) break;
-      let added = 0;
-      for (const e of list) {
-        const k = String(e?.id ?? e?._id ?? JSON.stringify(e));
-        if (seen.has(k)) continue;
-        seen.add(k);
-        out.push(e);
-        added += 1;
-      }
-      if (!added) break;
-      off += list.length;
-      if (hint != null && out.length >= hint) break;
+    const beforeCount = reset ? 0 : rawActivities.value.length;
+    if (reset) {
+      rawActivities.value = [];
+      activities.value = [];
+      totalHint.value = null;
+      lastBatchSize.value = 0;
+      currentPage.value = 1;
     }
-    if (!out.length) {
-      const r = await fetch(API);
-      if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
-      out.push(...arr(await r.json()));
+    const off = rawActivities.value.length;
+    const u = new URL(API);
+    u.searchParams.set("offset", off);
+    u.searchParams.set("rows", FETCH_LIMIT);
+    u.searchParams.set("is_free", "false");
+    if (
+      locationQueryMode.value === "latlon" &&
+      locationLat.value != null &&
+      locationLon.value != null
+    ) {
+      u.searchParams.set("lat", String(locationLat.value));
+      u.searchParams.set("lon", String(locationLon.value));
+    } else if (locationInput.value.trim()) {
+      const suburbQuery =
+        nearbyLabel.value && nearbyLabel.value !== "your area"
+          ? nearbyLabel.value
+          : locationInput.value.trim();
+      u.searchParams.set("suburb", suburbQuery.toLowerCase());
     }
-    activities.value = out.map(normalize);
+    const r = await fetch(u.toString());
+    if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
+    const p = await r.json();
+    const list = arr(p);
+    totalHint.value = total(p) ?? totalHint.value;
+    lastBatchSize.value = list.length;
+
+    const base = rawActivities.value;
+    const seen = new Set(base.map((e) => String(e.id)));
+    const merged = [...base];
+    for (const e of list) {
+      const k = String(e?.id ?? e?._id ?? JSON.stringify(e));
+      if (seen.has(k)) continue;
+      seen.add(k);
+      merged.push(e);
+    }
+    rawActivities.value = merged;
+    activities.value = rawActivities.value.map(normalize);
     console.info(
-      `Loaded ${activities.value.length} activities${hint ? ` total=${hint}` : ""}`,
+      `Loaded ${activities.value.length} activities${totalHint.value ? ` total=${totalHint.value}` : ""}`,
     );
+    return rawActivities.value.length - beforeCount;
   } catch (e) {
     loadError.value = "Unable to load activities right now. Please try again later.";
+    rawActivities.value = [];
     activities.value = [];
+    return 0;
   } finally {
-    isLoading.value = false;
+    if (showLoading) isLoading.value = false;
   }
 };
 
-const setLocation = (text, suburb = "") => {
+const setLocation = (text, suburb = "", lat = null, lon = null) => {
   locationInput.value = text;
   nearbyLabel.value = suburb || text.split(",")[0] || "your area";
+  locationLat.value = lat;
+  locationLon.value = lon;
   hasLocationConfirmed.value = true;
   setDetectedLocation(text);
 };
@@ -288,6 +308,8 @@ const getLocation = () => {
         const top = await r.json();
         if (!isInMelbourne(top?.address || {}, top?.display_name || "")) {
           hasLocationConfirmed.value = false;
+          locationLat.value = null;
+          locationLon.value = null;
           locationInput.value = MELBOURNE_NOT_FOUND;
           setDetectedUnavailable();
         } else {
@@ -295,15 +317,21 @@ const getLocation = () => {
           const value = formatSuburbPostcode(f);
           if (!value) {
             hasLocationConfirmed.value = false;
+            locationLat.value = null;
+            locationLon.value = null;
             locationInput.value = MELBOURNE_NOT_FOUND;
             setDetectedUnavailable();
           } else {
-            setLocation(value, f.suburb || value);
+            setLocation(value, f.suburb || value, coords.latitude, coords.longitude);
+            locationQueryMode.value = "latlon";
             await fetchActivities();
+            void progressivelyLoadAllData();
           }
         }
       } catch {
         hasLocationConfirmed.value = false;
+        locationLat.value = null;
+        locationLon.value = null;
         locationInput.value = MELBOURNE_NOT_FOUND;
         setDetectedUnavailable();
       }
@@ -311,6 +339,8 @@ const getLocation = () => {
     },
     () => {
       hasLocationConfirmed.value = false;
+      locationLat.value = null;
+      locationLon.value = null;
       locationInput.value = MELBOURNE_NOT_FOUND;
       setDetectedUnavailable();
       isLocating.value = false;
@@ -323,12 +353,16 @@ const applyManualLocation = async () => {
   if (!q) return;
   if (!isValidLocationInput(q)) {
     hasLocationConfirmed.value = false;
+    locationLat.value = null;
+    locationLon.value = null;
     locationInput.value = MELBOURNE_NOT_FOUND;
     setDetectedUnavailable();
     return;
   }
   if (isPostcodeInput(q) && !isVictoriaPostcodeRange(q)) {
     hasLocationConfirmed.value = false;
+    locationLat.value = null;
+    locationLon.value = null;
     locationInput.value = MELBOURNE_NOT_FOUND;
     setDetectedUnavailable();
     return;
@@ -362,6 +396,8 @@ const applyManualLocation = async () => {
     });
     if (!top) {
       hasLocationConfirmed.value = false;
+      locationLat.value = null;
+      locationLon.value = null;
       locationInput.value = MELBOURNE_NOT_FOUND;
       setDetectedUnavailable();
     } else {
@@ -369,15 +405,21 @@ const applyManualLocation = async () => {
       const value = formatSuburbPostcode(f);
       if (!value) {
         hasLocationConfirmed.value = false;
+        locationLat.value = null;
+        locationLon.value = null;
         locationInput.value = MELBOURNE_NOT_FOUND;
         setDetectedUnavailable();
       } else {
-        setLocation(value, f.suburb || value);
+        setLocation(value, f.suburb || value, n(top.lat), n(top.lon));
+        locationQueryMode.value = "suburb";
         await fetchActivities();
+        void progressivelyLoadAllData();
       }
     }
   } catch {
     hasLocationConfirmed.value = false;
+    locationLat.value = null;
+    locationLon.value = null;
     locationInput.value = MELBOURNE_NOT_FOUND;
     setDetectedUnavailable();
   }
@@ -407,8 +449,25 @@ const filteredActivities = computed(() =>
       (!activeFilters.easyAccess || a.easyAccess),
   ),
 );
-const totalPages = computed(() =>
+const hasClientFilters = computed(
+  () =>
+    activeFilters.free ||
+    activeFilters.thisWeek ||
+    activeFilters.closeHome ||
+    activeFilters.indoor ||
+    activeFilters.easyAccess,
+);
+const canFetchMore = computed(() => {
+  if (totalHint.value != null) return activities.value.length < totalHint.value;
+  return lastBatchSize.value === FETCH_LIMIT;
+});
+const loadedShownPages = computed(() =>
   Math.max(1, Math.ceil(filteredActivities.value.length / UI_PAGE_SIZE)),
+);
+const totalPages = computed(() =>
+  !hasClientFilters.value && totalHint.value != null
+    ? Math.max(1, Math.ceil(totalHint.value / UI_PAGE_SIZE))
+    : Math.max(1, Math.ceil(filteredActivities.value.length / UI_PAGE_SIZE)),
 );
 const pagedActivities = computed(() =>
   filteredActivities.value.slice(
@@ -426,8 +485,36 @@ const visiblePages = computed(() => {
 });
 const formatMeta = (a) => `${a.dateText} · ${a.timeText} · ${a.venue}`;
 const toggleFilter = (k) => (activeFilters[k] = !activeFilters[k]);
-const goToPage = (p) =>
-  (currentPage.value = Math.min(totalPages.value, Math.max(1, p)));
+const canGoNext = computed(
+  () => currentPage.value < totalPages.value || (canFetchMore.value && !isLoading.value),
+);
+const ensurePageDataLoaded = async (targetPage) => {
+  while (
+    targetPage > loadedShownPages.value &&
+    canFetchMore.value &&
+    !isLoading.value
+  ) {
+    const added = await fetchActivities(false, false);
+    if (!added) break;
+  }
+};
+const progressivelyLoadAllData = async () => {
+  if (isProgressiveLoading.value || !hasLocationConfirmed.value) return;
+  isProgressiveLoading.value = true;
+  try {
+    while (canFetchMore.value) {
+      const added = await fetchActivities(false, false);
+      if (!added) break;
+    }
+  } finally {
+    isProgressiveLoading.value = false;
+  }
+};
+const goToPage = async (p) => {
+  const target = Math.max(1, p);
+  await ensurePageDataLoaded(target);
+  currentPage.value = Math.min(target, totalPages.value);
+};
 const printList = () => window.print();
 
 watch(filteredActivities, () => {
