@@ -5,38 +5,19 @@
       <p>Free and low-cost activities near {{ nearbyLabel }}</p>
 
       <form class="location-picker" @submit.prevent="applyManualLocation">
-        <input
-          class="location-input"
-          v-model="locationInput"
-          type="text"
-          aria-label="Location"
-          placeholder="Please enter suburb or postcode in Australia."
-        />
-        <button
-          type="button"
-          class="change-btn"
-          :disabled="isLocating"
-          @click="getLocation"
-        >
+        <input class="location-input" v-model="locationInput" type="text" aria-label="Location"
+          placeholder="Please enter suburb or postcode in Australia." />
+        <button type="button" class="change-btn" :disabled="isLocating" @click="getLocation">
           {{ isLocating ? "Locating..." : "Locate" }}
         </button>
-        <button
-          type="submit"
-          class="apply-btn"
-          :disabled="isApplying || !locationInput.trim()"
-        >
+        <button type="submit" class="apply-btn" :disabled="isApplying || !locationInput.trim()">
           {{ isApplying ? "Updating..." : "Change" }}
         </button>
       </form>
 
       <div class="chips">
-        <button
-          v-for="chip in chips"
-          :key="chip.key"
-          class="chip"
-          :class="{ solid: activeFilters[chip.key] }"
-          @click="toggleFilter(chip.key)"
-        >
+        <button v-for="chip in chips" :key="chip.key" class="chip" :class="{ solid: activeFilters[chip.key] }"
+          @click="toggleFilter(chip.key)">
           {{ chip.label }}
         </button>
       </div>
@@ -49,71 +30,36 @@
       </button>
     </section>
 
-    <section
-      class="activity-list"
-      v-if="!isLoading && !loadError && filteredActivities.length"
-    >
-      <article
-        class="event-card"
-        v-for="activity in pagedActivities"
-        :key="activity.id"
-      >
+    <section class="activity-list" v-if="!isLoading && !loadError && filteredActivities.length">
+      <article class="event-card" v-for="activity in pagedActivities" :key="activity.id">
         <div class="tags">
-          <span
-            v-for="tag in activity.displayTags"
-            :key="`${activity.id}-${tag.text}`"
-            class="tag"
-            :class="tag.tone"
-          >
+          <span v-for="tag in activity.displayTags" :key="`${activity.id}-${tag.text}`" class="tag" :class="tag.tone">
             {{ tag.text }}
           </span>
-          <span class="distance" v-if="activity.distanceKm !== null"
-            >{{ activity.distanceKm.toFixed(1) }} km</span
-          >
+          <span class="distance" v-if="activity.distanceKm !== null">{{ activity.distanceKm.toFixed(1) }} km</span>
         </div>
         <h4>{{ activity.title }}</h4>
         <p class="meta">{{ formatMeta(activity) }}</p>
         <p class="desc">{{ activity.description }}</p>
         <div class="event-foot">
           <span>{{ activity.spotsLeftText }}</span>
-          <a
-            v-if="activity.link"
-            :href="activity.link"
-            target="_blank"
-            rel="noreferrer"
-            >View details →</a
-          >
+          <a v-if="activity.link" :href="activity.link" target="_blank" rel="noreferrer">View details →</a>
           <span v-else>Details coming soon</span>
         </div>
       </article>
 
       <nav class="pagination" v-if="totalPages > 1" aria-label="Activity pages">
-        <button
-          class="page-btn"
-          type="button"
-          :disabled="currentPage === 1"
-          @click="goToPage(currentPage - 1)"
-        >
+        <button class="page-btn" type="button" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
           Prev
         </button>
 
-        <button
-          v-for="page in visiblePages"
-          :key="page"
-          class="page-btn"
-          type="button"
-          :class="{ active: page === currentPage }"
-          @click="goToPage(page)"
-        >
+        <button v-for="page in visiblePages" :key="page" class="page-btn" type="button"
+          :class="{ active: page === currentPage }" @click="goToPage(page)">
           {{ page }}
         </button>
 
-        <button
-          class="page-btn"
-          type="button"
-          :disabled="currentPage === totalPages"
-          @click="goToPage(currentPage + 1)"
-        >
+        <button class="page-btn" type="button" :disabled="currentPage === totalPages"
+          @click="goToPage(currentPage + 1)">
           Next
         </button>
       </nav>
@@ -143,13 +89,18 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useLocationState } from "../composables/useLocationState";
 
 const { setDetectedLocation, setDetectedUnavailable } = useLocationState();
+<<<<<<< HEAD
 
 // Base URL from env, fallback to EC2 IP
 const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "http://16.26.250.110:8000";
 const API = `${BASE_URL}/api/events/search`;
 
+=======
+const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectlocal.duckdns.org";
+const API = `${BASE_URL}/api/events/search`;
+>>>>>>> development
 const CLOSE_KM = 5;
-const FETCH_LIMIT = 50;
+const FETCH_LIMIT = 20;
 const MAX_FETCH = 30;
 const UI_PAGE_SIZE = 3;
 
@@ -173,8 +124,6 @@ const chips = [
   { key: "free", label: "Free" },
   { key: "thisWeek", label: "This Week" },
   { key: "closeHome", label: "Close to Home" },
-  { key: "indoor", label: "Indoor" },
-  { key: "easyAccess", label: "Easy Access" },
 ];
 
 const n = (v) => (Number.isFinite(+v) ? +v : null);
@@ -184,76 +133,39 @@ const d = (v) => {
   const x = v ? new Date(String(v).replace(" ", "T")) : null;
   return x && !Number.isNaN(x.getTime()) ? x : null;
 };
-const arr = (p) =>
-  p?.events ||
-  p?.activities ||
-  p?.results ||
-  p?.items ||
-  p?.data?.events ||
-  p?.data ||
-  (Array.isArray(p) ? p : []);
-const total = (p) => n(p?.total ?? p?.count ?? p?.data?.total);
-const pick = (o, keys, fallback = "") =>
-  keys
-    .map((k) => o?.[k])
-    .find((v) => v !== undefined && v !== null && v !== "") ?? fallback;
+const arr = (p) => (Array.isArray(p?.events) ? p.events : []);
+const total = (p) => n(p?.total);
 
 const normalize = (r, i) => {
-  const date = d(
-    pick(r, [
-      "datetime_start",
-      "startDate",
-      "date",
-      "start_time",
-      "datetime",
-      "start",
-    ]),
-  );
-  const km = n(pick(r, ["distance_km", "distanceKm", "distance"]));
-  const cost = n(pick(r, ["min_price", "cost", "price", "fee"]));
-  const isFree =
-    b(pick(r, ["is_free", "isFree", "free"])) ||
-    (cost != null && cost <= 10) ||
-    String(r?.tags || "")
-      .toLowerCase()
-      .includes("free");
-  const indoor = b(pick(r, ["indoor", "isIndoor"]));
-  const easyAccess = b(
-    pick(r, ["easyAccess", "accessible", "wheelchairAccessible"]),
-  );
-  const venue = pick(
-    r,
-    ["venue", "location", "address", "place"],
-    "Location TBC",
-  );
-  const suburb = pick(r, ["suburb", "city", "area"], "");
-  const spots = n(
-    pick(r, ["spotsLeft", "remainingSpots", "capacityRemaining"]),
-  );
+  const date = d(r.datetime_start);
+  const km = n(r.distance_km);
+  const cost = n(r.min_price);
+  const isFree = b(r.is_free) || (cost != null && cost <= 10);
+  const indoor = b(r.indoor);
+  const easyAccess = b(r.easy_access);
+  const venue = r.venue || "Location TBC";
+  const suburb = r.suburb || "";
+  const spots = n(r.spots_left);
   const category = String(r?.category || "").trim();
   const source = String(r?.source || "").trim();
-  const cancelled = b(pick(r, ["is_cancelled", "isCancelled"]));
+  const cancelled = b(r.is_cancelled);
   return {
-    id: pick(r, ["id", "_id"], `event-${i}`),
-    title: pick(r, ["name", "title", "eventName"], `Activity ${i + 1}`),
-    description: pick(
-      r,
-      ["description", "summary", "details"],
-      "Community activity details available soon.",
-    ),
+    id: r.id ?? `event-${i}`,
+    title: r.name || `Activity ${i + 1}`,
+    description: r.description || "Community activity details available soon.",
     venue,
     suburb,
     date,
     dateText: date
       ? date.toLocaleDateString("en-AU", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-        })
-      : pick(r, ["datetime_summary"], "Date TBC"),
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      })
+      : r.datetime_summary || "Date TBC",
     timeText: date
       ? date.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
-      : pick(r, ["time"], "Time TBC"),
+      : "Time TBC",
     isFree,
     indoor,
     easyAccess,
@@ -262,7 +174,7 @@ const normalize = (r, i) => {
       spots == null
         ? "Spots info unavailable"
         : `${Math.max(0, Math.floor(spots))} spots left`,
-    link: pick(r, ["url", "link", "detailsUrl"], ""),
+    link: r.url || "",
     displayTags: [
       isFree && { text: "Free / Low-cost", tone: "green" },
       km != null && km <= CLOSE_KM && { text: "Near You", tone: "lilac" },
@@ -283,9 +195,12 @@ const fetchActivities = async () => {
     let hint = null;
     for (let i = 0; i < MAX_FETCH; i += 1) {
       const u = new URL(API);
-      // u.searchParams.set("offset", off);
-      // u.searchParams.set("rows", FETCH_LIMIT);
-      // u.searchParams.set("is_free", "false");
+      u.searchParams.set("offset", off);
+      u.searchParams.set("rows", FETCH_LIMIT);
+      u.searchParams.set("is_free", activeFilters.free ? "true" : "false");
+      if (locationInput.value.trim()) {
+        u.searchParams.set("suburb", locationInput.value.trim().toLowerCase());
+      }
       const r = await fetch(u.toString());
       if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
       const p = await r.json();
@@ -315,10 +230,7 @@ const fetchActivities = async () => {
       `Loaded ${activities.value.length} activities${hint ? ` total=${hint}` : ""}`,
  );
   } catch (e) {
-    loadError.value =
-      e?.message === "Failed to fetch"
-        ? "Cannot reach events API. This is usually a network or CORS issue."
-        : `Unable to load activities from API right now: ${e?.message || "Unknown error"}`;
+    loadError.value = "Unable to load activities right now. Please try again later.";
     activities.value = [];
   } finally {
     isLoading.value = false;
@@ -332,15 +244,10 @@ const setLocation = (text, suburb = "") => {
 };
 
 const parseAddress = (a = {}) => {
-  const suburb = pick(
-    a,
-    ["suburb", "neighbourhood", "city_district", "town", "village", "city"],
-    "",
-  );
-  const state =
-    pick(a, ["ISO3166-2-lvl4"], "").split("-")[1] || pick(a, ["state"], "");
-  const text =
-    `${[suburb, state].filter(Boolean).join(", ")} ${pick(a, ["postcode"], "")}`.trim();
+  const suburb =
+    a.suburb || a.neighbourhood || a.city_district || a.town || a.village || a.city || "";
+  const state = (a["ISO3166-2-lvl4"] || "").split("-")[1] || a.state || "";
+  const text = `${[suburb, state].filter(Boolean).join(", ")} ${a.postcode || ""}`.trim();
   return { suburb, text };
 };
 
@@ -360,7 +267,7 @@ const getLocation = () => {
         const f = parseAddress((await r.json()).address || {});
         setLocation(
           f.text ||
-            `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+          `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
           f.suburb,
         );
       } catch {
@@ -406,10 +313,10 @@ const isClose = (a) =>
   a.distanceKm != null
     ? a.distanceKm <= CLOSE_KM
     : !nearbyLabel.value ||
-      nearbyLabel.value === "your area" ||
-      `${a.suburb || a.venue}`
-        .toLowerCase()
-        .includes(nearbyLabel.value.toLowerCase());
+    nearbyLabel.value === "your area" ||
+    `${a.suburb || a.venue}`
+      .toLowerCase()
+      .includes(nearbyLabel.value.toLowerCase());
 
 const filteredActivities = computed(() =>
   activities.value.filter(
@@ -431,10 +338,11 @@ const pagedActivities = computed(() =>
   ),
 );
 const visiblePages = computed(() => {
-  const all = Array.from({ length: totalPages.value }, (_, i) => i + 1);
-  return all.slice(
-    Math.max(0, currentPage.value - 4),
-    Math.max(7, currentPage.value + 3),
+  const total = totalPages.value;
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  return Array.from({ length: total }, (_, i) => i + 1).slice(
+    Math.max(0, currentPage.value - 3),
+    Math.min(total, currentPage.value + 3)
   );
 });
 const formatMeta = (a) => `${a.dateText} · ${a.timeText} · ${a.venue}`;
@@ -456,11 +364,9 @@ onMounted(async () => {
 
 <style scoped>
 .hero {
-  background: linear-gradient(
-    135deg,
-    var(--orange) 0%,
-    var(--orange-deep) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--orange) 0%,
+      var(--orange-deep) 100%);
   color: #fff;
   padding: 30px 28px;
 }
@@ -468,11 +374,9 @@ onMounted(async () => {
 .hero h2 {
   margin: 0;
   font-family: "Fraunces", serif;
-  font-size: clamp(
-    calc(36px * var(--font-scale)),
-    calc(4vw * var(--font-scale)),
-    calc(56px * var(--font-scale))
-  );
+  font-size: clamp(calc(36px * var(--font-scale)),
+      calc(4vw * var(--font-scale)),
+      calc(56px * var(--font-scale)));
   line-height: 1;
 }
 
@@ -483,11 +387,9 @@ onMounted(async () => {
 
 .hero p {
   margin: 10px 0 20px;
-  font-size: clamp(
-    calc(18px * var(--font-scale)),
-    calc(2.2vw * var(--font-scale)),
-    calc(34px * var(--font-scale))
-  );
+  font-size: clamp(calc(18px * var(--font-scale)),
+      calc(2.2vw * var(--font-scale)),
+      calc(34px * var(--font-scale)));
   font-weight: 600;
 }
 
@@ -508,11 +410,9 @@ onMounted(async () => {
   border: none;
   background: transparent;
   color: #fff;
-  font-size: clamp(
-    calc(18px * var(--font-scale)),
-    calc(2vw * var(--font-scale)),
-    calc(28px * var(--font-scale))
-  );
+  font-size: clamp(calc(18px * var(--font-scale)),
+      calc(2vw * var(--font-scale)),
+      calc(28px * var(--font-scale)));
   font-weight: 800;
   outline: none;
   min-width: 0;
@@ -588,11 +488,9 @@ onMounted(async () => {
 
 .results-header h3 {
   margin: 0;
-  font-size: clamp(
-    calc(24px * var(--font-scale)),
-    calc(2.5vw * var(--font-scale)),
-    calc(36px * var(--font-scale))
-  );
+  font-size: clamp(calc(24px * var(--font-scale)),
+      calc(2.5vw * var(--font-scale)),
+      calc(36px * var(--font-scale)));
 }
 
 .print-btn {
@@ -705,11 +603,9 @@ onMounted(async () => {
 .event-card h4 {
   margin: 16px 0 8px;
   font-family: "Fraunces", serif;
-  font-size: clamp(
-    calc(30px * var(--font-scale)),
-    calc(3vw * var(--font-scale)),
-    calc(46px * var(--font-scale))
-  );
+  font-size: clamp(calc(30px * var(--font-scale)),
+      calc(3vw * var(--font-scale)),
+      calc(46px * var(--font-scale)));
   line-height: 1.08;
 }
 
