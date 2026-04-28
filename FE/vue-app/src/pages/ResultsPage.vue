@@ -159,7 +159,7 @@ const nextStepText = computed(() => {
 
 .eyebrow {
   margin: 0 0 8px;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -170,7 +170,7 @@ const nextStepText = computed(() => {
 .empty-state h2 {
   margin: 0 0 10px;
   font-family: 'Fraunces', serif;
-  font-size: clamp(30px, 3vw, 42px);
+  font-size: calc(36px * var(--font-scale));
   color: #2f3152;
 }
 
@@ -178,7 +178,7 @@ const nextStepText = computed(() => {
 .empty-text {
   margin: 0;
   max-width: 760px;
-  font-size: 17px;
+  font-size: calc(17px * var(--font-scale));
   line-height: 1.6;
   color: #555973;
 }
@@ -192,21 +192,21 @@ const nextStepText = computed(() => {
 
 .score-label {
   margin: 0 0 8px;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .score-value {
-  font-size: 64px;
+  font-size: calc(64px * var(--font-scale));
   font-weight: 800;
   line-height: 1;
 }
 
 .score-max {
   margin: 8px 0 14px;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   font-weight: 600;
 }
 
@@ -215,7 +215,7 @@ const nextStepText = computed(() => {
   margin: 0;
   padding: 10px 16px;
   border-radius: 999px;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   font-weight: 700;
   background: rgba(255, 255, 255, 0.55);
 }
@@ -246,7 +246,7 @@ const nextStepText = computed(() => {
 .next-steps h3,
 .retake-block h3 {
   margin: 0 0 10px;
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale));
   color: #2f3152;
 }
 
@@ -254,14 +254,14 @@ const nextStepText = computed(() => {
 .next-steps p,
 .retake-block p {
   margin: 0;
-  font-size: 17px;
+  font-size: calc(17px * var(--font-scale));
   line-height: 1.7;
   color: #555973;
 }
 
 .small-note {
   margin-top: 10px !important;
-  font-size: 14px !important;
+  font-size: calc(14px * var(--font-scale)) !important;
   color: #7a7f98 !important;
 }
 
@@ -281,21 +281,21 @@ const nextStepText = computed(() => {
 
 .dimension-title {
   margin: 0 0 10px;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   font-weight: 700;
   color: #6d7290;
 }
 
 .dimension-score {
   margin: 0 0 10px;
-  font-size: 40px;
+  font-size: calc(40px * var(--font-scale));
   font-weight: 800;
   color: #2f3152;
 }
 
 .dimension-desc {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   line-height: 1.6;
   color: #666b86;
 }
@@ -315,19 +315,19 @@ const nextStepText = computed(() => {
   border: none;
   border-radius: 14px;
   padding: 14px 22px;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s ease;
 }
 
 .primary-btn {
-  background: #ff7d57;
+  background: #0c8b7d;
   color: #fff;
 }
 
 .primary-btn:hover {
-  background: #ef6e47;
+  background: #0c8b7d;
 }
 
 .secondary-btn {
@@ -356,7 +356,7 @@ const nextStepText = computed(() => {
   }
 
   .score-value {
-    font-size: 52px;
+    font-size: calc(52px * var(--font-scale));
   }
 }
 </style>

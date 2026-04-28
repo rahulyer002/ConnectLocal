@@ -1,498 +1,271 @@
 <template>
   <MainLayout>
-    <section class="checkin-page">
-      <div class="checkin-card">
-        <div class="checkin-header">
+    <section class="checkin-landing">
+      <div class="hero-section">
+        <div class="hero-badge">
+          <span>☆</span>
+          <span>Your weekly wellbeing check-in</span>
+        </div>
+
+        <h1>
+          How are you feeling<br />
+          <em>about your connections?</em>
+        </h1>
+
+        <p>
+          This gentle 5-minute check-in helps you understand how connected you
+          feel to the people around you, and points you toward warm, welcoming
+          activities in your neighbourhood.
+        </p>
+
+        <div class="circle circle-large"></div>
+        <div class="circle circle-small"></div>
+      </div>
+
+      <div class="content-section">
+        <div class="info-card">
+          <div class="icon-box pink">☺</div>
           <div>
-            <p class="eyebrow">Wellbeing Check</p>
-            <h2>Check-in</h2>
-            <p class="intro">
-              Answer the questions based on how often you feel this way.
-              Your answers are only used for this visit and are not saved.
+            <h3>20 simple questions</h3>
+            <p>
+              Easy to answer, no right or wrong. Just how you honestly feel
+              right now.
             </p>
           </div>
+        </div>
 
-          <div class="progress-block">
-            <span class="progress-text">
-              Question {{ currentQuestionNumber }} of {{ questions.length }}
-            </span>
-            <div class="progress-bar">
-              <div
-                class="progress-fill"
-                :style="{ width: progressPercent + '%' }"
-              ></div>
-            </div>
+        <div class="info-card">
+          <div class="icon-box mint">▥</div>
+          <div>
+            <h3>A clear picture of your wellbeing</h3>
+            <p>
+              See which areas of connection are going well and which need a
+              little attention.
+            </p>
           </div>
         </div>
 
-        <div class="question-card">
-          <p class="question-number">Statement {{ currentQuestion.id }}</p>
-          <h3 class="question-text">{{ currentQuestion.text }}</h3>
-
-          <div class="options">
-            <button
-              v-for="option in options"
-              :key="option.value"
-              class="option-btn"
-              :class="{ selected: answers[currentQuestionIndex] === option.value }"
-              @click="selectAnswer(option.value)"
-            >
-              <span class="option-label">{{ option.label }}</span>
-            </button>
+        <div class="info-card">
+          <div class="icon-box yellow">▣</div>
+          <div>
+            <h3>Activities matched to you</h3>
+            <p>
+              Discover free, nearby events chosen to suit your situation and
+              interests.
+            </p>
           </div>
-
-          <p v-if="showValidation" class="validation-text">
-            Please choose one answer before continuing.
-          </p>
         </div>
 
-        <div class="nav-actions">
-          <button
-            class="secondary-btn"
-            @click="goPrevious"
-            :disabled="currentQuestionIndex === 0"
-          >
-            Previous
-          </button>
+        <button class="start-button" @click="startCheckin">
+          Start My Check-in
+          <span>›</span>
+        </button>
 
-          <button
-            v-if="!isLastQuestion"
-            class="primary-btn"
-            @click="goNext"
-          >
-            Next
-          </button>
-
-          <button
-            v-else
-            class="primary-btn"
-            @click="finishCheckIn"
-          >
-            Finish
-          </button>
-        </div>
+        <p class="note">Anonymous · Nothing is stored · Takes about 5 minutes</p>
       </div>
     </section>
   </MainLayout>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
-import { wellbeingStore } from '../stores/wellbeingStore'
 
 const router = useRouter()
 
-const options = [
-  { label: 'Never', value: 1 },
-  { label: 'Rarely', value: 2 },
-  { label: 'Sometimes', value: 3 },
-  { label: 'Often', value: 4 }
-]
-
-const questions = [
-  {
-    id: 1,
-    text: 'How often do you feel that you are "in tune" with the people around you?',
-    reverse: true,
-    dimension: 'socialConnection'
-  },
-  {
-    id: 2,
-    text: 'How often do you feel that you lack companionship?',
-    reverse: false,
-    dimension: 'companionship'
-  },
-  {
-    id: 3,
-    text: 'How often do you feel that there is no one you can turn to?',
-    reverse: false,
-    dimension: 'intimacy'
-  },
-  {
-    id: 4,
-    text: 'How often do you feel alone?',
-    reverse: false,
-    dimension: 'companionship'
-  },
-  {
-    id: 5,
-    text: 'How often do you feel part of a group of friends?',
-    reverse: true,
-    dimension: 'socialConnection'
-  },
-  {
-    id: 6,
-    text: 'How often do you feel that you have a lot in common with the people around you?',
-    reverse: true,
-    dimension: 'socialConnection'
-  },
-  {
-    id: 7,
-    text: 'How often do you feel that you are no longer close to anyone?',
-    reverse: false,
-    dimension: 'intimacy'
-  },
-  {
-    id: 8,
-    text: 'How often do you feel that your interests and ideas are not shared by those around you?',
-    reverse: false,
-    dimension: 'socialConnection'
-  },
-  {
-    id: 9,
-    text: 'How often do you feel outgoing and friendly?',
-    reverse: true,
-    dimension: 'socialConnection'
-  },
-  {
-    id: 10,
-    text: 'How often do you feel close to people?',
-    reverse: true,
-    dimension: 'intimacy'
-  },
-  {
-    id: 11,
-    text: 'How often do you feel left out?',
-    reverse: false,
-    dimension: 'socialConnection'
-  },
-  {
-    id: 12,
-    text: 'How often do you feel that your relationships with others are not meaningful?',
-    reverse: false,
-    dimension: 'intimacy'
-  },
-  {
-    id: 13,
-    text: 'How often do you feel that no one really knows you well?',
-    reverse: false,
-    dimension: 'intimacy'
-  },
-  {
-    id: 14,
-    text: 'How often do you feel isolated from others?',
-    reverse: false,
-    dimension: 'companionship'
-  },
-  {
-    id: 15,
-    text: 'How often do you feel you can find companionship when you want it?',
-    reverse: true,
-    dimension: 'companionship'
-  },
-  {
-    id: 16,
-    text: 'How often do you feel that there are people who really understand you?',
-    reverse: true,
-    dimension: 'intimacy'
-  },
-  {
-    id: 17,
-    text: 'How often do you feel shy?',
-    reverse: false,
-    dimension: 'socialConnection'
-  },
-  {
-    id: 18,
-    text: 'How often do you feel that people are around you but not with you?',
-    reverse: false,
-    dimension: 'companionship'
-  },
-  {
-    id: 19,
-    text: 'How often do you feel that there are people you can talk to?',
-    reverse: true,
-    dimension: 'intimacy'
-  },
-  {
-    id: 20,
-    text: 'How often do you feel that there are people you can turn to?',
-    reverse: true,
-    dimension: 'intimacy'
-  }
-]
-
-const currentQuestionIndex = ref(0)
-const answers = ref(Array(questions.length).fill(null))
-const showValidation = ref(false)
-
-const currentQuestion = computed(() => questions[currentQuestionIndex.value])
-const currentQuestionNumber = computed(() => currentQuestionIndex.value + 1)
-const isLastQuestion = computed(() => currentQuestionIndex.value === questions.length - 1)
-const progressPercent = computed(() => ((currentQuestionIndex.value + 1) / questions.length) * 100)
-
-function selectAnswer(value) {
-  answers.value[currentQuestionIndex.value] = value
-  showValidation.value = false
-}
-
-function goNext() {
-  if (answers.value[currentQuestionIndex.value] === null) {
-    showValidation.value = true
-    return
-  }
-
-  currentQuestionIndex.value += 1
-  showValidation.value = false
-}
-
-function goPrevious() {
-  if (currentQuestionIndex.value > 0) {
-    currentQuestionIndex.value -= 1
-    showValidation.value = false
-  }
-}
-
-function getScoredValue(question, answer) {
-  return question.reverse ? 5 - answer : answer
-}
-
-function getResultBand(score) {
-  if (score <= 34) return 'Low loneliness'
-  if (score <= 49) return 'Some distance from others'
-  if (score <= 64) return 'Moderate loneliness'
-  return 'High loneliness'
-}
-
-function getResultExplanation(score) {
-  if (score <= 34) {
-    return 'Your responses suggest a lower level of loneliness at the moment. You may still have occasional difficult feelings, but your social connection appears relatively stable.'
-  }
-
-  if (score <= 49) {
-    return 'Your responses suggest some distance from others. This may mean that social connection, companionship, or emotional closeness feels reduced at times.'
-  }
-
-  if (score <= 64) {
-    return 'Your responses suggest a moderate level of loneliness. You may be experiencing a noticeable gap in social or emotional connection in daily life.'
-  }
-
-  return 'Your responses suggest a high level of loneliness. This may indicate a stronger feeling of disconnection, and it could help to explore supportive social options or trusted people around you.'
-}
-
-function finishCheckIn() {
-  if (answers.value[currentQuestionIndex.value] === null) {
-    showValidation.value = true
-    return
-  }
-
-  let score = 0
-  const dimensions = {
-    companionship: 0,
-    socialConnection: 0,
-    intimacy: 0
-  }
-
-  questions.forEach((question, index) => {
-    const scoredValue = getScoredValue(question, answers.value[index])
-    score += scoredValue
-    dimensions[question.dimension] += scoredValue
-  })
-
-  wellbeingStore.hasResult = true
-  wellbeingStore.totalScore = score
-  wellbeingStore.dimensionScores = { ...dimensions }
-  wellbeingStore.resultBand = getResultBand(score)
-  wellbeingStore.resultExplanation = getResultExplanation(score)
-
-  router.push('/results')
+function startCheckin() {
+  router.push('/checkin/form')
 }
 </script>
 
 <style scoped>
-.checkin-page {
-  margin: 28px;
-}
-
-.checkin-card {
-  background: #fff;
-  border: 1px solid #e5e6ef;
-  border-radius: var(--radius-xl);
-  padding: 32px;
-  box-shadow: 0 10px 30px rgba(25, 32, 72, 0.06);
-}
-
-.checkin-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 28px;
-  flex-wrap: wrap;
-}
-
-.eyebrow {
-  margin: 0 0 8px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6d7290;
-}
-
-.checkin-header h2 {
-  margin: 0 0 10px;
-  font-family: 'Fraunces', serif;
-  font-size: clamp(30px, 3vw, 42px);
-  color: #2f3152;
-}
-
-.intro {
-  margin: 0;
-  max-width: 760px;
-  font-size: 17px;
-  line-height: 1.6;
-  color: #555973;
-}
-
-.progress-block {
-  min-width: 280px;
-  flex: 1;
-  max-width: 360px;
-}
-
-.progress-text {
-  display: inline-block;
-  margin-bottom: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6d7290;
-}
-
-.progress-bar {
+.checkin-landing {
   width: 100%;
-  height: 12px;
-  background: #ececf3;
-  border-radius: 999px;
+  min-height: 100vh;
+  background: #fbfaf8;
+}
+
+.hero-section {
+  position: relative;
   overflow: hidden;
+  padding: 80px 64px 72px;
+  background: linear-gradient(135deg, #0c8b7d, #0a756a);
+  color: white;
 }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #ff7d57, #ffb061);
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  margin-bottom: 28px;
   border-radius: 999px;
-  transition: width 0.25s ease;
-}
-
-.question-card {
-  border: 1px solid #e8e9f3;
-  border-radius: 24px;
-  padding: 28px;
-  background: #fcfcff;
-}
-
-.question-number {
-  margin: 0 0 10px;
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: calc(18px * var(--font-scale));
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #6d7290;
 }
 
-.question-text {
+.hero-section h1 {
+  position: relative;
+  z-index: 2;
   margin: 0 0 24px;
-  font-size: clamp(24px, 2.2vw, 34px);
-  line-height: 1.3;
-  font-family: 'Fraunces', serif;
-  color: #2f3152;
+  font-family: Georgia, serif;
+  font-size: calc(56px * var(--font-scale));
+  line-height: 1.15;
+  font-weight: 500;
 }
 
-.options {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 1fr));
-  gap: 16px;
+.hero-section em {
+  color: #ffc83d;
+  font-style: italic;
 }
 
-.option-btn {
-  border: 2px solid #e2e3ef;
-  border-radius: 18px;
-  background: #fff;
-  padding: 18px 20px;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 18px;
-  font-weight: 600;
-  color: #444866;
+.hero-section p {
+  position: relative;
+  z-index: 2;
+  max-width: 1100px;
+  margin: 0;
+  font-size: calc(24px * var(--font-scale));
+  line-height: 1.7;
+  font-weight: 500;
 }
 
-.option-btn:hover {
-  border-color: #ff9b77;
-  transform: translateY(-1px);
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
 }
 
-.option-btn.selected {
-  border-color: #ff7d57;
-  background: #fff1eb;
-  color: #d95d35;
+.circle-large {
+  width: 230px;
+  height: 230px;
+  right: -45px;
+  top: -45px;
 }
 
-.option-label {
-  display: block;
+.circle-small {
+  width: 180px;
+  height: 180px;
+  left: -55px;
+  bottom: -70px;
 }
 
-.validation-text {
-  margin: 16px 0 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #c84848;
+.content-section {
+  padding: 38px 42px 36px;
 }
 
-.nav-actions {
+.info-card {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 24px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  background: white;
+  border: 3px solid #d9d5e8;
+  border-radius: 26px;
 }
 
-.primary-btn,
-.secondary-btn {
-  border: none;
-  border-radius: 14px;
-  padding: 14px 22px;
-  font-size: 16px;
+.icon-box {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  font-size: calc(30px * var(--font-scale));
   font-weight: 700;
+  color: #2f2d42;
+}
+
+.pink {
+  background: #e3faf5;
+}
+
+.mint {
+  background: #e4faf5;
+}
+
+.yellow {
+  background: #fff8d8;
+}
+
+.info-card h3 {
+  margin: 0 0 10px;
+  font-size: calc(28px * var(--font-scale));
+  color: #29263a;
+}
+
+.info-card p {
+  margin: 0;
+  font-size: calc(24px * var(--font-scale));
+  line-height: 1.5;
+  color: #6d6984;
+}
+
+.start-button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 26px 32px;
+  border: none;
+  border-radius: 22px;
+  background: #0c8b7d;
+  color: white;
+  font-size: calc(30px * var(--font-scale));
+  font-weight: 800;
   cursor: pointer;
-  transition: 0.2s ease;
+  box-shadow: 0 14px 28px rgba(12, 139, 125, 0.28);
 }
 
-.primary-btn {
-  background: #ff7d57;
-  color: #fff;
+.start-button:hover {
+  transform: translateY(-2px);
+  background: #0a756a;
 }
 
-.primary-btn:hover {
-  background: #ef6e47;
+.start-button span {
+  margin-left: 10px;
+  font-size: calc(36px * var(--font-scale));
 }
 
-.secondary-btn {
-  background: #eef0f7;
-  color: #3f4568;
-}
-
-.secondary-btn:hover {
-  background: #e2e6f2;
-}
-
-.secondary-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.note {
+  margin: 22px 0 0;
+  text-align: center;
+  font-size: calc(18px * var(--font-scale));
+  color: #6d6984;
 }
 
 @media (max-width: 900px) {
-  .options {
-    grid-template-columns: 1fr;
+  .hero-section {
+    padding: 56px 28px;
   }
 
-  .checkin-card {
-    padding: 22px;
+  .hero-section h1 {
+    font-size: calc(40px * var(--font-scale));
   }
 
-  .question-card {
-    padding: 22px;
+  .hero-section p {
+    font-size: calc(18px * var(--font-scale));
+  }
+
+  .content-section {
+    padding: 28px 20px;
+  }
+
+  .info-card {
+    align-items: flex-start;
+    padding: 24px;
+  }
+
+  .info-card h3 {
+    font-size: calc(22px * var(--font-scale));
+  }
+
+  .info-card p {
+    font-size: calc(18px * var(--font-scale));
+  }
+
+  .start-button {
+    font-size: calc(24px * var(--font-scale));
   }
 }
 </style>
