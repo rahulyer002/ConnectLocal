@@ -8,6 +8,7 @@
       <p class="location-text">{{ detectedLocationText }}</p>
 
       <nav>
+        <RouterLink to="/home" class="item home-btn">Home Page</RouterLink>
         <RouterLink to="/checkin" class="item">Wellbeing Check</RouterLink>
         <RouterLink to="/discover" class="item">Discover Events</RouterLink>
       </nav>
@@ -23,25 +24,13 @@
         />
       </label>
     </aside>
-
-    <main>
-      <nav v-if="route.path !== '/discover'" class="tabs">
-        <RouterLink to="/checkin">Check-in</RouterLink>
-        <RouterLink to="/results">Results</RouterLink>
-        <RouterLink to="/discover">Discover</RouterLink>
-      </nav>
-
-      <slot />
-    </main>
+    <main><slot /></main>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import { useLocationState } from '../composables/useLocationState'
-
-const route = useRoute()
 const { detectedLocationText } = useLocationState()
 
 const scale = ref(1)
@@ -86,7 +75,7 @@ h1 {
 }
 
 h1 span {
-  color: #0c8b7d;
+  color: #008c7d
 }
 
 .location-text {
@@ -128,23 +117,9 @@ main {
   background: #f5f5fa;
 }
 
-.tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-bottom: 1px solid var(--line);
-  background: #fff;
-}
-
-.tabs a {
-  text-align: center;
-  padding: 12px;
-  font-size: calc(16px * var(--font-scale));
-  font-weight: 700;
-}
-
 .tabs .router-link-exact-active {
-  color: #0c8b7d;
-  border-bottom: 3px solid #0c8b7d;
+  color: #008c7d;
+  border-bottom: 3px solid #008c7d
 }
 
 @media (max-width: 980px) {
@@ -152,4 +127,6 @@ main {
     grid-template-columns: 1fr;
   }
 }
+
+
 </style>
