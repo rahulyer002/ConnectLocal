@@ -33,3 +33,30 @@ def search_suburbs(
     """
     results = data_service.search_suburbs(db, q, limit)
     return {"total": len(results), "suburbs": results}
+
+from app.models.psychological_distress import PsychologicalDistress
+
+@router.get("/psychological-distress")
+def get_psychological_distress(db: Session = Depends(get_db)):
+    """
+    Returns psychological distress rates by age group.
+    Source: ABS National Health Survey 2017-18.
+    """
+    rows = db.query(PsychologicalDistress).order_by(PsychologicalDistress.id).all()
+    return {
+        "source": "ABS National Health Survey, Psychological distress - Australia",
+        "year": "2017-18",
+        "note": "Percentage of population with high or very high psychological distress",
+        "data": [
+            {
+                "age_group": r.age_group,
+                "psychological_distress_percent": r.psychological_distress_percent,
+            }
+            for r in rows
+        ],
+        "elderly_highlight": {
+            "age_group": "65+",
+            "psychological_distress_percent": 9.9,
+            "note": "Elderly (65+) have lower measured distress but face higher social isolation risk"
+        }
+    }

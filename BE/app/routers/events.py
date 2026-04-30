@@ -3,21 +3,49 @@ from app.services import eventfinda, ticketmaster
 
 router = APIRouter()
 
+# Eventfinda category slug mapping
+CATEGORY_MAP = {
+    "workshops-classes": "workshops-classes",
+    "exhibitions": "exhibitions",
+    "festivals-lifestyle": "festivals-lifestyle",
+    "performing-arts": "performing-arts",
+    "music": "music",
+    "comedy": "comedy",
+    "theatre": "theatre",
+    "markets": "markets",
+    "community": "community-causes",
+    "sport": "sport",
+    "education": "education",
+    "jazz": "jazz",
+    "classical": "classical-music",
+    "film": "film",
+    "food": "food-and-drink",
+    "art": "visual-arts",
+    "dance": "dance",
+    "health": "health-wellbeing",
+    "seniors": "community-causes",
+}
+
 
 @router.get("/search")
 async def search_events(
     suburb: str = Query(default="melbourne", description="Suburb name, postcode, or full address e.g. 'Clayton, VIC 3168'"),
     lat: float = Query(default=None, description="User latitude — overrides suburb when provided"),
     lon: float = Query(default=None, description="User longitude — overrides suburb when provided"),
-    radius_km: int = Query(default=5, description="Search radius in km"),
+    radius_km: float = Query(default=5, description="Search radius in km"),
     is_free: bool = Query(default=False, description="Free events only"),
     max_price: float = Query(default=None, description="Max ticket price AUD (optional, only applied when is_free=false)"),
     date_from: str = Query(default=None, description="Start date YYYY-MM-DD"),
     date_to: str = Query(default=None, description="End date YYYY-MM-DD"),
-    category: str = Query(default=None, description="Category slug: workshops-classes | exhibitions | festivals-lifestyle | performing-arts"),
+    category: str = Query(default=None, description="Category: music | classical | classical-music | jazz | comedy | theatre | cabaret | rock | folk | cycling | education | art | creative | exhibitions | markets | food | film | dance | health | sport | performing-arts | workshops-classes | festivals-lifestyle | community"),
     rows: int = Query(default=10, description="Number of results per page"),
     offset: int = Query(default=0, description="Pagination offset"),
 ):
+    # Map category to Eventfinda slug
+    mapped_category = None
+    if category:
+        mapped_category = CATEGORY_MAP.get(category.lower(), category)
+
     try:
         return await eventfinda.search_events(
             suburb=suburb,
@@ -28,7 +56,7 @@ async def search_events(
             max_price=max_price,
             date_from=date_from,
             date_to=date_to,
-            category=category,
+            category=mapped_category,
             rows=rows,
             offset=offset,
         )
@@ -46,6 +74,7 @@ async def get_recommended_events(
     intimacy: int = Query(default=88, description="Intimacy score 0-100"),
     radius_km: int = Query(default=5),
 ):
+    # Map UCLA scores to Eventfinda category
     if companionship < 50:
         category = "workshops-classes"
     elif social_connection < 60:
@@ -79,10 +108,10 @@ async def get_recommended_events(
 
 @router.get("/cultural")
 async def get_cultural_events(
-    classification: str = Query(default="Arts and Theatre"),
-    date_from: str = Query(default=None),
-    date_to: str = Query(default=None),
-    size: int = Query(default=10),
+    classification: str = Query(default="Arts and Theatre", description="Arts and Theatre | Music | Comedy | Sport"),
+    date_from: str = Query(default=None, description="Start date YYYY-MM-DD"),
+    date_to: str = Query(default=None, description="End date YYYY-MM-DD"),
+    size: int = Query(default=10, description="Number of results"),
 ):
     try:
         data = await ticketmaster.get_cultural_events(
@@ -109,5 +138,31 @@ async def get_event_detail(
 ):
     try:
         return await eventfinda.get_event(event_id, user_lat=lat, user_lon=lon)
+    except Exception as ex:
+        raise HTTPException(status_code=502, detail=str(ex))
+    
+@router.get("/categories/available")
+async def get_available_categories(
+    suburb: str = Query(default="melbourne"),
+    radius_km: int = Query(default=5),
+):
+    """Debug — shows what categories are available near a location right now."""
+    try:
+        data = await eventfinda.search_events(
+            suburb=suburb,
+            radius_km=radius_km,
+            rows=10,
+            offset=0,
+        )
+        categories = {}
+        for e in data.get("events", []):
+            cat = e.get("category")
+            if cat:
+                categories[cat] = categories.get(cat, 0) + 1
+        return {
+            "suburb": suburb,
+            "total_events": data.get("total"),
+            "categories_found": categories,
+        }
     except Exception as ex:
         raise HTTPException(status_code=502, detail=str(ex))
