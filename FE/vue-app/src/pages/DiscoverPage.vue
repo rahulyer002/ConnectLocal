@@ -6,7 +6,7 @@
 
       <form class="location-picker" @submit.prevent="applyManualLocation">
         <input class="location-input" v-model="locationInput" type="text" aria-label="Location"
-          placeholder="Please enter suburb or postcode in Melbourne." @focus="handleLocationInputFocus" />
+          placeholder="Please enter suburb or postcode in Australia." />
         <button type="button" class="change-btn" :disabled="isLocating" @click="getLocation">
           {{ isLocating ? "Locating..." : "Locate" }}
         </button>
@@ -14,9 +14,6 @@
           {{ isApplying ? "Updating..." : "Change" }}
         </button>
       </form>
-      <p class="location-note">
-        Using search (not Locate) may return a representative point of the suburb/postcode, not your exact position.
-      </p>
 
       <div class="chips">
         <button v-for="chip in chips" :key="chip.key" class="chip" :class="{ solid: activeFilters[chip.key] }"
@@ -51,7 +48,7 @@
         </div>
       </article>
 
-      <nav class="pagination" v-if="totalPages > 1 || canFetchMore" aria-label="Activity pages">
+      <nav class="pagination" v-if="totalPages > 1" aria-label="Activity pages">
         <button class="page-btn" type="button" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
           Prev
         </button>
@@ -61,7 +58,7 @@
           {{ page }}
         </button>
 
-        <button class="page-btn" type="button" :disabled="!canGoNext"
+        <button class="page-btn" type="button" :disabled="currentPage === totalPages"
           @click="goToPage(currentPage + 1)">
           Next
         </button>
@@ -76,10 +73,7 @@
         {{ loadError }}
       </article>
       <article class="event-card state-card" v-else>
-        <template v-if="!hasLocationConfirmed">
-          Please locate first or enter a Melbourne suburb/postcode, then tap Change.
-        </template>
-        <template v-else-if="activities.length">
+        <template v-if="activities.length">
           Loaded {{ activities.length }} activities, but none match current
           filters. Try removing one or two filters.
         </template>
@@ -98,26 +92,18 @@ const { setDetectedLocation, setDetectedUnavailable } = useLocationState();
 const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectlocal.duckdns.org";
 const API = `${BASE_URL}/api/events/search`;
 const CLOSE_KM = 5;
+const FETCH_LIMIT = 20;
+const MAX_FETCH = 30;
 const UI_PAGE_SIZE = 3;
-const FETCH_LIMIT = 9;
-const MELBOURNE_NOT_FOUND = "The location you specified was not found in Melbourne.";
 
 const locationInput = ref("");
 const nearbyLabel = ref("your area");
 const isLocating = ref(false);
 const isApplying = ref(false);
-const rawActivities = ref([]);
 const activities = ref([]);
 const isLoading = ref(false);
 const loadError = ref("");
 const currentPage = ref(1);
-const hasLocationConfirmed = ref(false);
-const locationLat = ref(null);
-const locationLon = ref(null);
-const locationQueryMode = ref("suburb");
-const totalHint = ref(null);
-const lastBatchSize = ref(0);
-const isProgressiveLoading = ref(false);
 
 const activeFilters = reactive({
   free: true,
@@ -141,20 +127,6 @@ const d = (v) => {
 };
 const arr = (p) => (Array.isArray(p?.events) ? p.events : []);
 const total = (p) => n(p?.total);
-const isPostcodeInput = (q) => /^\d{4}$/.test(q);
-const isSuburbInput = (q) => /^[A-Za-z][A-Za-z\s'-]{1,59}$/.test(q);
-const isValidLocationInput = (q) => isPostcodeInput(q) || isSuburbInput(q);
-const isVictoriaPostcodeRange = (q) => {
-  const code = Number(q);
-  return Number.isInteger(code) && code >= 3000 && code <= 3999;
-};
-const normalizePlace = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
-const normalizePostcode = (s) => (String(s || "").match(/\b\d{4}\b/) || [""])[0];
-const isInMelbourne = (a = {}, displayName = "") => {
-  const state = String(a.state || "").toLowerCase();
-  const text = String(displayName || "").toLowerCase();
-  return state.includes("victoria") && text.includes("melbourne");
-};
 
 const normalize = (r, i) => {
   const date = d(r.datetime_start);
@@ -205,97 +177,77 @@ const normalize = (r, i) => {
   };
 };
 
-const fetchActivities = async (reset = true, showLoading = reset) => {
-  if (!hasLocationConfirmed.value) return;
-  if (showLoading) isLoading.value = true;
+const fetchActivities = async () => {
+  isLoading.value = true;
   loadError.value = "";
   try {
-    const beforeCount = reset ? 0 : rawActivities.value.length;
-    if (reset) {
-      rawActivities.value = [];
-      activities.value = [];
-      totalHint.value = null;
-      lastBatchSize.value = 0;
-      currentPage.value = 1;
+    const out = [];
+    const seen = new Set();
+    let off = 0;
+    let hint = null;
+    let req = 0;
+    for (let i = 0; i < MAX_FETCH; i += 1) {
+      const u = new URL(API);
+      u.searchParams.set("offset", off);
+      u.searchParams.set("rows", FETCH_LIMIT);
+      u.searchParams.set("is_free", activeFilters.free ? "true" : "false");
+      if (locationInput.value.trim()) {
+        u.searchParams.set("suburb", locationInput.value.trim().toLowerCase());
+      }
+      const r = await fetch(u.toString());
+      if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
+      const p = await r.json();
+      const list = arr(p);
+      hint = total(p) ?? hint;
+      req += 1;
+      if (!list.length) break;
+      let added = 0;
+      for (const e of list) {
+        const k = String(e?.id ?? e?._id ?? JSON.stringify(e));
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(e);
+        added += 1;
+      }
+      if (!added) break;
+      off += list.length;
+      if (hint != null && out.length >= hint) break;
     }
-    const off = rawActivities.value.length;
-    const u = new URL(API);
-    u.searchParams.set("offset", off);
-    u.searchParams.set("rows", FETCH_LIMIT);
-    u.searchParams.set("is_free", "false");
-    if (
-      locationQueryMode.value === "latlon" &&
-      locationLat.value != null &&
-      locationLon.value != null
-    ) {
-      u.searchParams.set("lat", String(locationLat.value));
-      u.searchParams.set("lon", String(locationLon.value));
-    } else if (locationInput.value.trim()) {
-      const suburbQuery =
-        nearbyLabel.value && nearbyLabel.value !== "your area"
-          ? nearbyLabel.value
-          : locationInput.value.trim();
-      u.searchParams.set("suburb", suburbQuery.toLowerCase());
+    if (!out.length) {
+      const r = await fetch(API);
+      if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
+      out.push(...arr(await r.json()));
     }
-    const r = await fetch(u.toString());
-    if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
-    const p = await r.json();
-    const list = arr(p);
-    totalHint.value = total(p) ?? totalHint.value;
-    lastBatchSize.value = list.length;
-
-    const base = rawActivities.value;
-    const seen = new Set(base.map((e) => String(e.id)));
-    const merged = [...base];
-    for (const e of list) {
-      const k = String(e?.id ?? e?._id ?? JSON.stringify(e));
-      if (seen.has(k)) continue;
-      seen.add(k);
-      merged.push(e);
-    }
-    rawActivities.value = merged;
-    activities.value = rawActivities.value.map(normalize);
+    activities.value = out.map(normalize);
     console.info(
-      `Loaded ${activities.value.length} activities${totalHint.value ? ` total=${totalHint.value}` : ""}`,
+      `Loaded ${activities.value.length} activities${hint ? ` total=${hint}` : ""}`,
     );
-    return rawActivities.value.length - beforeCount;
   } catch (e) {
     loadError.value = "Unable to load activities right now. Please try again later.";
-    rawActivities.value = [];
     activities.value = [];
-    return 0;
   } finally {
-    if (showLoading) isLoading.value = false;
+    isLoading.value = false;
   }
 };
 
-const setLocation = (text, suburb = "", lat = null, lon = null) => {
+const setLocation = (text, suburb = "") => {
   locationInput.value = text;
   nearbyLabel.value = suburb || text.split(",")[0] || "your area";
-  locationLat.value = lat;
-  locationLon.value = lon;
-  hasLocationConfirmed.value = true;
   setDetectedLocation(text);
-};
-const handleLocationInputFocus = () => {
-  if (locationInput.value === MELBOURNE_NOT_FOUND) {
-    locationInput.value = "";
-  }
 };
 
 const parseAddress = (a = {}) => {
   const suburb =
     a.suburb || a.neighbourhood || a.city_district || a.town || a.village || a.city || "";
-  const postcode = a.postcode || "";
-  return { suburb, postcode };
+  const state = (a["ISO3166-2-lvl4"] || "").split("-")[1] || a.state || "";
+  const text = `${[suburb, state].filter(Boolean).join(", ")} ${a.postcode || ""}`.trim();
+  return { suburb, text };
 };
-const formatSuburbPostcode = ({ suburb, postcode }) =>
-  [suburb, postcode].filter(Boolean).join(" , ").trim();
 
 const getLocation = () => {
   if (!navigator.geolocation)
     return (
-      (locationInput.value = MELBOURNE_NOT_FOUND),
+      (locationInput.value = "Geolocation not supported"),
       setDetectedUnavailable()
     );
   isLocating.value = true;
@@ -305,43 +257,21 @@ const getLocation = () => {
         const r = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&accept-language=en`,
         );
-        const top = await r.json();
-        if (!isInMelbourne(top?.address || {}, top?.display_name || "")) {
-          hasLocationConfirmed.value = false;
-          locationLat.value = null;
-          locationLon.value = null;
-          locationInput.value = MELBOURNE_NOT_FOUND;
-          setDetectedUnavailable();
-        } else {
-          const f = parseAddress(top.address || {});
-          const value = formatSuburbPostcode(f);
-          if (!value) {
-            hasLocationConfirmed.value = false;
-            locationLat.value = null;
-            locationLon.value = null;
-            locationInput.value = MELBOURNE_NOT_FOUND;
-            setDetectedUnavailable();
-          } else {
-            setLocation(value, f.suburb || value, coords.latitude, coords.longitude);
-            locationQueryMode.value = "latlon";
-            await fetchActivities();
-            void progressivelyLoadAllData();
-          }
-        }
+        const f = parseAddress((await r.json()).address || {});
+        setLocation(
+          f.text ||
+          `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+          f.suburb,
+        );
       } catch {
-        hasLocationConfirmed.value = false;
-        locationLat.value = null;
-        locationLon.value = null;
-        locationInput.value = MELBOURNE_NOT_FOUND;
-        setDetectedUnavailable();
+        setLocation(
+          `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+        );
       }
       isLocating.value = false;
     },
     () => {
-      hasLocationConfirmed.value = false;
-      locationLat.value = null;
-      locationLon.value = null;
-      locationInput.value = MELBOURNE_NOT_FOUND;
+      locationInput.value = "Unable to get location";
       setDetectedUnavailable();
       isLocating.value = false;
     },
@@ -351,77 +281,19 @@ const getLocation = () => {
 const applyManualLocation = async () => {
   const q = locationInput.value.trim();
   if (!q) return;
-  if (!isValidLocationInput(q)) {
-    hasLocationConfirmed.value = false;
-    locationLat.value = null;
-    locationLon.value = null;
-    locationInput.value = MELBOURNE_NOT_FOUND;
-    setDetectedUnavailable();
-    return;
-  }
-  if (isPostcodeInput(q) && !isVictoriaPostcodeRange(q)) {
-    hasLocationConfirmed.value = false;
-    locationLat.value = null;
-    locationLon.value = null;
-    locationInput.value = MELBOURNE_NOT_FOUND;
-    setDetectedUnavailable();
-    return;
-  }
   isApplying.value = true;
   try {
-    const queryText = isPostcodeInput(q)
-      ? `${q}, Victoria, Australia`
-      : `${q}, Melbourne, Victoria, Australia`;
     const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(queryText)}&addressdetails=1&limit=20&accept-language=en&countrycodes=au`,
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&addressdetails=1&limit=1&accept-language=en`,
     );
-    const list = (await r.json()) || [];
-    const top = list.find((item) => {
-      const state = String(item?.address?.state || "").toLowerCase();
-      const f = parseAddress(item?.address || {});
-      const isoState = String(item?.address?.["ISO3166-2-lvl4"] || "").toUpperCase();
-      const display = String(item?.display_name || "").toLowerCase();
-      const inVictoria =
-        state.includes("victoria") ||
-        isoState === "AU-VIC" ||
-        display.includes("victoria");
-      if (isPostcodeInput(q)) {
-        const postcodeMatched =
-          normalizePostcode(f.postcode) === normalizePostcode(q) ||
-          normalizePostcode(item?.display_name) === normalizePostcode(q);
-        return inVictoria && postcodeMatched;
-      }
-      if (!isInMelbourne(item?.address || {}, item?.display_name || "")) return false;
-      return normalizePlace(f.suburb) === normalizePlace(q);
-    });
-    if (!top) {
-      hasLocationConfirmed.value = false;
-      locationLat.value = null;
-      locationLon.value = null;
-      locationInput.value = MELBOURNE_NOT_FOUND;
-      setDetectedUnavailable();
-    } else {
+    const top = (await r.json())?.[0];
+    if (!top) locationInput.value = "Address not found";
+    else {
       const f = parseAddress(top.address || {});
-      const value = formatSuburbPostcode(f);
-      if (!value) {
-        hasLocationConfirmed.value = false;
-        locationLat.value = null;
-        locationLon.value = null;
-        locationInput.value = MELBOURNE_NOT_FOUND;
-        setDetectedUnavailable();
-      } else {
-        setLocation(value, f.suburb || value, n(top.lat), n(top.lon));
-        locationQueryMode.value = "suburb";
-        await fetchActivities();
-        void progressivelyLoadAllData();
-      }
+      setLocation(f.text || top.display_name || q, f.suburb || q);
     }
   } catch {
-    hasLocationConfirmed.value = false;
-    locationLat.value = null;
-    locationLon.value = null;
-    locationInput.value = MELBOURNE_NOT_FOUND;
-    setDetectedUnavailable();
+    locationInput.value = "Unable to update location";
   }
   isApplying.value = false;
 };
@@ -449,25 +321,8 @@ const filteredActivities = computed(() =>
       (!activeFilters.easyAccess || a.easyAccess),
   ),
 );
-const hasClientFilters = computed(
-  () =>
-    activeFilters.free ||
-    activeFilters.thisWeek ||
-    activeFilters.closeHome ||
-    activeFilters.indoor ||
-    activeFilters.easyAccess,
-);
-const canFetchMore = computed(() => {
-  if (totalHint.value != null) return activities.value.length < totalHint.value;
-  return lastBatchSize.value === FETCH_LIMIT;
-});
-const loadedShownPages = computed(() =>
-  Math.max(1, Math.ceil(filteredActivities.value.length / UI_PAGE_SIZE)),
-);
 const totalPages = computed(() =>
-  !hasClientFilters.value && totalHint.value != null
-    ? Math.max(1, Math.ceil(totalHint.value / UI_PAGE_SIZE))
-    : Math.max(1, Math.ceil(filteredActivities.value.length / UI_PAGE_SIZE)),
+  Math.max(1, Math.ceil(filteredActivities.value.length / UI_PAGE_SIZE)),
 );
 const pagedActivities = computed(() =>
   filteredActivities.value.slice(
@@ -485,36 +340,8 @@ const visiblePages = computed(() => {
 });
 const formatMeta = (a) => `${a.dateText} · ${a.timeText} · ${a.venue}`;
 const toggleFilter = (k) => (activeFilters[k] = !activeFilters[k]);
-const canGoNext = computed(
-  () => currentPage.value < totalPages.value || (canFetchMore.value && !isLoading.value),
-);
-const ensurePageDataLoaded = async (targetPage) => {
-  while (
-    targetPage > loadedShownPages.value &&
-    canFetchMore.value &&
-    !isLoading.value
-  ) {
-    const added = await fetchActivities(false, false);
-    if (!added) break;
-  }
-};
-const progressivelyLoadAllData = async () => {
-  if (isProgressiveLoading.value || !hasLocationConfirmed.value) return;
-  isProgressiveLoading.value = true;
-  try {
-    while (canFetchMore.value) {
-      const added = await fetchActivities(false, false);
-      if (!added) break;
-    }
-  } finally {
-    isProgressiveLoading.value = false;
-  }
-};
-const goToPage = async (p) => {
-  const target = Math.max(1, p);
-  await ensurePageDataLoaded(target);
-  currentPage.value = Math.min(target, totalPages.value);
-};
+const goToPage = (p) =>
+  (currentPage.value = Math.min(totalPages.value, Math.max(1, p)));
 const printList = () => window.print();
 
 watch(filteredActivities, () => {
@@ -523,6 +350,7 @@ watch(filteredActivities, () => {
 });
 
 onMounted(async () => {
+  await fetchActivities();
   getLocation();
 });
 </script>
@@ -530,8 +358,8 @@ onMounted(async () => {
 <style scoped>
 .hero {
   background: linear-gradient(135deg,
-      var(--orange) 0%,
-      var(--orange-deep) 100%);
+      #0c8b7d 0%,
+      #0a756a 100%);
   color: #fff;
   padding: 30px 28px;
 }
@@ -546,7 +374,7 @@ onMounted(async () => {
 }
 
 .hero h2 em {
-  color: #ffd24d;
+  color: #d8f3ef;
   font-style: italic;
 }
 
@@ -587,13 +415,7 @@ onMounted(async () => {
   color: rgba(255, 255, 255, 0.7);
 }
 
-p.location-note {
-  margin: 10px 4px 0;
-  font-size: calc(20px * var(--font-scale));
-  line-height: 1.4;
-  color: rgba(196, 194, 194, 0.9);
-}
-
+/* ✅ 按钮统一绿色 */
 .change-btn,
 .apply-btn {
   border: 2px solid rgba(255, 255, 255, 0.65);
@@ -614,11 +436,11 @@ p.location-note {
 }
 
 .apply-btn {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(12, 139, 125, 0.5);
 }
 
 .apply-btn:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(12, 139, 125, 0.7);
 }
 
 .change-btn:disabled,
@@ -645,10 +467,11 @@ p.location-note {
   cursor: pointer;
 }
 
+/* ✅ filter 选中绿色 */
 .chip.solid {
-  border-color: #b08b0a;
-  background: var(--yellow);
-  color: #1f1d1a;
+  border-color: #0c8b7d;
+  background: #e3faf5;
+  color: #0c8b7d;
 }
 
 .results-header {
@@ -682,12 +505,11 @@ p.location-note {
   gap: 14px;
 }
 
-.pagination {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 4px;
+/* ✅ pagination 绿色 */
+.page-btn.active {
+  border-color: #0c8b7d;
+  background: #0c8b7d;
+  color: #fff;
 }
 
 .page-btn {
@@ -699,19 +521,11 @@ p.location-note {
   padding: 8px 10px;
   font-size: calc(14px * var(--font-scale));
   font-weight: 700;
-  line-height: 1.2;
   cursor: pointer;
-}
-
-.page-btn.active {
-  border-color: #f06e50;
-  background: #f06e50;
-  color: #fff;
 }
 
 .page-btn:disabled {
   opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .event-card {
@@ -727,104 +541,23 @@ p.location-note {
   color: #565973;
 }
 
-.tags {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.tag {
-  border-radius: 999px;
-  padding: 7px 13px;
-  font-size: calc(16px * var(--font-scale));
-  font-weight: 800;
-}
-
 .tag.green {
-  background: #088f7e;
+  background: #0c8b7d;
   color: #fff;
-}
-
-.tag.lilac {
-  background: #d9d0f5;
-  color: #4a42a8;
-}
-
-.tag.soft {
-  background: #e6edf8;
-  color: #365279;
-}
-
-.tag.warn {
-  background: #ffe1e1;
-  color: #a22b2b;
 }
 
 .distance {
   margin-left: auto;
-  background: #caece7;
+  background: #e3faf5;
   border: 2px solid #a2d8d1;
-  color: #0c7f72;
+  color: #0c8b7d;
   border-radius: 14px;
   padding: 7px 11px;
   font-size: calc(16px * var(--font-scale));
   font-weight: 800;
 }
 
-.event-card h4 {
-  margin: 16px 0 8px;
-  font-family: "Fraunces", serif;
-  font-size: clamp(calc(30px * var(--font-scale)),
-      calc(3vw * var(--font-scale)),
-      calc(46px * var(--font-scale)));
-  line-height: 1.08;
-}
-
-.meta {
-  margin: 0;
-  font-size: calc(18px * var(--font-scale));
-  font-weight: 700;
-  color: #565973;
-}
-
-.desc {
-  margin: 14px 0 18px;
-  font-size: calc(20px * var(--font-scale));
-  line-height: 1.35;
-  color: #41445b;
-}
-
-.event-foot {
-  border-top: 2px solid #d7d7e5;
-  padding-top: 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  font-size: calc(20px * var(--font-scale));
-  font-weight: 800;
-}
-
 .event-foot a {
-  color: #06786f;
-}
-
-@media (max-width: 980px) {
-  .results-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .event-foot {
-    font-size: calc(17px * var(--font-scale));
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .chip {
-    font-size: calc(16px * var(--font-scale));
-  }
+  color: #0c8b7d;
 }
 </style>
