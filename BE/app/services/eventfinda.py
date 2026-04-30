@@ -153,6 +153,36 @@ SUBURB_COORDS = {
 
 MELBOURNE_CBD = (-37.8136, 144.9631)
 
+# ─── Category mapping ─────────────────────────────────────────────────────────
+
+CATEGORY_ALIASES = {
+    "music": ["Rock & Pop", "Jazz", "Classical Music", "Folk", "Blues", "Hip Hop",
+              "Electronic", "Country", "Soul", "Punk", "Metal", "Indie", "R&B"],
+    "classical-music": ["Classical Music"],
+    "classical": ["Classical Music"],
+    "jazz": ["Jazz"],
+    "rock": ["Rock & Pop"],
+    "folk": ["Folk"],
+    "comedy": ["Comedy"],
+    "theatre": ["Theatre"],
+    "cabaret": ["Cabaret", "Burlesque", "Cabaret, Burlesque"],
+    "dance": ["Dance"],
+    "education": ["Education"],
+    "sport": ["Sport", "Cycling", "Running", "Fitness"],
+    "cycling": ["Cycling"],
+    "art": ["Visual Arts", "Creative", "Exhibition"],
+    "creative": ["Creative"],
+    "exhibitions": ["Exhibition", "Visual Arts", "Creative"],
+    "markets": ["Markets and Fairs", "Market"],
+    "food": ["Food and Drink", "Wine and Food"],
+    "film": ["Film"],
+    "workshops-classes": ["Workshop", "Class", "Creative", "Education"],
+    "festivals-lifestyle": ["Festival", "Lifestyle", "Markets and Fairs"],
+    "performing-arts": ["Theatre", "Cabaret", "Burlesque", "Dance", "Cabaret, Burlesque"],
+    "community": ["Community", "Charity"],
+    "health": ["Health", "Wellness", "Fitness", "Yoga"],
+}
+
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -165,13 +195,6 @@ def _get_auth_header() -> dict:
 # ─── Suburb cleaning ──────────────────────────────────────────────────────────
 
 def _clean_suburb(suburb: str) -> str:
-    """
-    Cleans suburb input from frontend.
-    "Clayton, VIC 3168"  → "clayton"
-    "St Kilda VIC"       → "st kilda"
-    "FITZROY"            → "fitzroy"
-    "3168"               → "3168" (postcode → Nominatim)
-    """
     suburb = suburb.split(",")[0].strip()
     suburb = re.sub(
         r'\s+(VIC|NSW|QLD|SA|WA|TAS|NT|ACT)\s*$',
@@ -182,16 +205,9 @@ def _clean_suburb(suburb: str) -> str:
     return suburb.lower()
 
 
-# ─── Suburb from location_summary ─────────────────────────────────────────────
+# ─── Suburb from location_summary ────────────────────────────────────────────
 
 def _extract_suburb_from_summary(summary: str) -> str | None:
-    """
-    Extracts suburb from Eventfinda location_summary string.
-    "Primrose Potter Salon, Southbank, Victoria" → "Southbank"
-    "Italy Bar Cafe, Melbourne CBD, Victoria"    → "Melbourne CBD"
-    "Crown Village Cinema, Southbank, Victoria"  → "Southbank"
-    Format is always: "Venue Name, Suburb, State"
-    """
     if not summary:
         return None
     parts = [p.strip() for p in summary.split(",")]
@@ -207,10 +223,6 @@ def _extract_suburb_from_summary(summary: str) -> str | None:
 # ─── Nominatim geocoding ──────────────────────────────────────────────────────
 
 async def _nominatim_lookup(query: str) -> tuple[float | None, float | None]:
-    """
-    Resolves suburb name or postcode to lat/lon via OpenStreetMap Nominatim.
-    Only called when suburb is not found in SUBURB_COORDS dict.
-    """
     try:
         async with httpx.AsyncClient() as client:
             r = await client.get(
@@ -239,17 +251,6 @@ async def _resolve_coords(
     user_lat: float | None,
     user_lon: float | None,
 ) -> tuple[float, float, str]:
-    """
-    Resolves the from-location for distance calculations.
-    Priority:
-      1. GPS coords passed directly  → most accurate
-      2. Suburb found in SUBURB_COORDS dict → fast
-      3. Nominatim geocoding → unknown suburbs/postcodes
-      4. Melbourne CBD fallback → last resort
-
-    Returns: (lat, lon, resolution_method)
-    resolution_method: "gps" | "dict" | "nominatim" | "default"
-    """
     if user_lat is not None and user_lon is not None:
         return user_lat, user_lon, "gps"
 
@@ -268,7 +269,6 @@ async def _resolve_coords(
 # ─── Distance ─────────────────────────────────────────────────────────────────
 
 def _calc_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Haversine formula — straight-line distance in km."""
     R = 6371
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
@@ -283,11 +283,6 @@ def _calc_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 # ─── URL suburb extraction ────────────────────────────────────────────────────
 
 def _suburb_from_url(url: str) -> tuple[str | None, float | None, float | None]:
-    """
-    Extracts suburb from Eventfinda URL slug as coordinate fallback.
-    /2026/event-name/melbourne/carlton → ('carlton', -37.7985, 144.9671)
-    Only used when point{} field is null.
-    """
     try:
         parts = url.rstrip("/").split("/")
         for part in reversed(parts[-3:]):
@@ -304,32 +299,38 @@ def _suburb_from_url(url: str) -> tuple[str | None, float | None, float | None]:
     return None, None, None
 
 
+# ─── Category matching ────────────────────────────────────────────────────────
+
+def _matches_category(event_category: str | None, requested_category: str) -> bool:
+    if not event_category:
+        return False
+
+    requested_lower = requested_category.lower()
+    aliases = CATEGORY_ALIASES.get(requested_lower, [requested_lower])
+    event_cat_lower = event_category.lower()
+
+    for alias in aliases:
+        if alias.lower() in event_cat_lower or event_cat_lower in alias.lower():
+            return True
+
+    return requested_lower in event_cat_lower
+
+
 # ─── Event parser ─────────────────────────────────────────────────────────────
 
 def _parse_event(e: dict, from_lat: float, from_lon: float) -> dict:
-    """
-    Parses a raw Eventfinda event dict into our response format.
-    from_lat/from_lon = user location or Melbourne CBD fallback.
-    distance_km = straight-line distance from user to event venue.
-    """
     location = e.get("location", {})
 
-    # Coordinates — top-level point field
     point = e.get("point", {})
     lat = point.get("lat") if isinstance(point, dict) else None
     lon = point.get("lng") if isinstance(point, dict) else None
 
-    # Suburb — 3 sources in priority order:
-    # 1. location.suburb field
-    # 2. location_summary e.g. "Venue, Southbank, Victoria" → "Southbank"
-    # 3. URL slug fallback
     location_summary = e.get("location_summary", "")
     suburb = location.get("suburb") if isinstance(location, dict) else None
 
     if not suburb:
         suburb = _extract_suburb_from_summary(location_summary)
 
-    # URL fallback for coords if point{} is null
     if not lat or not lon:
         url_suburb, url_lat, url_lon = _suburb_from_url(e.get("url", ""))
         if url_lat and url_lon:
@@ -338,7 +339,6 @@ def _parse_event(e: dict, from_lat: float, from_lon: float) -> dict:
         if not suburb and url_suburb:
             suburb = url_suburb.replace("-", " ").title()
 
-    # Ticket types
     ticket_types = e.get("ticket_types", {})
     tickets_list = (
         ticket_types.get("ticket_types", [])
@@ -351,16 +351,13 @@ def _parse_event(e: dict, from_lat: float, from_lon: float) -> dict:
     )
     ticket_names = [t.get("name") for t in tickets_list if t.get("name")]
 
-    # Sessions
     sessions = e.get("sessions", {})
     sessions_list = (
         sessions.get("sessions", []) if isinstance(sessions, dict) else []
     )
     first_session = sessions_list[0] if sessions_list else {}
-    # Full session datetime e.g. "Sat 25 Jul, 4:30pm - 6:15pm"
     session_datetime_summary = first_session.get("datetime_summary", "")
 
-    # Images
     images = e.get("images", {})
     images_list = images.get("images", []) if isinstance(images, dict) else []
     image_url = None
@@ -373,11 +370,9 @@ def _parse_event(e: dict, from_lat: float, from_lon: float) -> dict:
             large.get("url") if large else images_list[0].get("original_url")
         )
 
-    # Category
     category = e.get("category", {})
     category_name = category.get("name") if isinstance(category, dict) else category
 
-    # Distance from user location to event venue
     distance_km = None
     if lat and lon:
         distance_km = _calc_distance(from_lat, from_lon, float(lat), float(lon))
@@ -420,7 +415,7 @@ async def search_events(
     suburb: str = "melbourne",
     user_lat: float = None,
     user_lon: float = None,
-    radius_km: int = 5,
+    radius_km: float = 5,
     is_free: bool = False,
     max_price: float = None,
     date_from: str = None,
@@ -433,60 +428,116 @@ async def search_events(
         suburb, user_lat, user_lon
     )
 
-    params = {
-        "point": f"{search_lat},{search_lon}",
-        "radius": radius_km,
-        "rows": rows,
-        "offset": offset,
-        "order": "distance",
-    }
+    # How many total rows to fetch before filtering
+    # Category filter is client-side so fetch more to compensate
+    fetch_total = rows * 5 if category else rows
+    fetch_total = min(fetch_total, 100)  # cap at 100 total
 
-    # Use Eventfinda's dedicated free parameter — more reliable than price_max=0
-    if is_free:
-        params["free"] = 1
-    elif max_price is not None:
-        params["price_max"] = max_price
-
-    if date_from:
-        params["start_date"] = date_from
-    if date_to:
-        params["end_date"] = date_to
-    if category:
-        params["category_slug"] = category
+    # Eventfinda free tier returns max 10 per request
+    # Paginate to collect enough events
+    all_events_raw = []
+    total = 0
+    page_size = 10
+    pages_needed = math.ceil(fetch_total / page_size)
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{BASE_URL}/events.json",
-            params=params,
-            headers=_get_auth_header(),
-            timeout=15,
-        )
-        response.raise_for_status()
-        data = response.json()
+        for page in range(pages_needed):
+            params = {
+                "point": f"{search_lat},{search_lon}",
+                "radius": radius_km,
+                "rows": page_size,
+                "offset": offset + (page * page_size),
+                "order": "distance",
+            }
 
-    events_raw = data.get("events", [])
-    if isinstance(events_raw, dict):
-        events_raw = events_raw.get("events", [])
+            if is_free:
+                params["free"] = 1
+            elif max_price is not None:
+                params["price_max"] = max_price
+            if date_from:
+                params["start_date"] = date_from
+            if date_to:
+                params["end_date"] = date_to
 
-    total = data.get("@attributes", {}).get("count", len(events_raw))
+            try:
+                response = await client.get(
+                    f"{BASE_URL}/events.json",
+                    params=params,
+                    headers=_get_auth_header(),
+                    timeout=15,
+                )
+                response.raise_for_status()
+                data = response.json()
+            except Exception:
+                break
 
-    # Safety net filter — only confirmed free events when is_free=True
+            events_raw = data.get("events", [])
+            if isinstance(events_raw, dict):
+                events_raw = events_raw.get("events", [])
+
+            if not events_raw:
+                break
+
+            # Get total from first page only
+            if page == 0:
+                total = data.get("@attributes", {}).get("count", 0)
+
+            all_events_raw.extend(events_raw)
+
+            # Stop if we have enough or reached end of results
+            if len(all_events_raw) >= fetch_total:
+                break
+            if len(all_events_raw) >= total:
+                break
+
+    # Safety net — only confirmed free events when is_free=True
     if is_free:
-        events_raw = [e for e in events_raw if e.get("is_free") is True]
+        all_events_raw = [e for e in all_events_raw if e.get("is_free") is True]
 
-    events = [_parse_event(e, search_lat, search_lon) for e in events_raw]
+   # Parse all events
+    events = [_parse_event(e, search_lat, search_lon) for e in all_events_raw]
+
+    # Enforce radius filter client-side
+    events = [
+        e for e in events
+        if e.get("distance_km") is None or e.get("distance_km") <= radius_km
+    ]
+
+    # Deduplicate by event id
+    seen_ids = set()
+    unique_events = []
+    for e in events:
+        if e["id"] not in seen_ids:
+            seen_ids.add(e["id"])
+            unique_events.append(e)
+    events = unique_events
+
+    # Client-side category filter
+    if category:
+        events = [
+            e for e in events
+            if _matches_category(e.get("category"), category)
+        ]
+
+    # Sort by distance
     events.sort(key=lambda x: x.get("distance_km") or 999)
 
+    # Trim to requested rows
+    events = events[:rows]
+
     return {
-        "total": len(events) if is_free else total,
-        "events": events,
-        "search_context": {
-            "lat": search_lat,
-            "lon": search_lon,
-            "resolution": resolution,
-            "suburb_input": suburb,
-        },
-    }
+    "total_available": total,        # ← total from Eventfinda before any filtering
+    "total_filtered": len(events),   # ← count after radius + category + is_free filter
+    "events": events,
+    "search_context": {
+        "lat": search_lat,
+        "lon": search_lon,
+        "resolution": resolution,
+        "suburb_input": suburb,
+        "category_filter": category,
+        "radius_km": radius_km,
+    },
+}
 
 
 # ─── Single event detail ──────────────────────────────────────────────────────

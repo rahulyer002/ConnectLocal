@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:3000"
     ENVIRONMENT: str = "development"
 
+    # Database
+    DATABASE_URL_SYNC: str = ""
+    DATABASE_URL: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"
