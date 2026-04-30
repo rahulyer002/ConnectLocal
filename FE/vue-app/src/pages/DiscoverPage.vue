@@ -27,14 +27,14 @@
     </section>
 
     <section class="results-header">
-      <h3>{{ filteredActivities.length }} activities</h3>
+      <h3>{{ totalCount }} activities</h3>
       <button class="print-btn" type="button" @click="printList">
         Print list
       </button>
     </section>
 
-    <section class="activity-list" v-if="!isLoading && !loadError && filteredActivities.length">
-      <article class="event-card" v-for="activity in pagedActivities" :key="activity.id">
+    <section class="activity-list" v-if="!isLoading && !loadError && activities.length">
+      <article class="event-card" v-for="activity in activities" :key="activity.id">
         <div class="tags">
           <span v-for="tag in activity.displayTags" :key="`${activity.id}-${tag.text}`" class="tag" :class="tag.tone">
             {{ tag.text }}
@@ -46,12 +46,15 @@
         <p class="desc">{{ activity.description }}</p>
         <div class="event-foot">
           <span>{{ activity.spotsLeftText }}</span>
-          <a v-if="activity.link" :href="activity.link" target="_blank" rel="noreferrer">View details →</a>
-          <span v-else>Details coming soon</span>
+          <RouterLink
+            :to="detailsTo(activity.id)"
+          >
+            View details →
+          </RouterLink>
         </div>
       </article>
 
-      <nav class="pagination" v-if="totalPages > 1 || canFetchMore" aria-label="Activity pages">
+      <nav class="pagination" v-if="totalPages > 1" aria-label="Activity pages">
         <button class="page-btn" type="button" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
           Prev
         </button>
@@ -61,7 +64,7 @@
           {{ page }}
         </button>
 
-        <button class="page-btn" type="button" :disabled="!canGoNext"
+        <button class="page-btn" type="button" :disabled="currentPage === totalPages || isLoading"
           @click="goToPage(currentPage + 1)">
           Next
         </button>
@@ -79,9 +82,8 @@
         <template v-if="!hasLocationConfirmed">
           Please locate first or enter a Melbourne suburb/postcode, then tap Change.
         </template>
-        <template v-else-if="activities.length">
-          Loaded {{ activities.length }} activities, but none match current
-          filters. Try removing one or two filters.
+        <template v-else-if="hasLocationConfirmed">
+          No activities found for the current filters.
         </template>
         <template v-else> No activities found from the API. </template>
       </article>
@@ -99,14 +101,13 @@ const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectloca
 const API = `${BASE_URL}/api/events/search`;
 const CLOSE_KM = 5;
 const UI_PAGE_SIZE = 3;
-const FETCH_LIMIT = 9;
+const FETCH_LIMIT = UI_PAGE_SIZE;
 const MELBOURNE_NOT_FOUND = "The location you specified was not found in Melbourne.";
 
 const locationInput = ref("");
 const nearbyLabel = ref("your area");
 const isLocating = ref(false);
 const isApplying = ref(false);
-const rawActivities = ref([]);
 const activities = ref([]);
 const isLoading = ref(false);
 const loadError = ref("");
@@ -116,15 +117,11 @@ const locationLat = ref(null);
 const locationLon = ref(null);
 const locationQueryMode = ref("suburb");
 const totalHint = ref(null);
-const lastBatchSize = ref(0);
-const isProgressiveLoading = ref(false);
 
 const activeFilters = reactive({
   free: true,
   thisWeek: true,
   closeHome: true,
-  indoor: false,
-  easyAccess: false,
 });
 const chips = [
   { key: "free", label: "Free" },
@@ -140,7 +137,7 @@ const d = (v) => {
   return x && !Number.isNaN(x.getTime()) ? x : null;
 };
 const arr = (p) => (Array.isArray(p?.events) ? p.events : []);
-const total = (p) => n(p?.total);
+const total = (p) => n(p?.total_available ?? p?.total);
 const isPostcodeInput = (q) => /^\d{4}$/.test(q);
 const isSuburbInput = (q) => /^[A-Za-z][A-Za-z\s'-]{1,59}$/.test(q);
 const isValidLocationInput = (q) => isPostcodeInput(q) || isSuburbInput(q);
@@ -156,6 +153,7 @@ const isInMelbourne = (a = {}, displayName = "") => {
   return state.includes("victoria") && text.includes("melbourne");
 };
 
+//Organize the API data into the front-end format
 const normalize = (r, i) => {
   const date = d(r.datetime_start);
   const km = n(r.distance_km);
@@ -164,6 +162,7 @@ const normalize = (r, i) => {
   const indoor = b(r.indoor);
   const easyAccess = b(r.easy_access);
   const venue = r.venue || "Location TBC";
+  const address = String(r.address || r.location_summary || "").trim();
   const suburb = r.suburb || "";
   const spots = n(r.spots_left);
   const category = String(r?.category || "").trim();
@@ -192,7 +191,7 @@ const normalize = (r, i) => {
     distanceKm: km,
     spotsLeftText:
       spots == null
-        ? "Spots info unavailable"
+        ? (address ? `Address: ${address}` : "Spots info unavailable")
         : `${Math.max(0, Math.floor(spots))} spots left`,
     link: r.url || "",
     displayTags: [
@@ -205,70 +204,65 @@ const normalize = (r, i) => {
   };
 };
 
-const fetchActivities = async (reset = true, showLoading = reset) => {
+//Generate API request address
+const buildSearchUrl = (page = currentPage.value) => {
+  const u = new URL(API);
+  const offset = (Math.max(1, page) - 1) * FETCH_LIMIT;
+  u.searchParams.set("offset", String(offset));
+  u.searchParams.set("rows", String(FETCH_LIMIT));
+  u.searchParams.set("is_free", activeFilters.free ? "true" : "false");
+  if (activeFilters.thisWeek) {
+    const today = new Date();
+    const end = new Date(Date.now() + 7 * 86400000);
+    u.searchParams.set("date_from", today.toISOString().slice(0, 10));
+    u.searchParams.set("date_to", end.toISOString().slice(0, 10));
+  }
+  if (activeFilters.closeHome) {
+    u.searchParams.set("radius_km", String(CLOSE_KM));
+  }
+  if (
+    locationQueryMode.value === "latlon" &&
+    locationLat.value != null &&
+    locationLon.value != null
+  ) {
+    u.searchParams.set("lat", String(locationLat.value));
+    u.searchParams.set("lon", String(locationLon.value));
+  } else if (locationInput.value.trim()) {
+    const suburbQuery =
+      nearbyLabel.value && nearbyLabel.value !== "your area"
+        ? nearbyLabel.value
+        : locationInput.value.trim();
+    u.searchParams.set("suburb", suburbQuery.toLowerCase());
+  }
+  return u;
+};
+
+//Request for activity data
+const fetchActivities = async (page = currentPage.value) => {
   if (!hasLocationConfirmed.value) return;
-  if (showLoading) isLoading.value = true;
+  isLoading.value = true;
   loadError.value = "";
   try {
-    const beforeCount = reset ? 0 : rawActivities.value.length;
-    if (reset) {
-      rawActivities.value = [];
-      activities.value = [];
-      totalHint.value = null;
-      lastBatchSize.value = 0;
-      currentPage.value = 1;
-    }
-    const off = rawActivities.value.length;
-    const u = new URL(API);
-    u.searchParams.set("offset", off);
-    u.searchParams.set("rows", FETCH_LIMIT);
-    u.searchParams.set("is_free", "false");
-    if (
-      locationQueryMode.value === "latlon" &&
-      locationLat.value != null &&
-      locationLon.value != null
-    ) {
-      u.searchParams.set("lat", String(locationLat.value));
-      u.searchParams.set("lon", String(locationLon.value));
-    } else if (locationInput.value.trim()) {
-      const suburbQuery =
-        nearbyLabel.value && nearbyLabel.value !== "your area"
-          ? nearbyLabel.value
-          : locationInput.value.trim();
-      u.searchParams.set("suburb", suburbQuery.toLowerCase());
-    }
+    const u = buildSearchUrl(page);
     const r = await fetch(u.toString());
     if (!r.ok) throw new Error(`Failed to load activities (${r.status})`);
     const p = await r.json();
     const list = arr(p);
     totalHint.value = total(p) ?? totalHint.value;
-    lastBatchSize.value = list.length;
-
-    const base = rawActivities.value;
-    const seen = new Set(base.map((e) => String(e.id)));
-    const merged = [...base];
-    for (const e of list) {
-      const k = String(e?.id ?? e?._id ?? JSON.stringify(e));
-      if (seen.has(k)) continue;
-      seen.add(k);
-      merged.push(e);
-    }
-    rawActivities.value = merged;
-    activities.value = rawActivities.value.map(normalize);
+    activities.value = list.map(normalize);
     console.info(
-      `Loaded ${activities.value.length} activities${totalHint.value ? ` total=${totalHint.value}` : ""}`,
+      `Loaded page=${page} count=${activities.value.length}${totalHint.value ? ` total=${totalHint.value}` : ""}`,
     );
-    return rawActivities.value.length - beforeCount;
+    currentPage.value = page;
   } catch (e) {
     loadError.value = "Unable to load activities right now. Please try again later.";
-    rawActivities.value = [];
     activities.value = [];
-    return 0;
   } finally {
-    if (showLoading) isLoading.value = false;
+    isLoading.value = false;
   }
 };
 
+//Positioning logic
 const setLocation = (text, suburb = "", lat = null, lon = null) => {
   locationInput.value = text;
   nearbyLabel.value = suburb || text.split(",")[0] || "your area";
@@ -325,7 +319,6 @@ const getLocation = () => {
             setLocation(value, f.suburb || value, coords.latitude, coords.longitude);
             locationQueryMode.value = "latlon";
             await fetchActivities();
-            void progressivelyLoadAllData();
           }
         }
       } catch {
@@ -413,7 +406,6 @@ const applyManualLocation = async () => {
         setLocation(value, f.suburb || value, n(top.lat), n(top.lon));
         locationQueryMode.value = "suburb";
         await fetchActivities();
-        void progressivelyLoadAllData();
       }
     }
   } catch {
@@ -426,55 +418,10 @@ const applyManualLocation = async () => {
   isApplying.value = false;
 };
 
-const isThisWeek = (a) =>
-  a.date &&
-  a.date >= new Date() &&
-  a.date <= new Date(Date.now() + 7 * 86400000);
-const isClose = (a) =>
-  a.distanceKm != null
-    ? a.distanceKm <= CLOSE_KM
-    : !nearbyLabel.value ||
-    nearbyLabel.value === "your area" ||
-    `${a.suburb || a.venue}`
-      .toLowerCase()
-      .includes(nearbyLabel.value.toLowerCase());
-
-const filteredActivities = computed(() =>
-  activities.value.filter(
-    (a) =>
-      (!activeFilters.free || a.isFree) &&
-      (!activeFilters.thisWeek || isThisWeek(a)) &&
-      (!activeFilters.closeHome || isClose(a)) &&
-      (!activeFilters.indoor || a.indoor) &&
-      (!activeFilters.easyAccess || a.easyAccess),
-  ),
-);
-const hasClientFilters = computed(
-  () =>
-    activeFilters.free ||
-    activeFilters.thisWeek ||
-    activeFilters.closeHome ||
-    activeFilters.indoor ||
-    activeFilters.easyAccess,
-);
-const canFetchMore = computed(() => {
-  if (totalHint.value != null) return activities.value.length < totalHint.value;
-  return lastBatchSize.value === FETCH_LIMIT;
-});
-const loadedShownPages = computed(() =>
-  Math.max(1, Math.ceil(filteredActivities.value.length / UI_PAGE_SIZE)),
-);
 const totalPages = computed(() =>
-  !hasClientFilters.value && totalHint.value != null
-    ? Math.max(1, Math.ceil(totalHint.value / UI_PAGE_SIZE))
-    : Math.max(1, Math.ceil(filteredActivities.value.length / UI_PAGE_SIZE)),
+  Math.max(1, Math.ceil((totalHint.value ?? 0) / UI_PAGE_SIZE)),
 );
-const pagedActivities = computed(() =>
-  filteredActivities.value.slice(
-    (currentPage.value - 1) * UI_PAGE_SIZE,
-    currentPage.value * UI_PAGE_SIZE,
-  ),
-);
+const totalCount = computed(() => totalHint.value ?? 0);
 const visiblePages = computed(() => {
   const total = totalPages.value;
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -484,40 +431,27 @@ const visiblePages = computed(() => {
   );
 });
 const formatMeta = (a) => `${a.dateText} · ${a.timeText} · ${a.venue}`;
-const toggleFilter = (k) => (activeFilters[k] = !activeFilters[k]);
-const canGoNext = computed(
-  () => currentPage.value < totalPages.value || (canFetchMore.value && !isLoading.value),
-);
-const ensurePageDataLoaded = async (targetPage) => {
-  while (
-    targetPage > loadedShownPages.value &&
-    canFetchMore.value &&
-    !isLoading.value
-  ) {
-    const added = await fetchActivities(false, false);
-    if (!added) break;
+const detailsTo = (id) => {
+  const q = {};
+  if (locationLat.value != null && locationLon.value != null) {
+    q.lat = String(locationLat.value);
+    q.lon = String(locationLon.value);
   }
+  return { path: `/events/${id}`, query: q };
 };
-const progressivelyLoadAllData = async () => {
-  if (isProgressiveLoading.value || !hasLocationConfirmed.value) return;
-  isProgressiveLoading.value = true;
-  try {
-    while (canFetchMore.value) {
-      const added = await fetchActivities(false, false);
-      if (!added) break;
-    }
-  } finally {
-    isProgressiveLoading.value = false;
-  }
+const toggleFilter = async (k) => {
+  activeFilters[k] = !activeFilters[k];
+  if (!hasLocationConfirmed.value) return;
+  totalHint.value = null;
+  await fetchActivities(1);
 };
 const goToPage = async (p) => {
-  const target = Math.max(1, p);
-  await ensurePageDataLoaded(target);
-  currentPage.value = Math.min(target, totalPages.value);
+  const target = Math.min(totalPages.value, Math.max(1, p));
+  await fetchActivities(target);
 };
 const printList = () => window.print();
 
-watch(filteredActivities, () => {
+watch(activities, () => {
   if (currentPage.value > totalPages.value)
     currentPage.value = totalPages.value;
 });
@@ -546,7 +480,7 @@ onMounted(async () => {
 }
 
 .hero h2 em {
-  color: #ffd24d;
+  color: #8af8ed;
   font-style: italic;
 }
 
@@ -704,8 +638,8 @@ p.location-note {
 }
 
 .page-btn.active {
-  border-color: #f06e50;
-  background: #f06e50;
+  border-color: #008c7d;
+  background: #008c7d;
   color: #fff;
 }
 

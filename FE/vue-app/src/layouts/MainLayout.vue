@@ -12,22 +12,13 @@
       </label>
       <!-- <section class="score"><small>WELLBEING SCORE</small><b>48</b><span>out of 80</span></section> -->
     </aside>
-    <main>
-      <nav v-if="route.path !== '/discover'" class="tabs">
-        <RouterLink to="/checkin">Check-in</RouterLink>
-        <RouterLink to="/results">Results</RouterLink>
-        <RouterLink to="/discover">Discover</RouterLink>
-      </nav>
-      <slot />
-    </main>
+    <main><slot /></main>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import { useLocationState } from '../composables/useLocationState'
-const route = useRoute()
 const { detectedLocationText } = useLocationState()
 const scale = ref(1)
 watch(scale, v => document.documentElement.style.setProperty('--font-scale', v), { immediate: true })
@@ -56,7 +47,7 @@ h1 {
 }
 
 h1 span {
-  color: #f56a48
+  color: #008c7d
 }
 
 p {
@@ -107,22 +98,9 @@ main {
   background: #f5f5fa
 }
 
-.tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-bottom: 1px solid var(--line);
-  background: #fff
-}
-
-.tabs a {
-  text-align: center;
-  padding: 12px;
-  font-weight: 700
-}
-
 .tabs .router-link-exact-active {
-  color: #f26648;
-  border-bottom: 3px solid #f26648
+  color: #008c7d;
+  border-bottom: 3px solid #008c7d
 }
 
 @media (max-width:980px) {
