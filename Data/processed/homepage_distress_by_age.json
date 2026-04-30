@@ -1,0 +1,38 @@
+[
+  {
+    "age_group": "18-24",
+    "psychological_distress_percent": 15.2,
+    "year": "2017-18",
+    "source": "ABS National Health Survey, Psychological distress - Australia"
+  },
+  {
+    "age_group": "25-34",
+    "psychological_distress_percent": 13.1,
+    "year": "2017-18",
+    "source": "ABS National Health Survey, Psychological distress - Australia"
+  },
+  {
+    "age_group": "35-44",
+    "psychological_distress_percent": 11.8,
+    "year": "2017-18",
+    "source": "ABS National Health Survey, Psychological distress - Australia"
+  },
+  {
+    "age_group": "45-54",
+    "psychological_distress_percent": 14.3,
+    "year": "2017-18",
+    "source": "ABS National Health Survey, Psychological distress - Australia"
+  },
+  {
+    "age_group": "55-64",
+    "psychological_distress_percent": 14.4,
+    "year": "2017-18",
+    "source": "ABS National Health Survey, Psychological distress - Australia"
+  },
+  {
+    "age_group": "65+",
+    "psychological_distress_percent": 9.9,
+    "year": "2017-18",
+    "source": "ABS National Health Survey, Psychological distress - Australia"
+  }
+]
