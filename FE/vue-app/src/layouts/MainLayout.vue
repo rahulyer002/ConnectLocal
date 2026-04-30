@@ -8,6 +8,7 @@
       <p class="location-text">{{ detectedLocationText }}</p>
 
       <nav>
+        <RouterLink to="/home" class="item home-btn">Home Page</RouterLink>
         <RouterLink to="/checkin" class="item">Wellbeing Check</RouterLink>
         <RouterLink to="/discover" class="item">Discover Events</RouterLink>
       </nav>
@@ -152,4 +153,6 @@ main {
     grid-template-columns: 1fr;
   }
 }
+
+
 </style>
