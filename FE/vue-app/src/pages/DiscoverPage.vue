@@ -136,7 +136,7 @@ const d = (v) => {
   return x && !Number.isNaN(x.getTime()) ? x : null;
 };
 const arr = (p) => (Array.isArray(p?.events) ? p.events : []);
-const total = (p) => n(p?.total_available ?? p?.total);
+const total = (p) => n(p?.total_filtered ?? p?.total);
 const isPostcodeInput = (q) => /^\d{4}$/.test(q);
 const isSuburbInput = (q) => /^[A-Za-z][A-Za-z\s'-]{1,59}$/.test(q);
 const isValidLocationInput = (q) => isPostcodeInput(q) || isSuburbInput(q);
