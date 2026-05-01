@@ -1,0 +1,138 @@
+sensor_id,sensor_name,sensor_description,location_type,status,lat,lon,direction_1,direction_2,suburb_id,suburb_name
+1,Bou292_T,Bourke Street Mall (North),Outdoor,A,-37.81349441,144.96515323,East,West,206041503,Melbourne CBD - East
+2,Bou283_T,Bourke Street Mall (South),Outdoor,A,-37.81380668,144.96516718,East,West,206041503,Melbourne CBD - East
+3,Swa295_T,Melbourne Central,Outdoor,A,-37.81101524,144.96429485,North,South,206041504,Melbourne CBD - North
+4,Swa123_T,Town Hall (West),Outdoor,A,-37.81487988,144.9660878,North,South,206041503,Melbourne CBD - East
+5,PriNW_T,Princes Bridge,Outdoor,A,-37.81874249,144.96787656,North,South,206041503,Melbourne CBD - East
+6,FliS_T,Flinders Street Station Underpass,Outdoor,A,-37.81911705,144.96558255,North,South,206041505,Melbourne CBD - West
+8,WebBN_T,Webb Bridge,Outdoor,A,-37.82293543,144.9471751,North,South,206041118,Docklands
+9,Col700_T,Southern Cross Station,Outdoor,A,-37.81982992,144.95102555,East,West,206041508,Southbank (West) - South Wharf
+10,BouHbr_T,Victoria Point,Outdoor,A,-37.81876474,144.94710545,East,West,206041118,Docklands
+11,WatCit_T,Waterfront City,Outdoor,A,-37.81564989,144.93970694,East,West,206041118,Docklands
+12,NewQ_T,New Quay,Outdoor,A,-37.81457988,144.94292398,East,West,206041118,Docklands
+14,SanBri_T,Sandridge Bridge,Outdoor,A,-37.82011242,144.96291897,North,South,206041505,Melbourne CBD - West
+17,Col15_T,Collins Place (South),Outdoor,A,-37.81362543,144.97323591,East,West,206041503,Melbourne CBD - East
+18,Col12_T,Collins Place (North),Outdoor,A,-37.81344862,144.97305353,East,West,206041503,Melbourne CBD - East
+19,LtB210_T,Chinatown-Swanston St (North),Outdoor,A,-37.81237202,144.96550671,East,West,206041503,Melbourne CBD - East
+20,LtB170_T,Chinatown-Lt Bourke St (South),Outdoor,A,-37.81172914,144.9682466,East,West,206041503,Melbourne CBD - East
+21,Bourke155_T,155-161 Russell Street,Outdoor,A,-37.81267313,144.96788288,North,South,206041503,Melbourne CBD - East
+23,Col623_T,Spencer St-Collins St (South),Outdoor,A,-37.81909256,144.95452748,East,West,206041505,Melbourne CBD - West
+24,Col620_T,Spencer St-Collins St (North),Outdoor,A,-37.81887963,144.95449198,East,West,206041505,Melbourne CBD - West
+25,MCEC_T,Melbourne Convention Exhibition Centre,Outdoor,A,-37.82401776,144.95604426,East,West,206041508,Southbank (West) - South Wharf
+27,Vic_T,QV Market-Peel St,Outdoor,A,-37.80606888,144.95644692,East,West,206041504,Melbourne CBD - North
+28,VAC_T,The Arts Centre,Outdoor,A,-37.82129925,144.96879309,North,South,206041509,Southbank - East
+29,AG_T,St Kilda Rd-Alexandra Gardens,Outdoor,A,-37.8199817,144.96872865,North,South,206041509,Southbank - East
+30,Lon189_T,Lonsdale St (South),Outdoor,A,-37.8112185,144.96656806,East,West,206041503,Melbourne CBD - East
+31,Lyg161_T,Lygon St (West),Outdoor,A,-37.80169681,144.96658911,North,South,206041117,Carlton
+35,SouthB_T,Southbank,Outdoor,A,-37.82018685,144.96508508,East,West,206041505,Melbourne CBD - West
+36,Que85_T,Queen St (West),Outdoor,A,-37.81652527,144.96121062,North,South,206041505,Melbourne CBD - West
+37,Lyg260_T,Lygon St (East),Outdoor,A,-37.80107122,144.96704554,North,South,206041117,Carlton
+39,AlfPl_T,Alfred Place,Outdoor,A,-37.81379749,144.96995745,North,South,206041503,Melbourne CBD - East
+40,Spr201_T,Lonsdale St-Spring St (West),Outdoor,A,-37.80999341,144.97227587,North,South,206041503,Melbourne CBD - East
+41,Swa31,Flinders La-Swanston St (West),Outdoor,A,-37.81668634,144.96689733,North,South,206041503,Melbourne CBD - East
+42,UM1_T,Grattan St-Swanston St (West),Outdoor,A,-37.80008566,144.96386412,North,South,206041117,Carlton
+43,UM2_T,Monash Rd-Swanston St (West),Outdoor,A,-37.79844526,144.96411782,North,South,206041117,Carlton
+44,UM3_T,Tin Alley-Swanston St (West),Outdoor,A,-37.79698741,144.96441306,North,South,206041117,Carlton
+45,Swa148_T,Little Collins St-Swanston St (East),Outdoor,A,-37.81414075,144.96609379,North,South,206041503,Melbourne CBD - East
+46,Pel147_T,Pelham St (South),Outdoor,A,-37.80240719,144.9615673,East,West,206041117,Carlton
+47,Eli250_T,Melbourne Central-Elizabeth St (East),Outdoor,A,-37.81258467,144.9625775,North,South,206041504,Melbourne CBD - North
+48,QVMQ_T,QVM-Queen St (East),Outdoor,A,-37.80631581,144.95866697,East,West,206041504,Melbourne CBD - North
+49,Eli501_T,QVM-Therry St (South),Outdoor,A,-37.80730068,144.95956055,East,West,206041504,Melbourne CBD - North
+50,Lyg309_T,Faraday St-Lygon St (West),Outdoor,A,-37.79808192,144.96721013,North,South,206041117,Carlton
+51,Fra118_T,QVM-Franklin St (North),Outdoor,A,-37.80841815,144.95906316,East,West,206041504,Melbourne CBD - North
+52,Eli263_T,Elizabeth St-Lonsdale St (South),Outdoor,A,-37.81252157,144.9619401,East,West,206041504,Melbourne CBD - North
+53,Col254_T,Collins Street (North),Outdoor,A,-37.81564191,144.965499,East,West,206041503,Melbourne CBD - East
+54,Swa607_T,Lincoln-Swanston (West),Outdoor,A,-37.804024,144.96308399,North,South,206041117,Carlton
+55,Eli380_T,380 Elizabeth Street,Outdoor,A,-37.80988941,144.96134331,,,206041504,Melbourne CBD - North
+56,Lon364_T,Lonsdale St - Elizabeth St (North),Outdoor,A,-37.81234775,144.96153311,East,West,206041504,Melbourne CBD - North
+58,Bou688_T,Bourke St - Spencer St (North),Outdoor,A,-37.81686075,144.95358075,East,West,206041505,Melbourne CBD - West
+59,RMIT_T,Building 80 RMIT,Outdoor,A,-37.80825648,144.96304859,North,South,206041504,Melbourne CBD - North
+61,RMIT14_T,RMIT Building 14,Outdoor,A,-37.80767455,144.96309114,North,South,206041504,Melbourne CBD - North
+62,Lat224_T,La Trobe St (North),Outdoor,A,-37.80996494,144.96216521,East,West,206041504,Melbourne CBD - North
+63,Bou231_T,231 Bourke St,Outdoor,A,-37.81333081,144.96675571,East,West,206041503,Melbourne CBD - East
+65,SwaCs_T,Swanston St - City Square,Outdoor,A,-37.81569416,144.9668064,North,South,206041503,Melbourne CBD - East
+66,QVN_T,State Library - New,Outdoor,A,-37.81057846,144.96444294,North,South,206041504,Melbourne CBD - North
+67,FLDegS_T,Flinders Ln -Degraves St (South),Outdoor,A,-37.81688755,144.96562569,East,West,206041503,Melbourne CBD - East
+68,FLDegN_T,Flinders Ln -Degraves St (North),Outdoor,A,-37.8168479,144.96559789,East,West,206041503,Melbourne CBD - East
+69,FLDegC_T,Flinders Ln -Degraves St (Crossing),Outdoor,A,-37.81687226,144.96559144,North,South,206041503,Melbourne CBD - East
+70,Errol20_T,Errol Street (East),Outdoor,A,-37.80456984,144.94946228,North,South,206041510,West Melbourne - Residential
+71,WestWP_T,Westwood Place,Outdoor,A,-37.81235775,144.97136962,North,South,206041503,Melbourne CBD - East
+72,ACMI_T,Flinders St- ACMI,Outdoor,A,-37.81726338,144.96872809,East,West,206041503,Melbourne CBD - East
+75,SprFli_T,Spring St- Flinders st (West),Outdoor,A,-37.81515276,144.97467661,North,South,206041503,Melbourne CBD - East
+76,KenMac_T,Macaulay Rd- Bellair St,Outdoor,A,-37.79453803,144.93036194,East,West,206041121,Kensington (Vic.)
+77,HarEsP_T,Harbour Esplanade (West) - Pedestrian path,Outdoor,A,-37.81441438,144.94433026,North,South,206041118,Docklands
+78,HarEsB_T,Harbour Esplanade (West) - Bike Path,Outdoor,A,-37.81471642,144.9446508,North,South,206041118,Docklands
+79,FliSS_T,Flinders St (South),Outdoor,A,-37.81794046,144.96616678,East,West,206041503,Melbourne CBD - East
+80,BoCoR_T,Boyd Commuinty - Rear door,Indoor,A,-37.8254567,144.96131206,,,206041509,Southbank - East
+81,BoCoF_T,Boyd Commuinty - Front door,Indoor,A,-37.82579138,144.96084343,,,206041508,Southbank (West) - South Wharf
+82,Eli512_T,512 Elizabeth Street,Indoor,A,-37.80667227,144.96005554,,,206041504,Melbourne CBD - North
+83,Eli510_T,510 Elizabeth Street,Indoor,A,-37.8067319,144.96005113,,,206041504,Melbourne CBD - North
+84,ElFi_T,Elizabeth St - Flinders St (East) - New footpath,Outdoor,A,-37.81798049,144.96503383,North,South,206041505,Melbourne CBD - West
+85,488Mac_T,Macaulay Rd (North),Outdoor,A,-37.79432415,144.92973378,East,West,206041121,Kensington (Vic.)
+86,574Qub_T,Queensberry St - Errol St (South),Outdoor,A,-37.80309992,144.94908064,East,West,206041506,North Melbourne
+87,Errol23_T,Errol St (West),Outdoor,A,-37.80454949,144.94921863,North,South,206041510,West Melbourne - Residential
+89,CityLi_T,City Library,Indoor,A,-37.81685964,144.96586575,,,206041503,Melbourne CBD - East
+90,BoCoL_T,Boyd Community Hub- Library,Indoor,A,-37.82556207,144.96115421,,,206041509,Southbank - East
+91,DocLib1_T,Library at The Dock-North side,Indoor,A,-37.8200188,144.94029861,,,206041118,Docklands
+92,DocLib2_T,Library at The Dock-South side,Indoor,A,-37.82016286,144.94039584,,,206041118,Docklands
+93,EastLib_T,East Melbourne Library,Indoor,A,-37.81498411,144.98638807,,,206041119,East Melbourne
+94,FitConVis_T,Fitzroy Garden- The Conservatory,Indoor,A,-37.81424531,144.97851861,,,206041119,East Melbourne
+95,FitGarExtVisExt_T,Fitzroy Garden Visitor Centre External,Indoor,A,-37.81488315,144.97926569,,,206041119,East Melbourne
+96,FitGarVisIInt_T,Fitzroy Garden Visitor Centre Internal,Indoor,A,-37.81499687,144.97925064,,,206041119,East Melbourne
+99,TownVis_T,Town Hall Visitor Centre,Indoor,A,-37.81462143,144.96623279,,,206041503,Melbourne CBD - East
+102,NtMelLib_T,North Melbourne Library,Indoor,A,-37.80340543,144.94977011,,,206041510,West Melbourne - Residential
+103,KenTown_T,Kensington Town Hall,Indoor,A,-37.7893527,144.9286055,,,206041121,Kensington (Vic.)
+104,KatLib1_T,Kathleen Syme Library Main,Indoor,A,-37.79863553,144.96548206,,,206041117,Carlton
+105,KatLib2_T,Kathleen Syme Library Lib,Indoor,A,-37.79861828,144.9652825,,,206041117,Carlton
+106,KatLib3_T,Kathleen Syme Library Cafe,Indoor,A,-37.79859459,144.96510921,,,206041117,Carlton
+107,280Will_T,Flagstaff station (East),Outdoor,A,-37.81246271,144.95690188,North,South,206041505,Melbourne CBD - West
+108,261Will_T,William St - Little Lonsdale St (West),Outdoor,A,-37.81295822,144.95678789,In,Out,206041505,Melbourne CBD - West
+109,LatWill_T,La Trobe St- William St (South),Outdoor,A,-37.81193681,144.95621105,East,West,206041504,Melbourne CBD - North
+116,FitCafVis_T,Fitzroy Garden Visitor Centre Cafe Verandah,Indoor,A,-37.81493732,144.97932442,,,206041119,East Melbourne
+117,Fli114F_T,114 Flinders Street Car Park Footpath,Outdoor,A,-37.81629332,144.97090877,East,West,206041503,Melbourne CBD - East
+118,Fli114C_T,114 Flinders Street Car Park Crossing,Outdoor,A,-37.81632783,144.97090512,North,South,206041503,Melbourne CBD - East
+123,BirBridge_T,Birrarung Marr East - Batman Ave Bridge Entry,Outdoor,A,-37.81753741,144.97329734,East,West,206041503,Melbourne CBD - East
+124,BirBridge_T,Birrarung Marr East - Batman Ave Bridge Entry,Outdoor,A,-37.81757416,144.97329934,North,South,206041503,Melbourne CBD - East
+130,Bou892T,I-Hub 892 Bourke Street,Outdoor,A,-37.8204637,144.94126826,East,West,206041118,Docklands
+131,King2_T,I-Hub Corner of King Street and Flinders Street (2-6 King),Outdoor,A,-37.82009057,144.95758725,North,South,206041505,Melbourne CBD - West
+132,King335_T,I-Hub Corner of King Street and Latrobe Street (317-335 King),Outdoor,A,-37.81267639,144.95386444,North,South,206041510,West Melbourne - Residential
+133,Spen229_T,I-Hub Southern Cross Station - Lonsdale Street Entrance - South,Outdoor,A,-37.81531435,144.95227769,North,South,206041505,Melbourne CBD - West
+134,Spen201_T,I-Hub Southern Cross Station - Bourke Street Entrance - North,Outdoor,A,-37.81694221,144.95303935,North,South,206041505,Melbourne CBD - West
+135,Spen161_T,I-Hub Southern Cross Station - Bourke Street Entrance - South,Outdoor,A,-37.8172861,144.95319102,North,South,206041505,Melbourne CBD - West
+136,BirFed1120_T,"COM Pole 1120 - Towards the City, Near Federation Square Bridge",Outdoor,A,-37.8184141,144.97357915,East,West,206041119,East Melbourne
+137,BouHbr2353_T,"COM Pole 2353 - Towards the city, NAB Building",Outdoor,A,-37.81894815,144.94612292,East,West,206041118,Docklands
+138,EntPark1671_T,"COM Pole 1671 - Enterprize Park, Queens Bridge",Outdoor,A,-37.81996544,144.95981454,East,West,206041505,Melbourne CBD - West
+139,Signal1647_T,COM Pole 1647 - Sandridge Bridge Signal Box,Outdoor,A,-37.81959923,144.9632832,East,West,206041505,Melbourne CBD - West
+140,Boyd2837_T,COM Pole 2837 - Boyd Park,Outdoor,A,-37.82590962,144.96185972,North,South,206041509,Southbank - East
+141,474Fl_T,Awning of Nationwide Parking 474 Flinders Street,Outdoor,A,-37.81997273,144.95834911,East,West,206041505,Melbourne CBD - West
+142,Hammer1584_T,COM Pole 1584 - Hammer Hall Entrance,Outdoor,A,-37.81970749,144.96795734,East,West,206041509,Southbank - East
+143,Spencer_T,"Mounted on Toilet - Spencer Street, Batman Park",Outdoor,A,-37.821728,144.95557015,North,South,206041508,Southbank (West) - South Wharf
+144,narrLibL1L1_T,narrm ngarrgu Library - Level 1 - Lift 1,Indoor,A,-37.80760657,144.95862847,In,Out,206041504,Melbourne CBD - North
+145,narrLibL1L2_T,narrm ngarrgu Library - Level 1 - Lift 2,Indoor,A,-37.80763871,144.95850722,,,206041504,Melbourne CBD - North
+146,narrLibL1L3_T,narrm ngarrgu Library - Level 1 - Lift 3,Indoor,A,-37.80766922,144.95840594,,,206041504,Melbourne CBD - North
+147,narrLibMRL1_T,narrm ngarrgu Library - Level 1 - Meeting Room Lift 1,Indoor,A,-37.80769805,144.95832131,,,206041504,Melbourne CBD - North
+148,narrLibMRL2_T,narrm ngarrgu Library - Level 1 - Meeting Room Lift 2,Indoor,A,-37.80772224,144.95823515,,,206041504,Melbourne CBD - North
+149,narrLibL1MA_T,narrm ngarrgu Library - Level 1 Main Stairs A,Indoor,A,-37.80781158,144.9582219,,,206041504,Melbourne CBD - North
+150,narrLibL1MB_T,narrm ngarrgu Library - Level 1 Main Stairs B,Indoor,A,-37.80791198,144.95820087,,,206041504,Melbourne CBD - North
+151,narrLibL2CA_T,narrm ngarrgu Library - Level 2 - Collections Stairs A,Indoor,A,-37.80771581,144.9586238,In,Out,206041504,Melbourne CBD - North
+152,narrLibL2S1_T,narrm ngarrgu Library - Level 2 - Study Area Lifts 1,Indoor,A,-37.80776728,144.95843977,,,206041504,Melbourne CBD - North
+153,narrLibL2S2_T,narrm ngarrgu Library - Level 2 - Study Area Lifts 2,Indoor,A,-37.80780367,144.95829765,,,206041504,Melbourne CBD - North
+154,narrLibL3C1_T,narrm ngarrgu Library - Level 3 Children's Library Door 1,Indoor,A,-37.80778437,144.95862772,In,Out,206041504,Melbourne CBD - North
+155,narrLibL#C2_T,narrm ngarrgu Library - Level 3 Children's Library Door 2,Indoor,A,-37.80783201,144.95845043,,,206041504,Melbourne CBD - North
+158,Eli514_T,514 Elizebeth Street,Indoor,A,-37.80657467,144.96007044,,,206041504,Melbourne CBD - North
+159,Eli516_T,516 Elizeberth Street,Indoor,A,-37.80651646,144.96007934,,,206041504,Melbourne CBD - North
+160,Swa420_T,"City Baths, 420 Swanston Street - Main Entry",Indoor,A,-37.80699526,144.96306214,,,206041504,Melbourne CBD - North
+161,BirArt1109_T,Birrarung Marr - COM - Pole 1109,Outdoor,A,-37.81851276,144.97131336,East,West,206041503,Melbourne CBD - East
+162,Eli489_T,iHub 489 Elizabeth Street,Outdoor,A,-37.80740397,144.95987909,North,South,206041504,Melbourne CBD - North
+164,Lat526_T,I-Hub 526 La Trobe Street (Footpath),Outdoor,A,-37.813005,144.95160411,East,West,206041510,West Melbourne - Residential
+165,Spen475_T,475 Spencer Street,Outdoor,A,-37.80953359,144.94939004,North,South,206041510,West Melbourne - Residential
+166,Spen484_T,484 Spencer Street,Outdoor,A,-37.80896733,144.94931703,North,South,206041510,West Melbourne - Residential
+167,Lat526_T,I-Hub 526 La Trobe Street (Crossing),Outdoor,A,-37.81304149,144.95155955,North,South,206041510,West Melbourne - Residential
+179,Pow61_T,61-67 Power Street Southbank,Outdoor,A,-37.82392385,144.96299677,North,South,206041509,Southbank - East
+180,Mac330_T,"Pumping Station No.2, 330 Macaulay Road",Outdoor,A,-37.79497059,144.93530329,East,West,206041121,Kensington (Vic.)
+181,Eli368_T,368 Elizabeth Street,Outdoor,A,-37.81009465,144.96143149,North,South,206041504,Melbourne CBD - North
+182,King163_T,163 King Street,Outdoor,A,-37.81627451,144.95550503,In,Out,206041505,Melbourne CBD - West
+184,Eli124_T,124 Elizabeth Street,Outdoor,A,-37.81512416,144.96371988,North,South,206041505,Melbourne CBD - West
+185,Eli197_T,197 Elizabeth Street,Outdoor,A,-37.81374643,144.96276183,North,InOut,206041505,Melbourne CBD - West
+187,Swa330_T,RMIT Building 22 - 330 Swanston Street,Outdoor,A,-37.80942561,144.96395473,East,West,206041504,Melbourne CBD - North
+188,RMIT51_T,RMIT Building 51 - 80-92 Victoria Street,Outdoor,A,-37.80663222,144.96456557,North,South,206041504,Melbourne CBD - North

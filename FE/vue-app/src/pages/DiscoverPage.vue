@@ -131,12 +131,14 @@ const chips = [
 const n = (v) => (Number.isFinite(+v) ? +v : null);
 const b = (v) =>
   v === true || v === 1 || /^true|yes|y|1$/i.test(String(v || ""));
+const isExplicitFalse = (v) =>
+  v === false || v === 0 || /^false|no|n|0$/i.test(String(v || ""));
 const d = (v) => {
   const x = v ? new Date(String(v).replace(" ", "T")) : null;
   return x && !Number.isNaN(x.getTime()) ? x : null;
 };
 const arr = (p) => (Array.isArray(p?.events) ? p.events : []);
-const total = (p) => n(p?.total_available ?? p?.total);
+const total = (p) => n(p?.total_filtered ?? p?.total);
 const isPostcodeInput = (q) => /^\d{4}$/.test(q);
 const isSuburbInput = (q) => /^[A-Za-z][A-Za-z\s'-]{1,59}$/.test(q);
 const isValidLocationInput = (q) => isPostcodeInput(q) || isSuburbInput(q);
@@ -157,7 +159,9 @@ const normalize = (r, i) => {
   const date = d(r.datetime_start);
   const km = n(r.distance_km);
   const cost = n(r.min_price);
-  const isFree = b(r.is_free) || (cost != null && cost <= 10);
+  const isFree = isExplicitFalse(r.is_free)
+    ? false
+    : b(r.is_free) || (cost != null && cost <= 10);
   const venue = r.venue || "Location TBC";
   const address = String(r.address || r.location_summary || "").trim();
   const suburb = r.suburb || "";

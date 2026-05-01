@@ -1,0 +1,47 @@
+# Ignore raw data
+Data/Raw/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual env
+venv/
+.env
+
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment variables — NEVER commit
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Alembic migrations
+alembic/versions/

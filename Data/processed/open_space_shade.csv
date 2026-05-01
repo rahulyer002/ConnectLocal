@@ -1,0 +1,61 @@
+space_id,space_name,nearby_tree_count,raw_shade_score,shade_score_100
+1,Carlton Football Club,13,0.0375,5.4
+2,Kings Domain,111,0.1594,23.0
+3,Federation Square,10,0.0119,1.7
+4,Flagstaff Gardens,84,0.2025,29.3
+5,Westgate Park,0,0.0,0.0
+6,Newmarket Reserve,44,0.0529,7.6
+7,J.J Holland Park,144,0.1648,23.8
+8,Riverside Park,569,0.5241,75.8
+9,Fitzroy Gardens,216,0.384,55.5
+10,Richmond Football Club,13,0.0155,2.2
+11,North Melbourne Recreation Reserve,119,0.1453,21.0
+12,Princes Park,2,0.005,0.7
+13,Argyle Square,122,0.2121,30.7
+14,Westpac Centre,39,0.0394,5.7
+15,Royal Botanic Gardens,0,0.0,0.0
+16,Darling Square,109,0.1549,22.4
+17,Parliament Reserve,80,0.1033,14.9
+18,Macarthur Square,74,0.1378,19.9
+19,Eureka Skydeck 88,109,0.1288,18.6
+20,Shrine of Rembrance Reserve,114,0.2091,30.2
+21,Icehouse,106,0.1101,15.9
+22,Carlton Baths,84,0.0947,13.7
+23,Flemington Racecourse,0,0.0,0.0
+24,Treasury Gardens,125,0.2958,42.8
+25,Melbourne Cricket Ground (MCG),0,0.0,0.0
+26,Queen Victoria Gardens,115,0.2708,39.1
+27,New Quay,57,0.0781,11.3
+28,Rod Laver Arena,5,0.0078,1.1
+29,Melbourne Park,0,0.0,0.0
+30,Hisense Arena,22,0.0255,3.7
+31,Sandridge Rail Bridge,36,0.0445,6.4
+32,Melbourne Star Observation Wheel,37,0.0371,5.4
+33,Birrarung Marr,249,0.2404,34.7
+34,Artplay,161,0.1625,23.5
+35,North Melbourne Recreation Centre (Aquatic),167,0.1985,28.7
+36,State Netball Hockey Centre,0,0.0,0.0
+37,University Square,110,0.1771,25.6
+38,Melbourne Zoo,0,0.0,0.0
+39,Docklands Park,1008,0.6918,100.0
+40,Point Park,142,0.095,13.7
+41,Alexandra Gardens,92,0.182,26.3
+42,Melbourne Showgrounds,0,0.0,0.0
+43,Piazza Italia,150,0.2427,35.1
+44,Murchinson Square,116,0.1671,24.2
+45,Powlett Reserve,171,0.2395,34.6
+46,Etihad Stadium,0,0.0,0.0
+47,Lincoln Square,125,0.2234,32.3
+48,Carlton Gardens North,104,0.2683,38.8
+49,Wonderland Park,37,0.0421,6.1
+50,Fawkner Park,85,0.1314,19.0
+51,Enterprize Park,45,0.0427,6.2
+52,City Baths,57,0.0486,7.0
+53,Carlton Gardens South,110,0.2443,35.3
+54,Visy Park,15,0.0205,3.0
+55,Batman Park,51,0.069,10.0
+56,AAMI Park,17,0.0226,3.3
+57,Margaret Court Arena,11,0.0198,2.9
+58,Riverslide Skate Park,96,0.1865,27.0
+59,Royal Park,0,0.0,0.0
+60,Yarra Park,0,0.0,0.0
