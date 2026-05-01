@@ -11,19 +11,12 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', redirect: '/home' },
-<<<<<<< feature/E1-LonelinessScaleAssessment
 
-=======
->>>>>>> development
     { path: '/home', component: HomePage },
     { path: '/discover', component: DiscoverPage },
     { path: '/events/:id', component: EventDetailsPage },
     { path: '/checkin', component: CheckinPage },
-<<<<<<< feature/E1-LonelinessScaleAssessment
     { path: '/checkin-form', component: CheckinFormPage },
-=======
-    { path: '/checkin/form', component: CheckinFormPage },
->>>>>>> development
     { path: '/results', component: ResultsPage },
 
     { path: '/:pathMatch(.*)*', redirect: '/home' },
