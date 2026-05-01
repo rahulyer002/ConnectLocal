@@ -32,7 +32,7 @@ async def search_events(
     suburb: str = Query(default="melbourne", description="Suburb name, postcode, or full address e.g. 'Clayton, VIC 3168'"),
     lat: float = Query(default=None, description="User latitude — overrides suburb when provided"),
     lon: float = Query(default=None, description="User longitude — overrides suburb when provided"),
-    radius_km: float = Query(default=5, description="Search radius in km"),
+    radius_km: float = Query(default=None, description="Search radius in km. If not provided, no radius filtering applied."),
     is_free: bool = Query(default=False, description="Free events only"),
     max_price: float = Query(default=None, description="Max ticket price AUD (optional, only applied when is_free=false)"),
     date_from: str = Query(default=None, description="Start date YYYY-MM-DD"),
