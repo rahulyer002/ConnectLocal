@@ -2,6 +2,7 @@ import httpx
 import base64
 import math
 import re
+from datetime import date, datetime
 from app.config import get_settings
 
 settings = get_settings()
@@ -415,7 +416,7 @@ async def search_events(
     suburb: str = "melbourne",
     user_lat: float = None,
     user_lon: float = None,
-    radius_km: float = 5,
+    radius_km: float = None,
     is_free: bool = False,
     max_price: float = None,
     date_from: str = None,
@@ -424,38 +425,41 @@ async def search_events(
     rows: int = 10,
     offset: int = 0,
 ) -> dict:
+    from datetime import date, datetime as dt
+
     search_lat, search_lon, resolution = await _resolve_coords(
         suburb, user_lat, user_lon
     )
 
-    # How many total rows to fetch before filtering
-    # Category filter is client-side so fetch more to compensate
     fetch_total = rows * 5 if category else rows
-    fetch_total = min(fetch_total, 100)  # cap at 100 total
+    fetch_total = min(fetch_total, 100)
 
-    # Eventfinda free tier returns max 10 per request
-    # Paginate to collect enough events
     all_events_raw = []
     total = 0
     page_size = 10
     pages_needed = math.ceil(fetch_total / page_size)
 
+    # Use provided radius for Eventfinda, or default 10km when not specified
+    eventfinda_radius = radius_km if radius_km is not None else 10
+
+    # Always filter to today or future unless date_from is explicitly set
+    effective_date_from = date_from if date_from else date.today().isoformat()
+
     async with httpx.AsyncClient() as client:
         for page in range(pages_needed):
             params = {
                 "point": f"{search_lat},{search_lon}",
-                "radius": radius_km,
+                "radius": eventfinda_radius,
                 "rows": page_size,
                 "offset": offset + (page * page_size),
                 "order": "distance",
+                "start_date": effective_date_from,
             }
 
             if is_free:
                 params["free"] = 1
             elif max_price is not None:
                 params["price_max"] = max_price
-            if date_from:
-                params["start_date"] = date_from
             if date_to:
                 params["end_date"] = date_to
 
@@ -478,30 +482,46 @@ async def search_events(
             if not events_raw:
                 break
 
-            # Get total from first page only
             if page == 0:
                 total = data.get("@attributes", {}).get("count", 0)
 
             all_events_raw.extend(events_raw)
 
-            # Stop if we have enough or reached end of results
             if len(all_events_raw) >= fetch_total:
                 break
             if len(all_events_raw) >= total:
                 break
 
-    # Safety net — only confirmed free events when is_free=True
+    # Safety net — confirmed free only
     if is_free:
         all_events_raw = [e for e in all_events_raw if e.get("is_free") is True]
 
-   # Parse all events
+    # Parse all events
     events = [_parse_event(e, search_lat, search_lon) for e in all_events_raw]
 
-    # Enforce radius filter client-side
-    events = [
-        e for e in events
-        if e.get("distance_km") is None or e.get("distance_km") <= radius_km
-    ]
+    # Filter out past events client-side
+    # Eventfinda start_date param doesn't fully exclude recurring past events
+    today = date.today()
+    upcoming = []
+    for e in events:
+        end_dt = e.get("datetime_end")
+        if not end_dt:
+            upcoming.append(e)
+            continue
+        try:
+            event_end = dt.strptime(end_dt, "%Y-%m-%d %H:%M:%S").date()
+            if event_end >= today:
+                upcoming.append(e)
+        except Exception:
+            upcoming.append(e)
+    events = upcoming
+
+    # Enforce strict radius only if explicitly provided
+    if radius_km is not None:
+        events = [
+            e for e in events
+            if e.get("distance_km") is None or e.get("distance_km") <= radius_km
+        ]
 
     # Deduplicate by event id
     seen_ids = set()
@@ -526,19 +546,19 @@ async def search_events(
     events = events[:rows]
 
     return {
-    "total_available": total,        # ← total from Eventfinda before any filtering
-    "total_filtered": len(events),   # ← count after radius + category + is_free filter
-    "events": events,
-    "search_context": {
-        "lat": search_lat,
-        "lon": search_lon,
-        "resolution": resolution,
-        "suburb_input": suburb,
-        "category_filter": category,
-        "radius_km": radius_km,
-    },
-}
-
+        "total_available": total,
+        "total_filtered": len(events),
+        "events": events,
+        "search_context": {
+            "lat": search_lat,
+            "lon": search_lon,
+            "resolution": resolution,
+            "suburb_input": suburb,
+            "category_filter": category,
+            "radius_km": radius_km if radius_km is not None else "no limit",
+            "date_from": effective_date_from,
+        },
+    }
 
 # ─── Single event detail ──────────────────────────────────────────────────────
 
