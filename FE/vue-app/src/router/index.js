@@ -10,11 +10,16 @@ import EventDetailsPage from '../pages/EventDetailsPage.vue'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/discover' },
+    { path: '/', redirect: '/home' },
+
+    { path: '/home', component: HomePage },
     { path: '/discover', component: DiscoverPage },
     { path: '/events/:id', component: EventDetailsPage },
     { path: '/checkin', component: CheckinPage },
+    { path: '/checkin-form', component: CheckinFormPage },
     { path: '/results', component: ResultsPage },
+
+    { path: '/:pathMatch(.*)*', redirect: '/home' },
   ],
 })
 
