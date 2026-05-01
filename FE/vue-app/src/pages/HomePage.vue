@@ -19,8 +19,8 @@
       </nav>
     </header>
 
-    <section class="home">
-      <div class="home-text">
+    <section class="hero">
+      <div class="hero-text">
         <h2>
           You're not<br />
           alone in this.
@@ -39,8 +39,16 @@
         </RouterLink>
       </div>
 
-      <div class="home-image">
-        <img src="../assets/home.png" alt="Home illustration" />
+      <div class="hero-art">
+        <div class="tree tree-left"></div>
+        <div class="tree tree-middle"></div>
+        <div class="tree tree-right"></div>
+
+        <div class="sun"></div>
+
+        <div class="bench"></div>
+        <div class="person person-left"></div>
+        <div class="person person-right"></div>
       </div>
     </section>
 
@@ -77,41 +85,25 @@
         </p>
 
         <div v-if="selectedRecord" class="age-result">
-          <div class="age-result-content">
-            <div class="age-result-text">
-              <h3>
-                Around {{ distressedCount }} in 10 people aged
-                {{ formatAgeGroup(selectedRecord.age_group) }} experience higher
-                levels of psychological distress.
-              </h3>
+          <h3>
+            Around {{ selectedRecord.psychological_distress_percent }}% of people aged
+            {{ formatAgeGroup(selectedRecord.age_group) }} experience higher levels
+            of psychological distress.
+          </h3>
 
-              <p>
-                This is about {{ selectedRecord.psychological_distress_percent }}%
-                of this age group. You are not alone, and ConnectLocal can help
-                you find welcoming local activities.
-              </p>
+          <p>
+            This helps show that wellbeing challenges can affect people across
+            different age groups. You are not alone, and ConnectLocal can help
+            you find welcoming local activities.
+          </p>
 
-              <p v-if="elderlyNote" class="elderly-note">
-                {{ elderlyNote }}
-              </p>
+          <p v-if="elderlyNote" class="elderly-note">
+            {{ elderlyNote }}
+          </p>
 
-              <p class="source">
-                Source: {{ sourceText }}
-              </p>
-            </div>
-
-            <!-- 
-            Image visualisation temporarily disabled.
-            This part used to show 1.png, 2.png, 3.png, etc. based on the dropdown result.
-
-            <div class="people-visual">
-              <img
-                :src="getPeopleImage(distressedCount)"
-                alt="People visualisation"
-              />
-            </div>
-            -->
-          </div>
+          <p class="source">
+            Source: {{ sourceText }}
+          </p>
         </div>
       </div>
     </section>
@@ -181,21 +173,6 @@ const elderlyNote = computed(() => {
   return ''
 })
 
-const distressedCount = computed(() => {
-  if (!selectedRecord.value) return 1
-
-  const percent = Number(selectedRecord.value.psychological_distress_percent)
-  const count = Math.round(percent / 10)
-
-  return Math.min(10, Math.max(1, count))
-})
-
-// Image visualisation temporarily disabled.
-// This function was used to load 1.png, 2.png, 3.png, etc.
-// function getPeopleImage(count) {
-//   return new URL(`../assets/${count}.png`, import.meta.url).href
-// }
-
 function formatAgeGroup(ageGroup) {
   if (ageGroup === '65+') return '65 years and over'
   return `${ageGroup} years`
@@ -217,9 +194,7 @@ async function fetchDistressData() {
     distressData.value = result.data || []
     elderlyHighlight.value = result.elderly_highlight || null
 
-    if (result.source && result.note && result.year) {
-      sourceText.value = `${result.source}, ${result.note}, ${result.year}`
-    } else if (result.source && result.year) {
+    if (result.source && result.year) {
       sourceText.value = `${result.source}, ${result.year}`
     }
   } catch (error) {
@@ -274,11 +249,14 @@ onMounted(() => {
   font-family: Georgia, serif;
   font-size: calc(28px * var(--font-scale));
   line-height: 1;
-  color: #078d7f;
 }
 
 .brand h1 span {
   color: #1f2c1f;
+}
+
+.brand h1 {
+  color: #078d7f;
 }
 
 .brand p {
@@ -315,19 +293,19 @@ onMounted(() => {
   border-bottom: 3px solid #1d7169 !important;
 }
 
-.home {
+.hero {
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: 560px;
   border-bottom: 2px solid #d9d8e6;
 }
 
-.home-text {
+.hero-text {
   padding: 88px 68px;
   background: #f7fbf8;
 }
 
-.home-text h2 {
+.hero-text h2 {
   margin: 0 0 28px;
   font-family: Georgia, serif;
   font-size: calc(64px * var(--font-scale));
@@ -335,7 +313,7 @@ onMounted(() => {
   color: #17341d;
 }
 
-.home-text p {
+.hero-text p {
   margin: 0 0 14px;
   font-size: calc(24px * var(--font-scale));
   line-height: 1.5;
@@ -355,18 +333,75 @@ onMounted(() => {
   box-shadow: 0 14px 28px rgba(0, 140, 125, 0.25);
 }
 
-.home-image {
-  background: #d8efd2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.hero-art {
+  position: relative;
   overflow: hidden;
+  background: #d8efd2;
 }
 
-.home-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.tree {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(82, 160, 90, 0.35);
+}
+
+.tree-left {
+  width: 170px;
+  height: 220px;
+  left: 40px;
+  top: 150px;
+}
+
+.tree-middle {
+  width: 250px;
+  height: 180px;
+  left: 250px;
+  top: 100px;
+}
+
+.tree-right {
+  width: 200px;
+  height: 240px;
+  right: 40px;
+  top: 100px;
+}
+
+.sun {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  right: 120px;
+  top: 70px;
+  background: rgba(255, 255, 220, 0.55);
+  border-radius: 50%;
+}
+
+.bench {
+  position: absolute;
+  width: 330px;
+  height: 22px;
+  left: 260px;
+  bottom: 170px;
+  background: #9a7445;
+  border-radius: 6px;
+}
+
+.person {
+  position: absolute;
+  width: 90px;
+  height: 140px;
+  bottom: 170px;
+  border-radius: 28px 28px 12px 12px;
+}
+
+.person-left {
+  left: 285px;
+  background: #35537a;
+}
+
+.person-right {
+  left: 465px;
+  background: #cabb9a;
 }
 
 .age-section {
@@ -430,13 +465,6 @@ onMounted(() => {
   background: #eff8f6;
 }
 
-.age-result-content {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 28px;
-  align-items: center;
-}
-
 .age-result h3 {
   margin: 0 0 12px;
   font-size: calc(22px * var(--font-scale));
@@ -457,22 +485,6 @@ onMounted(() => {
 .source {
   font-size: calc(15px * var(--font-scale)) !important;
 }
-
-/*
-People visualisation style temporarily disabled.
-Keep this here in case the image feature is added back later.
-
-.people-visual {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.people-visual img {
-  width: 220px;
-  height: auto;
-}
-*/
 
 .steps-section {
   padding: 72px 56px;
@@ -559,17 +571,13 @@ Keep this here in case the image feature is added back later.
     justify-content: center;
   }
 
-  .home,
+  .hero,
   .age-section {
     grid-template-columns: 1fr;
   }
 
-  .home-text h2 {
+  .hero-text h2 {
     font-size: calc(46px * var(--font-scale));
-  }
-
-  .age-result-content {
-    grid-template-columns: 1fr;
   }
 
   .step-grid {
