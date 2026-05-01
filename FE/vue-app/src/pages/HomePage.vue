@@ -67,19 +67,43 @@
 
         <select id="ageGroup" v-model="selectedAgeGroup">
           <option value="">Choose your age group...</option>
-          <option value="18-24">18 to 24 years</option>
-          <option value="25-44">25 to 44 years</option>
-          <option value="45-64">45 to 64 years</option>
-          <option value="65+">65 years and over</option>
+          <option
+            v-for="item in distressData"
+            :key="item.age_group"
+            :value="item.age_group"
+          >
+            {{ formatAgeGroup(item.age_group) }}
+          </option>
         </select>
 
-        <div v-if="selectedAgeGroup" class="age-result">
-          <h3>{{ selectedAgeText }}</h3>
+        <p v-if="isLoading" class="loading-text">
+          Loading wellbeing data...
+        </p>
+
+        <p v-if="loadError" class="error-text">
+          {{ loadError }}
+        </p>
+
+        <div v-if="selectedRecord" class="age-result">
+          <h3>
+            Around {{ selectedRecord.psychological_distress_percent }}% of people aged
+            {{ formatAgeGroup(selectedRecord.age_group) }} experience higher levels
+            of psychological distress.
+          </h3>
+
           <p>
-            This section will show wellbeing information for the selected age
-            group after the backend and data API are connected.
+            This helps show that wellbeing challenges can affect people across
+            different age groups. You are not alone, and ConnectLocal can help
+            you find welcoming local activities.
           </p>
-          <p class="source">Source: pending API connection</p>
+
+          <p v-if="elderlyNote" class="elderly-note">
+            {{ elderlyNote }}
+          </p>
+
+          <p class="source">
+            Source: {{ sourceText }}
+          </p>
         </div>
       </div>
     </section>
@@ -121,17 +145,67 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-const selectedAgeGroup = ref('')
+const API_URL = 'https://connectlocal.duckdns.org/api/suburbs/psychological-distress'
 
-const selectedAgeText = computed(() => {
-  if (selectedAgeGroup.value === '18-24') return 'Information for people aged 18 to 24'
-  if (selectedAgeGroup.value === '25-44') return 'Information for people aged 25 to 44'
-  if (selectedAgeGroup.value === '45-64') return 'Information for people aged 45 to 64'
-  if (selectedAgeGroup.value === '65+') return 'Information for people aged 65 years and over'
+const selectedAgeGroup = ref('')
+const distressData = ref([])
+const sourceText = ref('ABS National Health Survey')
+const elderlyHighlight = ref(null)
+const isLoading = ref(false)
+const loadError = ref('')
+
+const selectedRecord = computed(() => {
+  return distressData.value.find(
+    item => item.age_group === selectedAgeGroup.value
+  )
+})
+
+const elderlyNote = computed(() => {
+  if (!elderlyHighlight.value || !selectedRecord.value) return ''
+
+  if (selectedRecord.value.age_group === elderlyHighlight.value.age_group) {
+    return elderlyHighlight.value.note
+  }
+
   return ''
+})
+
+function formatAgeGroup(ageGroup) {
+  if (ageGroup === '65+') return '65 years and over'
+  return `${ageGroup} years`
+}
+
+async function fetchDistressData() {
+  isLoading.value = true
+  loadError.value = ''
+
+  try {
+    const response = await fetch(API_URL)
+
+    if (!response.ok) {
+      throw new Error('Failed to load data')
+    }
+
+    const result = await response.json()
+
+    distressData.value = result.data || []
+    elderlyHighlight.value = result.elderly_highlight || null
+
+    if (result.source && result.year) {
+      sourceText.value = `${result.source}, ${result.year}`
+    }
+  } catch (error) {
+    loadError.value = 'Unable to load wellbeing data right now.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchDistressData()
 })
 </script>
 
@@ -372,6 +446,17 @@ const selectedAgeText = computed(() => {
   color: #2f2d42;
 }
 
+.loading-text,
+.error-text {
+  margin-top: 14px;
+  font-size: calc(16px * var(--font-scale));
+  font-weight: 700;
+}
+
+.error-text {
+  color: #b3261e;
+}
+
 .age-result {
   margin-top: 20px;
   padding: 26px 30px;
@@ -390,6 +475,11 @@ const selectedAgeText = computed(() => {
   font-size: calc(18px * var(--font-scale));
   line-height: 1.6;
   color: #5d5d75;
+}
+
+.elderly-note {
+  font-weight: 700;
+  color: #1b8179;
 }
 
 .source {
