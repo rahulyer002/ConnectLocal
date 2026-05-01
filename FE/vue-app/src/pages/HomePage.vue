@@ -100,12 +100,17 @@
               </p>
             </div>
 
+            <!-- 
+            Image visualisation temporarily disabled.
+            This part used to show 1.png, 2.png, 3.png, etc. based on the dropdown result.
+
             <div class="people-visual">
               <img
                 :src="getPeopleImage(distressedCount)"
                 alt="People visualisation"
               />
             </div>
+            -->
           </div>
         </div>
       </div>
@@ -185,9 +190,11 @@ const distressedCount = computed(() => {
   return Math.min(10, Math.max(1, count))
 })
 
-function getPeopleImage(count) {
-  return new URL(`../assets/${count}.png`, import.meta.url).href
-}
+// Image visualisation temporarily disabled.
+// This function was used to load 1.png, 2.png, 3.png, etc.
+// function getPeopleImage(count) {
+//   return new URL(`../assets/${count}.png`, import.meta.url).href
+// }
 
 function formatAgeGroup(ageGroup) {
   if (ageGroup === '65+') return '65 years and over'
@@ -425,7 +432,7 @@ onMounted(() => {
 
 .age-result-content {
   display: grid;
-  grid-template-columns: 1fr 220px;
+  grid-template-columns: 1fr;
   gap: 28px;
   align-items: center;
 }
@@ -451,6 +458,10 @@ onMounted(() => {
   font-size: calc(15px * var(--font-scale)) !important;
 }
 
+/*
+People visualisation style temporarily disabled.
+Keep this here in case the image feature is added back later.
+
 .people-visual {
   display: flex;
   align-items: center;
@@ -461,6 +472,7 @@ onMounted(() => {
   width: 220px;
   height: auto;
 }
+*/
 
 .steps-section {
   padding: 72px 56px;
@@ -558,14 +570,6 @@ onMounted(() => {
 
   .age-result-content {
     grid-template-columns: 1fr;
-  }
-
-  .people-visual {
-    justify-content: flex-start;
-  }
-
-  .people-visual img {
-    width: 240px;
   }
 
   .step-grid {
