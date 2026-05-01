@@ -431,8 +431,11 @@ async def search_events(
         suburb, user_lat, user_lon
     )
 
-    fetch_total = rows * 5 if category else rows
-    fetch_total = min(fetch_total, 100)
+    # Fetch enough raw events to cover offset + rows after client-side filtering losses.
+    # Buffer of 4x accounts for past-event removal, dedup, radius, and category filtering.
+    # Category needs even more headroom since it's a client-side filter with high discard rate.
+    # NEW
+    fetch_total = 100 if category else 200
 
     all_events_raw = []
     total = 0
@@ -451,7 +454,7 @@ async def search_events(
                 "point": f"{search_lat},{search_lon}",
                 "radius": eventfinda_radius,
                 "rows": page_size,
-                "offset": offset + (page * page_size),
+                "offset": page * page_size, # always 0-based raw fetch, never user offset
                 "order": "distance",
                 "start_date": effective_date_from,
             }
@@ -542,12 +545,14 @@ async def search_events(
     # Sort by distance
     events.sort(key=lambda x: x.get("distance_km") or 999)
 
-    # Trim to requested rows
-    events = events[:rows]
+    # Count the full filtered pool BEFORE trimming — stable across any rows/offset combo.
+    # Frontend uses this for pagination: total_pages = ceil(total_filtered / rows)
+    total_filtered = len(events)
+    events = events[offset: offset + rows]
 
     return {
         "total_available": total,
-        "total_filtered": len(events),
+        "total_filtered": total_filtered,
         "events": events,
         "search_context": {
             "lat": search_lat,
@@ -559,7 +564,6 @@ async def search_events(
             "date_from": effective_date_from,
         },
     }
-
 # ─── Single event detail ──────────────────────────────────────────────────────
 
 async def get_event(
