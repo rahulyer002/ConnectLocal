@@ -11,7 +11,7 @@
 
       <nav class="nav-links">
         <RouterLink to="/home">Home</RouterLink>
-        <RouterLink to="/checkin">Events</RouterLink>
+        <RouterLink to="/discover">Events</RouterLink>
         <RouterLink to="/discover">Places</RouterLink>
         <RouterLink to="/about">About</RouterLink>
         <RouterLink to="/resources">Resources</RouterLink>
