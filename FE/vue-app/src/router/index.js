@@ -30,10 +30,16 @@ const router = createRouter({
     { path: '/checkin-form', component: CheckinFormPage },
     { path: '/results', component: ResultsPage },
 
+    // Epic 4 — Personalised Timing & Resonance Engine
     { path: '/best-time', component: BestTimePage },
-    { path: '/best-time-result', component: BestTimeResultPage },
-    { path: '/best-time-week', component: BestTimeWeekPage },
-    { path: '/welcoming-spaces', component: WelcomingSpacesPage },
+    { path: '/best-time/result', component: BestTimeResultPage },
+    { path: '/best-time/week', component: BestTimeWeekPage },
+    { path: '/best-time/welcoming', component: WelcomingSpacesPage },
+
+    // Backup routes, in case old buttons still use these paths
+    { path: '/best-time-result', redirect: '/best-time/result' },
+    { path: '/best-time-week', redirect: '/best-time/week' },
+    { path: '/welcoming-spaces', redirect: '/best-time/welcoming' },
 
     { path: '/:pathMatch(.*)*', redirect: '/home' },
   ],
