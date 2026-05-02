@@ -56,7 +56,7 @@
           </div>
         </div>
 
-        <button class="start-button" @click="startCheckin">
+        <button type="button" class="start-button" @click="startCheckin">
           Start My Check-in
           <span>›</span>
         </button>
@@ -74,7 +74,7 @@ import MainLayout from '../layouts/MainLayout.vue'
 const router = useRouter()
 
 function startCheckin() {
-  router.push('/checkin/form')
+  router.push('/checkin-form')
 }
 </script>
 
