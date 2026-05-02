@@ -67,6 +67,10 @@
         </article>
 
         <article class="route-card">
+          <div class="map-shell">
+            <div ref="mapContainer" class="route-map"></div>
+          </div>
+
           <div class="route-head">
             <p class="route-chip">Most comfortable for you</p>
             <p class="route-time">Depart 8:47 AM</p>
@@ -93,12 +97,18 @@
 </template>
 
 <script setup>
+import 'leaflet/dist/leaflet.css'
 import MainLayout from '../layouts/MainLayout.vue'
-import { computed, ref, watch } from 'vue'
+import L from 'leaflet'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useLocationState } from '../composables/useLocationState'
 
 const fromLocation = ref('')
 const toLocation = ref('')
+const fromLat = ref(null)
+const fromLon = ref(null)
+const toLat = ref(null)
+const toLon = ref(null)
 const isLocating = ref(false)
 const isApplying = ref(false)
 const fromLocationConfirmed = ref(false)
@@ -108,6 +118,10 @@ const showFromSuggestions = ref(false)
 const showToSuggestions = ref(false)
 let fromTimer = null
 let toTimer = null
+const mapContainer = ref(null)
+let map = null
+let previewLayer = null
+let resizeObserver = null
 const { detectedLocationText, setDetectedLocation, setDetectedUnavailable } = useLocationState()
 const LOCATION_UNAVAILABLE_TEXT = 'Location not available'
 const MELBOURNE_NOT_FOUND = 'The location you specified was not found in Melbourne.'
@@ -150,14 +164,18 @@ const formatSuburbPostcode = (address = {}) => {
   return [suburb, postcode].filter(Boolean).join(', ').trim()
 }
 
-const setLocation = (text) => {
+const setLocation = (text, lat = null, lon = null) => {
   fromLocation.value = text
   fromLocationConfirmed.value = true
+  fromLat.value = n(lat)
+  fromLon.value = n(lon)
   setDetectedLocation(text)
 }
 
 const setLocationUnavailable = () => {
   fromLocationConfirmed.value = false
+  fromLat.value = null
+  fromLon.value = null
   fromLocation.value = MELBOURNE_NOT_FOUND
   setDetectedUnavailable()
 }
@@ -181,7 +199,7 @@ const getLocation = () => {
           setLocationUnavailable()
         } else {
           const label = (top?.display_name || '').trim() || formatSuburbPostcode(top?.address)
-          label ? setLocation(label) : setLocationUnavailable()
+          label ? setLocation(label, coords.latitude, coords.longitude) : setLocationUnavailable()
         }
       } catch {
         setLocationUnavailable()
@@ -216,7 +234,7 @@ const applyManualLocation = async () => {
       setLocationUnavailable()
     } else {
       const label = (top?.display_name || '').trim() || formatSuburbPostcode(top?.address)
-      label ? setLocation(label) : setLocationUnavailable()
+      label ? setLocation(label, top?.lat, top?.lon) : setLocationUnavailable()
     }
   } catch {
     setLocationUnavailable()
@@ -238,6 +256,8 @@ const searchSuggestions = async (query) => {
     .map((item, index) => ({
       id: `${item.place_id || index}-${index}`,
       label: (item.display_name || '').trim(),
+      lat: n(item.lat),
+      lon: n(item.lon),
     }))
     .filter(item => item.label)
 }
@@ -262,11 +282,13 @@ const onFromInput = () => {
 }
 
 const selectFromSuggestion = (item) => {
-  setLocation(item.label)
+  setLocation(item.label, item.lat, item.lon)
   showFromSuggestions.value = false
 }
 
 const onToInput = () => {
+  toLat.value = null
+  toLon.value = null
   const q = toLocation.value.trim()
   if (toTimer) clearTimeout(toTimer)
   if (q.length < 3) {
@@ -286,6 +308,8 @@ const onToInput = () => {
 
 const selectToSuggestion = (item) => {
   toLocation.value = item.label
+  toLat.value = n(item.lat)
+  toLon.value = n(item.lon)
   showToSuggestions.value = false
 }
 
@@ -298,6 +322,76 @@ const hideToSuggestions = () => {
 const reopenToSuggestions = () => {
   if (toSuggestions.value.length) showToSuggestions.value = true
 }
+
+const drawMapPreview = () => {
+  if (!map || !previewLayer) return
+  previewLayer.clearLayers()
+
+  const hasFrom = fromLat.value != null && fromLon.value != null
+  const hasTo = toLat.value != null && toLon.value != null
+
+  if (!hasFrom && !hasTo) return
+
+  const points = []
+  if (hasFrom) {
+    const start = [fromLat.value, fromLon.value]
+    L.marker(start).addTo(previewLayer).bindTooltip('Start')
+    points.push(start)
+  }
+
+  if (hasTo) {
+    const end = [toLat.value, toLon.value]
+    L.marker(end).addTo(previewLayer).bindTooltip('Destination')
+    points.push(end)
+  }
+
+  if (hasFrom && hasTo) {
+    L.polyline(points, {
+      color: '#0b7a6d',
+      weight: 5,
+      opacity: 0.9,
+    }).addTo(previewLayer)
+  }
+
+  map.fitBounds(points, { padding: [28, 28], maxZoom: 14 })
+}
+
+onMounted(() => {
+  if (!mapContainer.value) return
+  map = L.map(mapContainer.value, { zoomControl: true }).setView([-37.8136, 144.9631], 11)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors',
+  }).addTo(map)
+  previewLayer = L.layerGroup().addTo(map)
+  drawMapPreview()
+
+  nextTick(() => {
+    map?.invalidateSize()
+  })
+
+  resizeObserver = new ResizeObserver(() => {
+    map?.invalidateSize()
+  })
+  resizeObserver.observe(mapContainer.value)
+})
+
+watch([fromLat, fromLon, toLat, toLon], () => {
+  drawMapPreview()
+})
+
+onBeforeUnmount(() => {
+  if (fromTimer) clearTimeout(fromTimer)
+  if (toTimer) clearTimeout(toTimer)
+  if (map) {
+    map.remove()
+    map = null
+  }
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+})
 </script>
 
 <style scoped>
@@ -349,6 +443,18 @@ const reopenToSuggestions = () => {
 
 .route-card {
   border-color: #0b7a6d;
+}
+
+.map-shell {
+  margin-bottom: 16px;
+}
+
+.route-map {
+  width: 100%;
+  height: 580px;
+  border: 2px solid #0b7a6d;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 h3 {
