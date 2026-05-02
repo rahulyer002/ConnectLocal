@@ -5,12 +5,25 @@
         <h1><span>Connect</span>Local</h1>
       </RouterLink>
 
-      <p class="location-text">{{ detectedLocationText }}</p>
+      <p class="location-text">{{ locationLabel }}</p>
 
       <nav>
-        <RouterLink to="/home" class="item home-btn">Home Page</RouterLink>
-        <RouterLink to="/checkin" class="item">Wellbeing Check</RouterLink>
+        <RouterLink to="/home"     class="item">Home</RouterLink>
+        <RouterLink to="/checkin"  class="item">Wellbeing Check</RouterLink>
         <RouterLink to="/discover" class="item">Discover Events</RouterLink>
+
+        <!-- Best Time section with sub-links -->
+        <div class="nav-group">
+          <RouterLink to="/best-time" class="item best-time-link">
+            ☆ Best Time
+          </RouterLink>
+          <div class="sub-nav" v-if="isOnBestTime">
+            <RouterLink to="/best-time"           class="sub-item">Live score</RouterLink>
+            <RouterLink to="/best-time/result"    class="sub-item">Best spots now</RouterLink>
+            <RouterLink to="/best-time/week"      class="sub-item">Week forecast</RouterLink>
+            <RouterLink to="/best-time/welcoming" class="sub-item">🤝 Welcoming spaces</RouterLink>
+          </div>
+        </div>
       </nav>
 
       <label class="scale">
@@ -24,17 +37,33 @@
         />
       </label>
     </aside>
+
     <main><slot /></main>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useLocationState } from '../composables/useLocationState'
+import { resonanceStore } from '../stores/resonanceStore'
+
 const { detectedLocationText } = useLocationState()
+const route = useRoute()
+
+// Show resonance store location label when available, fall back to geolocation text
+const locationLabel = computed(() =>
+  resonanceStore.locationReady
+    ? resonanceStore.locationLabel
+    : detectedLocationText.value
+)
+
+// Show sub-nav only when on any best-time page
+const isOnBestTime = computed(() =>
+  route.path.startsWith('/best-time')
+)
 
 const scale = ref(1)
-
 watch(
   scale,
   (value) => {
@@ -61,9 +90,7 @@ watch(
   gap: 12px;
 }
 
-.logo-link {
-  text-decoration: none;
-}
+.logo-link { text-decoration: none; }
 
 h1 {
   margin: 0;
@@ -74,15 +101,17 @@ h1 {
   color: #2f3152;
 }
 
-h1 span {
-  color: #008c7d
-}
+h1 span { color: #008c7d; }
 
 .location-text {
   margin: 0;
   color: var(--muted);
-  font-size: calc(16px * var(--font-scale));
+  font-size: calc(14px * var(--font-scale));
   font-weight: 700;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 8px;
+  word-break: break-word;
 }
 
 .item {
@@ -91,12 +120,63 @@ h1 span {
   border-radius: 10px;
   font-size: calc(16px * var(--font-scale));
   font-weight: 700;
+  color: inherit;
+  text-decoration: none;
 }
 
-.item.router-link-exact-active {
+.item.router-link-active {
   background: #e3faf5;
 }
 
+/* Best Time nav group */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.best-time-link {
+  color: #0a756a;
+  border: 1.5px solid #b0ddd9;
+  background: #e8f8f5;
+  margin-top: 4px;
+}
+
+.best-time-link.router-link-active {
+  background: #0c8b7d;
+  color: #fff;
+  border-color: #0c8b7d;
+}
+
+/* Sub-nav shown when on any /best-time/* route */
+.sub-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-left: 12px;
+  border-left: 2px solid #b0ddd9;
+}
+
+.sub-item {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 700;
+  color: #3c6e68;
+  text-decoration: none;
+  transition: background 0.12s;
+}
+
+.sub-item:hover { background: #d8f5f0; }
+
+.sub-item.router-link-exact-active {
+  background: #0c8b7d;
+  color: #fff;
+}
+
+/* Text size slider */
 .scale {
   display: grid;
   gap: 6px;
@@ -106,27 +186,18 @@ h1 span {
   background: #edf0f8;
   font-size: calc(14px * var(--font-scale));
   font-weight: 700;
+  margin-top: auto;
 }
 
-.scale input {
-  width: 100%;
-}
+.scale input { width: 100%; }
 
 main {
   min-width: 0;
   background: #f5f5fa;
 }
 
-.tabs .router-link-exact-active {
-  color: #008c7d;
-  border-bottom: 3px solid #008c7d
-}
-
 @media (max-width: 980px) {
-  .shell {
-    grid-template-columns: 1fr;
-  }
+  .shell { grid-template-columns: 1fr; }
+  .side { padding: 14px 16px; }
 }
-
-
 </style>
