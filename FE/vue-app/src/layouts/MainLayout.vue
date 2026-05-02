@@ -11,6 +11,7 @@
         <RouterLink to="/home" class="item home-btn">Home Page</RouterLink>
         <RouterLink to="/checkin" class="item">Wellbeing Check</RouterLink>
         <RouterLink to="/discover" class="item">Discover Events</RouterLink>
+        <RouterLink to="/journey" class="item">Journey Support</RouterLink>
       </nav>
 
       <label class="scale">

@@ -6,6 +6,7 @@ import CheckinPage from '../pages/CheckinPage.vue'
 import CheckinFormPage from '../pages/CheckinFormPage.vue'
 import ResultsPage from '../pages/ResultsPage.vue'
 import EventDetailsPage from '../pages/EventDetailsPage.vue'
+import JourneySupportPage from '../pages/JourneySupportPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,6 +15,7 @@ const router = createRouter({
 
     { path: '/home', component: HomePage },
     { path: '/discover', component: DiscoverPage },
+    { path: '/journey', component: JourneySupportPage },
     { path: '/events/:id', component: EventDetailsPage },
     { path: '/checkin', component: CheckinPage },
     { path: '/checkin-form', component: CheckinFormPage },
