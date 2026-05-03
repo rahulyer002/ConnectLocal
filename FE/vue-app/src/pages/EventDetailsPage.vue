@@ -93,10 +93,6 @@
             <button class="detail-btn go-btn" type="button" @click="goToJourney">
               I would like to go — show me how to get there
             </button>
-
-            <button class="detail-btn save-btn" type="button">
-              Save for later
-            </button>
           </div>
 
           <a
