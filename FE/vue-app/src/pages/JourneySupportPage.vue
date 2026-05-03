@@ -101,8 +101,10 @@ import 'leaflet/dist/leaflet.css'
 import MainLayout from '../layouts/MainLayout.vue'
 import L from 'leaflet'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useLocationState } from '../composables/useLocationState'
 
+const route = useRoute()
 const fromLocation = ref('')
 const toLocation = ref('')
 const fromLat = ref(null)
@@ -128,11 +130,33 @@ const MELBOURNE_NOT_FOUND = 'The location you specified was not found in Melbour
 
 watch(
   detectedLocationText,
-  (value) => {
+  async (value) => {
     const normalized = (value || '').trim()
     if (normalized && normalized !== LOCATION_UNAVAILABLE_TEXT) {
       fromLocation.value = normalized
       fromLocationConfirmed.value = true
+      if (fromLat.value == null || fromLon.value == null) {
+        const point = await geocodePlace(normalized)
+        if (point) {
+          fromLat.value = point.lat
+          fromLon.value = point.lon
+        }
+      }
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => route.query.destination,
+  async (value) => {
+    const destination = String(value || '').trim()
+    if (!destination) return
+    toLocation.value = destination
+    const point = await geocodePlace(destination)
+    if (point) {
+      toLat.value = point.lat
+      toLon.value = point.lon
     }
   },
   { immediate: true }
@@ -155,7 +179,18 @@ const isValidManualLocation = (q) => {
 const isInMelbourne = (address = {}, displayName = '') => {
   const state = String(address.state || '').toLowerCase()
   const name = String(displayName || '').toLowerCase()
-  return state.includes('victoria') && name.includes('melbourne')
+  const city = String(address.city || address.town || address.village || '').toLowerCase()
+  const county = String(address.county || '').toLowerCase()
+  const postcode = Number(String(address.postcode || ''))
+  const metroPostcode = Number.isInteger(postcode) && postcode >= 3000 && postcode <= 3999
+
+  if (!state.includes('victoria')) return false
+  return (
+    name.includes('melbourne') ||
+    city.includes('melbourne') ||
+    county.includes('melbourne') ||
+    metroPostcode
+  )
 }
 const formatSuburbPostcode = (address = {}) => {
   const suburb =
@@ -243,7 +278,7 @@ const applyManualLocation = async () => {
   }
 }
 
-const searchSuggestions = async (query) => {
+async function searchSuggestions(query) {
   const text = `${query}, Melbourne, Victoria, Australia`
   const r = await fetch(
     `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
@@ -260,6 +295,23 @@ const searchSuggestions = async (query) => {
       lon: n(item.lon),
     }))
     .filter(item => item.label)
+}
+
+async function geocodePlace(query) {
+  try {
+    const text = `${query}, Melbourne, Victoria, Australia`
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
+        text
+      )}&addressdetails=1&limit=5&accept-language=en&countrycodes=au`
+    )
+    const list = (await r.json()) || []
+    const top = list.find((item) => isInMelbourne(item?.address, item?.display_name))
+    if (!top) return null
+    return { lat: n(top.lat), lon: n(top.lon) }
+  } catch {
+    return null
+  }
 }
 
 const onFromInput = () => {
