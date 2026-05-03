@@ -21,6 +21,7 @@
 
           <div class="tags">
             <span class="tag price-tag">{{ priceText }}</span>
+
             <span v-if="event.category" class="tag category-tag">
               {{ event.category }}
             </span>
@@ -86,6 +87,17 @@
               {{ event.description || "Activity details are not available yet." }}
             </p>
           </article>
+
+          <!-- Action buttons -->
+          <div class="action-buttons">
+            <button class="detail-btn go-btn" type="button">
+              I would like to go — show me how to get there
+            </button>
+
+            <button class="detail-btn save-btn" type="button">
+              Save for later
+            </button>
+          </div>
 
           <a
             v-if="event.url"
@@ -393,6 +405,48 @@ h1 {
   line-height: 1.65;
 }
 
+/* Action buttons */
+.action-buttons {
+  display: grid;
+  gap: 20px;
+  margin-top: 28px;
+}
+
+.detail-btn {
+  width: 100%;
+  border-radius: 28px;
+  padding: 26px 32px;
+  font-size: calc(26px * var(--font-scale));
+  font-weight: 900;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.detail-btn:hover {
+  transform: translateY(-2px);
+}
+
+.go-btn {
+  border: none;
+  background: #ef4b1d;
+  color: #ffffff;
+}
+
+.go-btn:hover {
+  background: #d94117;
+}
+
+.save-btn {
+  background: #ffffff;
+  color: #575770;
+  border: 4px solid #575770;
+}
+
+.save-btn:hover {
+  background: #f2f2f7;
+}
+
 .external-link {
   display: inline-flex;
   margin-top: 24px;
@@ -440,6 +494,11 @@ h1 {
 
   .description {
     font-size: calc(23px * var(--font-scale));
+  }
+
+  .detail-btn {
+    padding: 22px 24px;
+    font-size: calc(22px * var(--font-scale));
   }
 }
 </style>
