@@ -8,20 +8,25 @@
       <p class="location-text">{{ locationLabel }}</p>
 
       <nav>
-        <RouterLink to="/home"     class="item">Home</RouterLink>
-        <RouterLink to="/checkin"  class="item">Wellbeing Check</RouterLink>
+        <RouterLink to="/home" class="item">Home</RouterLink>
+        <RouterLink to="/checkin" class="item">Wellbeing Check</RouterLink>
         <RouterLink to="/discover" class="item">Discover Events</RouterLink>
 
         <!-- Best Time section with sub-links -->
         <div class="nav-group">
-          <RouterLink to="/best-time" class="item best-time-link">
-            ☆ Best Time
+          <RouterLink
+            to="/best-time"
+            class="item best-time-link"
+            :class="{ 'best-time-active': isOnBestTime }"
+          >
+            Best Time
           </RouterLink>
+
           <div class="sub-nav" v-if="isOnBestTime">
-            <RouterLink to="/best-time"           class="sub-item">Live score</RouterLink>
-            <RouterLink to="/best-time/result"    class="sub-item">Best spots now</RouterLink>
-            <RouterLink to="/best-time/week"      class="sub-item">Week forecast</RouterLink>
-            <RouterLink to="/best-time/welcoming" class="sub-item">🤝 Welcoming spaces</RouterLink>
+            <RouterLink to="/best-time" class="sub-item">Live score</RouterLink>
+            <RouterLink to="/best-time/result" class="sub-item">Best spots now</RouterLink>
+            <RouterLink to="/best-time/week" class="sub-item">Week forecast</RouterLink>
+            <RouterLink to="/best-time/welcoming" class="sub-item">Welcoming spaces</RouterLink>
           </div>
         </div>
       </nav>
@@ -51,19 +56,18 @@ import { resonanceStore } from '../stores/resonanceStore'
 const { detectedLocationText } = useLocationState()
 const route = useRoute()
 
-// Show resonance store location label when available, fall back to geolocation text
 const locationLabel = computed(() =>
   resonanceStore.locationReady
     ? resonanceStore.locationLabel
     : detectedLocationText.value
 )
 
-// Show sub-nav only when on any best-time page
 const isOnBestTime = computed(() =>
   route.path.startsWith('/best-time')
 )
 
 const scale = ref(1)
+
 watch(
   scale,
   (value) => {
@@ -90,7 +94,9 @@ watch(
   gap: 12px;
 }
 
-.logo-link { text-decoration: none; }
+.logo-link {
+  text-decoration: none;
+}
 
 h1 {
   margin: 0;
@@ -101,7 +107,9 @@ h1 {
   color: #2f3152;
 }
 
-h1 span { color: #008c7d; }
+h1 span {
+  color: #008c7d;
+}
 
 .location-text {
   margin: 0;
@@ -120,12 +128,17 @@ h1 span { color: #008c7d; }
   border-radius: 10px;
   font-size: calc(16px * var(--font-scale));
   font-weight: 700;
-  color: inherit;
+  color: #1f2744;
   text-decoration: none;
+}
+
+.item:hover {
+  background: #eefaf7;
 }
 
 .item.router-link-active {
   background: #e3faf5;
+  color: #1f2744;
 }
 
 /* Best Time nav group */
@@ -135,17 +148,18 @@ h1 span { color: #008c7d; }
   gap: 0;
 }
 
+/* Default Best Time style: same as normal nav item */
 .best-time-link {
-  color: #0a756a;
-  border: 1.5px solid #b0ddd9;
-  background: #e8f8f5;
   margin-top: 4px;
+  color: #1f2744;
+  background: transparent;
+  border: none;
 }
 
-.best-time-link.router-link-active {
-  background: #0c8b7d;
-  color: #fff;
-  border-color: #0c8b7d;
+/* Best Time only becomes green when current page is /best-time or /best-time/... */
+.best-time-link.best-time-active {
+  background: #e3faf5;
+  color: #1f2744;
 }
 
 /* Sub-nav shown when on any /best-time/* route */
@@ -169,7 +183,9 @@ h1 span { color: #008c7d; }
   transition: background 0.12s;
 }
 
-.sub-item:hover { background: #d8f5f0; }
+.sub-item:hover {
+  background: #d8f5f0;
+}
 
 .sub-item.router-link-exact-active {
   background: #0c8b7d;
@@ -189,7 +205,9 @@ h1 span { color: #008c7d; }
   margin-top: auto;
 }
 
-.scale input { width: 100%; }
+.scale input {
+  width: 100%;
+}
 
 main {
   min-width: 0;
@@ -197,7 +215,12 @@ main {
 }
 
 @media (max-width: 980px) {
-  .shell { grid-template-columns: 1fr; }
-  .side { padding: 14px 16px; }
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .side {
+    padding: 14px 16px;
+  }
 }
 </style>
