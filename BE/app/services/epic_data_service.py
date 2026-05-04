@@ -55,16 +55,10 @@ def get_crowd_level_now(
     lon: float,
     radius_km: float = 1,
 ) -> dict:
-    """
-    Returns current crowd level near a location.
-    Uses historical pattern for current hour + day_of_week.
-    Falls back to live API if available.
-    """
     now = datetime.now()
     hour = now.hour
-    day_of_week = now.weekday()  # 0=Monday
+    day_of_week = now.weekday()
 
-    # Find nearby sensors
     sensors = db.query(PedestrianPattern).filter(
         PedestrianPattern.hour == hour,
         PedestrianPattern.day_of_week == day_of_week,
@@ -118,13 +112,8 @@ def get_crowd_forecast(
     lon: float,
     radius_km: float = 0.5,
 ) -> list[dict]:
-    """
-    Returns 7-day crowd forecast for a location.
-    Uses historical patterns by day_of_week + hour.
-    """
     sensors = db.query(PedestrianSensor).all()
 
-    # Find nearest sensor
     nearest_sensor = None
     nearest_dist = float("inf")
     for s in sensors:
@@ -182,7 +171,6 @@ def get_best_times(
         print(f"[DEBUG] No sensor found within {radius_km}km")
         return []
 
-    # Check what crowd_level values exist in DB for this sensor
     all_patterns = db.query(PedestrianPattern).filter(
         PedestrianPattern.sensor_id == nearest_sensor.sensor_id,
     ).all()
@@ -191,7 +179,6 @@ def get_best_times(
         levels = set(p.crowd_level for p in all_patterns)
         print(f"[DEBUG] Crowd levels in DB: {levels}")
 
-    # Get quiet hours — use is_quiet_hour flag instead of crowd_level string
     patterns = db.query(PedestrianPattern).filter(
         PedestrianPattern.sensor_id == nearest_sensor.sensor_id,
         PedestrianPattern.is_quiet_hour == True,
@@ -201,7 +188,6 @@ def get_best_times(
 
     print(f"[DEBUG] Quiet patterns found (is_quiet_hour=True, hour 8-20): {len(patterns)}")
 
-    # If no quiet hours in daytime, just return lowest crowd hours
     if not patterns:
         patterns = db.query(PedestrianPattern).filter(
             PedestrianPattern.sensor_id == nearest_sensor.sensor_id,
@@ -221,17 +207,12 @@ def get_best_times(
         for p in patterns
     ]
 
+
 # ─── Live microclimate ────────────────────────────────────────────────────────
 
 async def get_live_microclimate(lat: float, lon: float) -> dict:
-    """
-    Fetches live microclimate readings from CoM microclimate-sensors-data API.
-    Updated every 15 minutes. Sensors located in Melbourne CBD only.
-    """
     url = "https://data.melbourne.vic.gov.au/api/explore/v2.1/catalog/datasets/microclimate-sensors-data/records"
-    params = {
-        "limit": 100,
-    }
+    params = {"limit": 100}
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -248,10 +229,8 @@ async def get_live_microclimate(lat: float, lon: float) -> dict:
         if not records:
             return _microclimate_unavailable()
 
-        # Parse readings — find temperature, humidity, wind, pm25
         readings = {}
         for rec in records:
-            # Try all possible field name patterns
             for key in rec:
                 val = rec[key]
                 if val is None:
@@ -302,7 +281,6 @@ def _parse_microclimate(readings: dict) -> dict:
     pm25 = readings.get("PM2.5")
     pressure = readings.get("TPH.PRESSURE")
 
-    # Safety verdict
     warnings = []
     if temp is not None:
         if temp > TEMP_DANGER_HIGH:
@@ -354,38 +332,21 @@ def compute_resonance_score(
     has_toilet: bool | None,
     shade_score: float | None,
 ) -> dict:
-    """
-    Computes the resonance score (0-100) for a location.
-
-    Weights (MDS rubric — documented scoring model):
-      Crowd level:    35%
-      Weather safety: 35%
-      Comfort score:  20% (walkability + toilet + shade)
-      Toilet access:   5%
-      Shade:           5%
-
-    Returns score + breakdown for drill-down analytics.
-    """
-    # Crowd component (35 pts)
     crowd_map = {"Low": 35, "Moderate": 20, "High": 5, "Unknown": 17}
     crowd_pts = crowd_map.get(crowd_level or "Unknown", 17)
     if is_quiet:
         crowd_pts = min(35, crowd_pts + 5)
 
-    # Weather component (35 pts)
     weather_map = {"Good": 35, "Caution": 20, "Poor": 5, "Unknown": 25}
     weather_pts = weather_map.get(weather.get("safety_verdict", "Unknown"), 25)
 
-    # Comfort component (20 pts)
     if comfort_score is not None:
         comfort_pts = round((comfort_score / 100) * 20, 1)
     else:
-        comfort_pts = 10  # neutral if unknown
+        comfort_pts = 10
 
-    # Toilet access (5 pts)
     toilet_pts = 5 if has_toilet else 0
 
-    # Shade (5 pts)
     if shade_score is not None:
         shade_pts = round((min(shade_score, 100) / 100) * 5, 1)
     else:
@@ -435,10 +396,6 @@ def get_green_spaces_nearby(
     has_toilet: bool | None = None,
     limit: int = 10,
 ) -> list[dict]:
-    """
-    Returns open spaces near a location with comfort + shade + toilet info.
-    Ranked by comfort_score descending.
-    """
     query = db.query(OpenSpace)
     if has_toilet is not None:
         query = query.filter(OpenSpace.has_toilet_nearby == has_toilet)
@@ -475,7 +432,6 @@ def get_nearby_toilets(
     radius_km: float = 0.5,
     wheelchair_only: bool = False,
 ) -> list[dict]:
-    """Returns public toilets near a location."""
     query = db.query(PublicToilet)
     if wheelchair_only:
         query = query.filter(PublicToilet.has_wheelchair == True)
@@ -515,10 +471,6 @@ def get_stops_nearby(
     wheelchair_only: bool = False,
     limit: int = 10,
 ) -> list[dict]:
-    """
-    Returns public transport stops near a location.
-    Includes wheelchair accessibility and routes served.
-    """
     query = db.query(GtfsStop)
     if mode:
         query = query.filter(GtfsStop.mode == mode.lower())
@@ -555,10 +507,6 @@ def get_stop_departures(
     stop_id: str,
     hour: int | None = None,
 ) -> list[dict]:
-    """
-    Returns scheduled departures for a stop.
-    If hour not provided, uses current hour.
-    """
     if hour is None:
         hour = datetime.now().hour
 
@@ -568,7 +516,6 @@ def get_stop_departures(
     ).all()
 
     if not patterns:
-        # Return next 3 hours if no data for current hour
         patterns = db.query(GtfsPattern).filter(
             GtfsPattern.stop_id == stop_id,
             GtfsPattern.hour >= hour,
@@ -592,10 +539,6 @@ def get_stop_accessibility(
     db: Session,
     stop_id: str,
 ) -> dict:
-    """
-    Returns accessibility info for a stop.
-    Includes elevator/stairs/walkway pathways (train only).
-    """
     stop = db.query(GtfsStop).filter(GtfsStop.stop_id == stop_id).first()
     if not stop:
         return {"error": "Stop not found"}
@@ -642,10 +585,6 @@ async def get_walking_route(
     to_lat: float,
     to_lon: float,
 ) -> dict:
-    """
-    Gets walking route using OSRM.
-    Returns distance, duration, and turn-by-turn steps.
-    """
     url = f"http://router.project-osrm.org/route/v1/walking/{from_lon},{from_lat};{to_lon},{to_lat}"
     params = {
         "overview": "false",
@@ -694,7 +633,6 @@ async def get_walking_route(
 
 
 def _maneuver_to_text(mtype: str, modifier: str, name: str) -> str:
-    """Convert OSRM maneuver to plain English for elderly users."""
     street = f" onto {name}" if name else ""
     if mtype == "depart":
         return f"Head {modifier}{street}"
@@ -732,123 +670,250 @@ async def plan_journey(
     to_lat: float,
     to_lon: float,
     arrive_by: str | None = None,
+    mode: str = "walking",
 ) -> dict:
     """
-    Plans a door-to-venue journey using GTFS stops + OSRM walking.
-
-    Steps:
-    1. Find nearest stops to origin
-    2. Find nearest stops to destination
-    3. Find common routes between them
-    4. Get walking legs via OSRM
-    5. Calculate leave_by time
+    Returns a single journey option based on requested mode.
+    mode: walking | cycling | transit
     """
-    # Step 1: Find nearest stops to origin (500m radius)
-    origin_stops = get_stops_nearby(db, from_lat, from_lon, radius_km=0.5, limit=5)
-    # Step 2: Find nearest stops to destination (500m radius)
-    dest_stops = get_stops_nearby(db, to_lat, to_lon, radius_km=0.5, limit=5)
 
-    if not origin_stops or not dest_stops:
-        # Fall back to walking only
-        walk = await get_walking_route(from_lat, from_lon, to_lat, to_lon)
+    if mode == "walking":
+        walk_direct = await _get_route_osrm(from_lat, from_lon, to_lat, to_lon, mode="walking")
+        walk_mins = round(walk_direct.get("duration_secs", 0) / 60)
         return {
-            "journey_type": "walking_only",
-            "legs": [{"type": "walk", **walk}],
-            "total_duration_label": walk.get("duration_label", "Unknown"),
-            "note": "No public transport stops within 500m. Walking route shown.",
-        }
-
-    origin_stop = origin_stops[0]
-    dest_stop = dest_stops[0]
-
-    # Step 3: Walking to origin stop
-    walk_to_stop = await get_walking_route(
-        from_lat, from_lon,
-        origin_stop["lat"], origin_stop["lon"]
-    )
-
-    # Step 4: Transit leg (scheduled)
-    now = datetime.now()
-    departures = get_stop_departures(db, origin_stop["stop_id"], hour=now.hour)
-
-    # Step 5: Walking from dest stop to venue
-    walk_to_venue = await get_walking_route(
-        dest_stop["lat"], dest_stop["lon"],
-        to_lat, to_lon
-    )
-
-    # Calculate total time
-    walk_to_stop_mins = round(walk_to_stop.get("duration_secs", 0) / 60)
-    walk_to_venue_mins = round(walk_to_venue.get("duration_secs", 0) / 60)
-    freq_mins = departures[0]["frequency_mins"] if departures else 15
-    wait_mins = round(freq_mins / 2) if freq_mins else 8
-
-    # Straight-line distance for transit estimate
-    transit_dist_km = haversine_km(
-        origin_stop["lat"], origin_stop["lon"],
-        dest_stop["lat"], dest_stop["lon"]
-    )
-    transit_mins = max(5, round(transit_dist_km * 3))  # ~20km/h average
-
-    total_mins = walk_to_stop_mins + wait_mins + transit_mins + walk_to_venue_mins
-
-    # Leave by time
-    leave_by = None
-    if arrive_by:
-        try:
-            arrival = datetime.fromisoformat(arrive_by)
-            leave_dt = arrival.replace(
-                hour=arrival.hour,
-                minute=arrival.minute,
-            )
-            from datetime import timedelta
-            leave_dt = arrival - timedelta(minutes=total_mins + 10)  # 10min buffer
-            leave_by = leave_dt.strftime("%H:%M")
-        except Exception:
-            pass
-
-    return {
-        "journey_type": "transit",
-        "total_duration_mins": total_mins,
-        "total_duration_label": _duration_label(total_mins * 60),
-        "leave_by": leave_by,
-        "legs": [
-            {
-                "type": "walk",
-                "description": f"Walk to {origin_stop['stop_name']}",
-                "duration_mins": walk_to_stop_mins,
-                "distance_label": walk_to_stop.get("distance_label"),
-                "steps": walk_to_stop.get("steps", []),
-                "stop": origin_stop,
-            },
-            {
-                "type": "wait",
-                "description": f"Wait at {origin_stop['stop_name']}",
-                "duration_mins": wait_mins,
-                "mode": origin_stop.get("mode", "transit"),
-                "routes": origin_stop.get("routes_served", ""),
-                "departures": departures[:3],
-                "wheelchair_accessible": origin_stop.get("is_wheelchair_accessible"),
-            },
-            {
-                "type": "transit",
-                "description": f"Take {origin_stop.get('mode','transit')} to {dest_stop['stop_name']}",
-                "duration_mins": transit_mins,
-                "from_stop": origin_stop["stop_name"],
-                "to_stop": dest_stop["stop_name"],
-                "routes": origin_stop.get("routes_served", ""),
-            },
-            {
+            "mode": "walking",
+            "label": "Walk",
+            "total_duration_mins": walk_mins,
+            "total_duration_label": _duration_label(walk_direct.get("duration_secs", 0)),
+            "legs": [{
                 "type": "walk",
                 "description": "Walk to destination",
-                "duration_mins": walk_to_venue_mins,
-                "distance_label": walk_to_venue.get("distance_label"),
-                "steps": walk_to_venue.get("steps", []),
+                "duration_mins": walk_mins,
+                "distance_label": walk_direct.get("distance_label"),
+                "geometry": walk_direct.get("geometry"),
+                "steps": walk_direct.get("steps", []),
+            }],
+            "geometry_collection": {
+                "type": "GeometryCollection",
+                "geometries": [walk_direct["geometry"]] if walk_direct.get("geometry") else [],
             },
-        ],
-        "accessibility": {
-            "origin_stop_accessible": origin_stop.get("is_wheelchair_accessible"),
-            "dest_stop_accessible": dest_stop.get("is_wheelchair_accessible"),
-        },
-        "note": "Journey times are estimates based on scheduled timetables. Allow extra time.",
+            "waypoints": {
+                "origin": {"lat": from_lat, "lon": from_lon},
+                "destination": {"lat": to_lat, "lon": to_lon},
+            },
+            "note": "Walking times are approximate. Powered by OSRM.",
+        }
+
+    elif mode == "cycling":
+        bike_direct = await _get_route_osrm(from_lat, from_lon, to_lat, to_lon, mode="cycling")
+        bike_mins = round(bike_direct.get("duration_secs", 0) / 60)
+        return {
+            "mode": "cycling",
+            "label": "Cycle",
+            "total_duration_mins": bike_mins,
+            "total_duration_label": _duration_label(bike_direct.get("duration_secs", 0)),
+            "legs": [{
+                "type": "cycle",
+                "description": "Cycle to destination",
+                "duration_mins": bike_mins,
+                "distance_label": bike_direct.get("distance_label"),
+                "geometry": bike_direct.get("geometry"),
+                "steps": bike_direct.get("steps", []),
+            }],
+            "geometry_collection": {
+                "type": "GeometryCollection",
+                "geometries": [bike_direct["geometry"]] if bike_direct.get("geometry") else [],
+            },
+            "waypoints": {
+                "origin": {"lat": from_lat, "lon": from_lon},
+                "destination": {"lat": to_lat, "lon": to_lon},
+            },
+            "note": "Cycling times are approximate. Powered by OSRM.",
+        }
+
+    else:  # transit
+        origin_stops = get_stops_nearby(db, from_lat, from_lon, radius_km=0.5, limit=5)
+        dest_stops = get_stops_nearby(db, to_lat, to_lon, radius_km=0.5, limit=5)
+
+        if not origin_stops or not dest_stops:
+            return {
+                "mode": "transit",
+                "error": "No nearby stops found. Try walking or cycling instead.",
+            }
+
+        origin_stop = origin_stops[0]
+        dest_stop = dest_stops[0]
+
+        walk_to_stop = await _get_route_osrm(
+            from_lat, from_lon,
+            origin_stop["lat"], origin_stop["lon"],
+            mode="walking"
+        )
+        walk_to_venue = await _get_route_osrm(
+            dest_stop["lat"], dest_stop["lon"],
+            to_lat, to_lon,
+            mode="walking"
+        )
+
+        now = datetime.now()
+        departures = get_stop_departures(db, origin_stop["stop_id"], hour=now.hour)
+        freq_mins = departures[0]["frequency_mins"] if departures else 15
+        wait_mins = round(freq_mins / 2) if freq_mins else 8
+
+        walk_to_stop_mins = round(walk_to_stop.get("duration_secs", 0) / 60)
+        walk_to_venue_mins = round(walk_to_venue.get("duration_secs", 0) / 60)
+        transit_dist_km = haversine_km(
+            origin_stop["lat"], origin_stop["lon"],
+            dest_stop["lat"], dest_stop["lon"]
+        )
+        transit_mins = max(5, round(transit_dist_km * 3))
+        total_mins = walk_to_stop_mins + wait_mins + transit_mins + walk_to_venue_mins
+
+        leave_by = None
+        if arrive_by:
+            try:
+                from datetime import timedelta
+                arrival = datetime.fromisoformat(arrive_by)
+                leave_dt = arrival - timedelta(minutes=total_mins + 10)
+                leave_by = leave_dt.strftime("%H:%M")
+            except Exception:
+                pass
+
+        transit_geometry = {
+            "type": "LineString",
+            "coordinates": [
+                [origin_stop["lon"], origin_stop["lat"]],
+                [dest_stop["lon"], dest_stop["lat"]],
+            ]
+        }
+
+        all_geometries = []
+        if walk_to_stop.get("geometry"):
+            all_geometries.append(walk_to_stop["geometry"])
+        all_geometries.append(transit_geometry)
+        if walk_to_venue.get("geometry"):
+            all_geometries.append(walk_to_venue["geometry"])
+
+        return {
+            "mode": "transit",
+            "label": "Public Transport",
+            "total_duration_mins": total_mins,
+            "total_duration_label": _duration_label(total_mins * 60),
+            "leave_by": leave_by,
+            "legs": [
+                {
+                    "type": "walk",
+                    "description": f"Walk to {origin_stop['stop_name']}",
+                    "duration_mins": walk_to_stop_mins,
+                    "distance_label": walk_to_stop.get("distance_label"),
+                    "geometry": walk_to_stop.get("geometry"),
+                    "steps": walk_to_stop.get("steps", []),
+                    "stop": origin_stop,
+                },
+                {
+                    "type": "wait",
+                    "description": f"Wait at {origin_stop['stop_name']}",
+                    "duration_mins": wait_mins,
+                    "mode": origin_stop.get("mode", "transit"),
+                    "routes": origin_stop.get("routes_served", ""),
+                    "departures": departures[:3],
+                    "wheelchair_accessible": origin_stop.get("is_wheelchair_accessible"),
+                    "geometry": None,
+                },
+                {
+                    "type": "transit",
+                    "description": f"Take {origin_stop.get('mode','transit')} to {dest_stop['stop_name']}",
+                    "duration_mins": transit_mins,
+                    "from_stop": origin_stop["stop_name"],
+                    "to_stop": dest_stop["stop_name"],
+                    "from_stop_coords": {"lat": origin_stop["lat"], "lon": origin_stop["lon"]},
+                    "to_stop_coords": {"lat": dest_stop["lat"], "lon": dest_stop["lon"]},
+                    "routes": origin_stop.get("routes_served", ""),
+                    "geometry": transit_geometry,
+                },
+                {
+                    "type": "walk",
+                    "description": "Walk to destination",
+                    "duration_mins": walk_to_venue_mins,
+                    "distance_label": walk_to_venue.get("distance_label"),
+                    "geometry": walk_to_venue.get("geometry"),
+                    "steps": walk_to_venue.get("steps", []),
+                },
+            ],
+            "geometry_collection": {
+                "type": "GeometryCollection",
+                "geometries": all_geometries,
+            },
+            "waypoints": {
+                "origin": {"lat": from_lat, "lon": from_lon},
+                "boarding_stop": {"lat": origin_stop["lat"], "lon": origin_stop["lon"], "name": origin_stop["stop_name"]},
+                "alighting_stop": {"lat": dest_stop["lat"], "lon": dest_stop["lon"], "name": dest_stop["stop_name"]},
+                "destination": {"lat": to_lat, "lon": to_lon},
+            },
+            "accessibility": {
+                "origin_stop_accessible": origin_stop.get("is_wheelchair_accessible"),
+                "dest_stop_accessible": dest_stop.get("is_wheelchair_accessible"),
+            },
+            "note": "Transit times are estimates from scheduled timetables. Not real-time.",
+        }
+
+
+async def _get_route_osrm(
+    from_lat: float,
+    from_lon: float,
+    to_lat: float,
+    to_lon: float,
+    mode: str = "walking",
+) -> dict:
+    url = f"http://router.project-osrm.org/route/v1/{mode}/{from_lon},{from_lat};{to_lon},{to_lat}"
+    params = {
+        "overview": "full",
+        "steps": "true",
+        "annotations": "false",
+        "geometries": "geojson",
     }
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(url, params=params)
+            r.raise_for_status()
+            data = r.json()
+
+        if data.get("code") != "Ok" or not data.get("routes"):
+            return {"error": f"No {mode} route found"}
+
+        route = data["routes"][0]
+        leg = route["legs"][0]
+        geometry = route.get("geometry")
+
+        steps = []
+        for step in leg.get("steps", []):
+            maneuver = step.get("maneuver", {})
+            if step.get("distance", 0) < 1:
+                continue
+            steps.append({
+                "instruction": _maneuver_to_text(
+                    maneuver.get("type", ""),
+                    maneuver.get("modifier", ""),
+                    step.get("name", ""),
+                ),
+                "distance_m": round(step["distance"]),
+                "duration_secs": round(step["duration"]),
+                "street_name": step.get("name", ""),
+            })
+
+        return {
+            "distance_m": round(route["distance"]),
+            "distance_label": _distance_label(route["distance"]),
+            "duration_secs": round(route["duration"]),
+            "duration_label": _duration_label(route["duration"]),
+            "geometry": geometry,
+            "steps": steps,
+        }
+
+    except Exception as e:
+        return {"error": f"{mode} route unavailable: {str(e)}"}
+
+
+async def get_walking_route(from_lat, from_lon, to_lat, to_lon) -> dict:
+    return await _get_route_osrm(from_lat, from_lon, to_lat, to_lon, mode="walking")
