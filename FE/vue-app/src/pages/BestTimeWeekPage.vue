@@ -676,8 +676,16 @@ function planJourney(space) {
   const lon = space.lon ?? space.lng ?? space.longitude
   if (lat == null || lon == null) return
   router.push({
-    path: '/results',
-    query: { to_lat: lat, to_lon: lon, place: space.space_name }
+    path: '/journey',
+    query: {
+      from_lat: store.userLat,
+      from_lon: store.userLon,
+      from_name: store.locationLabel || 'My location',
+      dest_lat: lat,
+      dest_lon: lon,
+      dest_name: space.name,
+      auto: '1'                  // ← triggers auto-search on arrival
+    }
   })
 }
 

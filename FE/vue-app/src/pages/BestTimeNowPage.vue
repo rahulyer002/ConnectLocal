@@ -269,10 +269,12 @@ async function loadAll() {
 }
 
 function planJourney(rec) {
+  const fromLat =  store.userLat 
+  const fromlon =  store.userLon
   if (!rec.lat || !rec.lon) return
   router.push({
-    path: '/results',
-    query: { to_lat: rec.lat, to_lon: rec.lon, place: rec.space_name }
+    path: '/journey',
+    query: { from_lat:fromLat,from_lon:fromlon,to_lat: rec.lat, to_lon: rec.lon, place: rec.space_name }
   })
 }
 
