@@ -20,6 +20,13 @@ const router = createRouter({
     { path: '/checkin', component: CheckinPage },
     { path: '/checkin/form', component: CheckinFormPage },
     { path: '/results', component: ResultsPage },
+    { path: '/about', component: AboutPage },
+    { path: '/resources', component: ResourcesPage },
+
+   { path: '/best-time', component: BestTimePage },
+{ path: '/best-time/now', component: BestTimeNowPage },
+{ path: '/best-time/week', component: BestTimeWeekPage },
+{ path: '/welcoming-spaces', component: WelcomingSpacesPage },
 
     { path: '/:pathMatch(.*)*', redirect: '/home' },
   ],

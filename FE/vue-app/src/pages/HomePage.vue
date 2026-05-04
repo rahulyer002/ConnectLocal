@@ -21,6 +21,7 @@
         <span class="nav-link-coming">Places</span>
         <RouterLink to="/about">About</RouterLink>
         <RouterLink to="/resources">Resources</RouterLink>
+        <RouterLink to="/best-time">Best Time</RouterLink>
       </div>
       <RouterLink to="/checkin" class="nav-cta">
         Start Check-in
