@@ -32,6 +32,7 @@ async def plan_journey_endpoint(
     to_lat: float = Query(description="Destination latitude (event venue)"),
     to_lon: float = Query(description="Destination longitude (event venue)"),
     arrive_by: str = Query(default=None, description="Desired arrival time ISO format e.g. 2026-05-01T19:00:00"),
+    mode: str = Query(default="walking", description="Mode of transport: transit | walking | cycling"),
     db: Session = Depends(get_db),
 ):
     """
@@ -52,7 +53,7 @@ async def plan_journey_endpoint(
       - PTV GTFS Schedule (static timetables — not live)
       - OSRM (walking routes)
     """
-    result = await plan_journey(db, from_lat, from_lon, to_lat, to_lon, arrive_by)
+    result = await plan_journey(db, from_lat, from_lon, to_lat, to_lon, arrive_by, mode=mode)
     return result
 
 

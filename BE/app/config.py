@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL_SYNC: str = ""
     DATABASE_URL: str = ""
+    GOOGLE_MAPS_API_KEY: str = ""
 
     class Config:
         env_file = ".env"
