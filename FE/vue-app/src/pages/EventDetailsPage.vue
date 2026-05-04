@@ -132,6 +132,9 @@
         </div>
 
         <div class="actions" data-reveal>
+          <button class="btn-primary" type="button" @click="goToJourney" :style="{ fontSize: scaledPx(16) }">
+            I would like to go — show me how to get there
+          </button>
           <a v-if="event.url" class="btn-primary" :href="event.url" target="_blank" rel="noopener noreferrer" :style="{ fontSize: scaledPx(16) }">Open original event page</a>
           <RouterLink to="/discover" class="btn-secondary" :style="{ fontSize: scaledPx(16) }">Back to activities</RouterLink>
         </div>
@@ -143,9 +146,10 @@
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || 'https://connectlocal.duckdns.org'
 
 const event = ref(null)
@@ -217,6 +221,20 @@ const restrictionsText = computed(() => {
   if (!event.value) return 'No restrictions listed'
   return event.value.restrictions || 'No restrictions listed'
 })
+
+const goToJourney = () => {
+  if (!event.value) return
+
+  const destination =
+    event.value.location_summary ||
+    event.value.address ||
+    venueText.value
+
+  router.push({
+    path: '/journey',
+    query: destination ? { destination } : {}
+  })
+}
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true })
