@@ -16,7 +16,7 @@
         <span class="nav-wordmark"><em>Connect</em>Local</span>
       </div>
       <div class="nav-links">
-        <RouterLink to="/home">Home</RouterLink>
+        <RouterLink to="/home"class="is-active" >Home</RouterLink>
         <RouterLink to="/discover">Events</RouterLink>
         <RouterLink to="/journey">Journey</RouterLink>
         <RouterLink to="/best-time">Best Time</RouterLink>
@@ -556,8 +556,14 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect(); window.
 .nav-wordmark em { color: #0a9b8a; font-style: italic; }
 .nav-links { display: flex; gap: 36px; align-items: center; }
 .nav-links a { font-family: system-ui,sans-serif; font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none; transition: color 0.2s; }
-.nav-links a:hover { color: #0a9b8a; }
-.nav-links .router-link-active { color: #0a9b8a; }
+
+
+.nav-links a:hover, .nav-links .router-link-active ,.nav-links a.is-active{ color: #0a9b8a; }
+.nav-links a.is-active::after {
+  content: ''; position: absolute;     left: 33.5rem;
+    right: 50rem; bottom: 34px; height: 2px;
+  background: #0a9b8a; border-radius: 2px;
+}
 .nav-link-coming { font-family: system-ui,sans-serif; font-size: 15px; font-weight: 600; color: #3a5a3e; cursor: default; }
 .nav-cta { display: inline-flex; align-items: center; gap: 8px; font-family: system-ui,sans-serif; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
 .nav-cta:hover { background: #0a9b8a; color: white; }

@@ -21,7 +21,8 @@
       </div>
       <div class="nav-links">
         <RouterLink to="/home">Home</RouterLink>
-        <RouterLink to="/discover">Events</RouterLink>
+        <RouterLink to="/discover" class="is-active">Events</RouterLink>
+        <RouterLink to="/journey">Journey</RouterLink>
 
         <RouterLink to="/best-time">Best Time</RouterLink>
       </div>
@@ -299,7 +300,7 @@ const scrollY = ref(0)
 import { uiStore } from '../stores/uiStore'
 const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
-const activeFilters = reactive({ free: true, thisWeek: true, closeHome: true })
+const activeFilters = reactive({ free: false, thisWeek: false, closeHome: false })
 const chips = [
   { key: 'free', label: 'Free' },
   { key: 'thisWeek', label: 'This Week' },
@@ -522,7 +523,12 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 .nav-wordmark em { color: #0a9b8a; font-style: italic; }
 .nav-links { display: flex; gap: 32px; }
 .nav-links a { font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none; transition: color 0.2s; }
-.nav-links a:hover, .nav-links .router-link-active { color: #0a9b8a; }
+.nav-links a:hover, .nav-links .router-link-active ,.nav-links a.is-active{ color: #0a9b8a; }
+.nav-links a.is-active::after {
+  content: ''; position: absolute;     left: 38rem;
+    right: 45.5rem; bottom: 27px; height: 2px;
+  background: #0a9b8a; border-radius: 2px;
+}
 .nav-cta { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
 .nav-cta:hover { background: #0a9b8a; color: white; }
 

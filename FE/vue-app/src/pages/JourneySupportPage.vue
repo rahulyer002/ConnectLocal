@@ -1,807 +1,1500 @@
 <template>
-  <div class="journey-page">
+  <div class="journey-page" :class="['phase-' + phase]">
     <div class="noise" aria-hidden="true"></div>
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
 
-    <nav class="nav" :class="{ scrolled: scrollY > 60 }">
+    <!-- ─── NAV ─── -->
+    <nav class="cl-nav" :class="{ scrolled: scrollY > 60 }">
       <div class="nav-brand">
         <div class="nav-logo">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
             <circle cx="12" cy="10" r="2.5"/>
           </svg>
         </div>
         <span class="nav-wordmark"><em>Connect</em>Local</span>
       </div>
-      <div class="nav-links" role="navigation" aria-label="Main navigation">
+      <div class="cl-nav-links" role="navigation" aria-label="Main navigation">
         <RouterLink to="/home">Home</RouterLink>
         <RouterLink to="/discover">Events</RouterLink>
-        <RouterLink to="/journey">Journey</RouterLink>
+        <RouterLink to="/journey" class="is-active">Journey</RouterLink>
         <RouterLink to="/best-time">Best Time</RouterLink>
       </div>
-      <RouterLink to="/checkin" class="nav-cta" aria-label="Start your wellbeing check-in">
+      <RouterLink to="/checkin" class="cl-nav-cta">
         Start Check-in
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 12h14M13 5l7 7-7 7"/>
-        </svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
       </RouterLink>
     </nav>
 
-    <div class="a11y-bar" role="region" aria-label="Accessibility options">
-      <div class="a11y-inner">
-        <div class="text-size-control" role="group" aria-label="Adjust text size">
-          <span class="a-small" aria-hidden="true">A</span>
-          <input
-            type="range"
-            class="text-slider"
-            min="90"
-            max="140"
-            step="5"
-            v-model.number="textScale"
-            aria-label="Text size"
-            aria-valuemin="90"
-            aria-valuemax="140"
-            :aria-valuenow="textScale"
-            :aria-valuetext="`Text size ${textScale}%`"
-          />
-          <span class="a-large" aria-hidden="true">A</span>
-          <span class="scale-pct" aria-hidden="true">{{ textScale }}%</span>
+    <!-- ─── MAIN CANVAS: full-bleed map + floating panels ─── -->
+    <main class="journey-canvas">
+      <!-- Google Map container -->
+      <div ref="mapEl" class="map-canvas" aria-label="Interactive journey map"></div>
+
+      <!-- Map loading -->
+      <transition name="overlay-fade">
+        <div v-if="!mapReady && !mapError" class="map-overlay loading-overlay">
+          <div class="loading-orb">
+            <div class="loading-ring"></div>
+            <div class="loading-pin">📍</div>
+          </div>
+          <h2>Preparing your map…</h2>
+          <p>Loading streets, transit, and 3D buildings.</p>
         </div>
-      </div>
-    </div>
+      </transition>
 
-    <section class="hero-banner">
-        <h2>
-          Get there
-          <span>comfortably</span>
-        </h2>
-        <p class="hero-copy">
-          Step-by-step travel guidance from your front door. Fewer transfers, less
-          walking, and a clear time to leave home.
-        </p>
-    </section>
-
-    <section class="main-content">
-        <article class="journey-form-card">
-          <h3>Your Location</h3>
-          <form class="location-picker" @submit.prevent="applyManualLocation">
-            <div class="field destination input-row">
-              <input
-                v-model="fromLocation"
-                @focus="handleLocationInputFocus"
-                @input="onFromInput"
-                class="input-field"
-                type="text"
-                placeholder="Please enter suburb or postcode in Melbourne."
-              />
-              <ul v-if="showFromSuggestions" class="suggestions-list">
-                <li v-for="item in fromSuggestions" :key="item.id">
-                  <button type="button" class="suggestion-item" @mousedown.prevent="selectFromSuggestion(item)">
-                    {{ item.label }}
-                  </button>
-                </li>
-              </ul>
-              <button type="button" class="secondary-btn" :disabled="isLocating" @click="getLocation">
-                {{ isLocating ? 'Locating...' : 'Locate' }}
-              </button>
-              <button type="submit" class="secondary-btn" :disabled="isApplying || !fromLocation.trim()">
-                {{ isApplying ? 'Updating...' : 'Change' }}
-              </button>
-            </div>
-          </form>
-
-          <h3>Going To</h3>
-          <div class="destination-wrap">
-            <input
-              v-model.trim="toLocation"
-              class="field destination input-field"
-              type="text"
-              placeholder="Enter destination"
-              @input="onToInput"
-              @blur="hideToSuggestions"
-              @focus="reopenToSuggestions"
-            />
-            <ul v-if="showToSuggestions" class="suggestions-list">
-              <li v-for="item in toSuggestions" :key="item.id">
-                <button type="button" class="suggestion-item" @mousedown.prevent="selectToSuggestion(item)">
-                  {{ item.label }}
-                </button>
-              </li>
-            </ul>
+      <!-- Map error -->
+      <transition name="overlay-fade">
+        <div v-if="mapError" class="map-overlay error-overlay">
+          <div class="error-card">
+            <div class="error-icon">⚠️</div>
+            <h2>Map unavailable</h2>
+            <p class="error-msg">{{ mapError }}</p>
+            <details class="error-help">
+              <summary>How to fix this</summary>
+              <div class="error-help-body">
+                <p>Add to your <code>.env</code> in the project root:</p>
+                <pre>VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
+VITE_GOOGLE_MAPS_MAP_ID=your_map_id_here</pre>
+                <p>The Map ID is optional but unlocks <strong>3D buildings + tilt</strong>. Get one in the Google Cloud Console under <em>Maps Management → Map Styles</em>.</p>
+                <p>Restart <code>npm run dev</code> after editing.</p>
+              </div>
+            </details>
           </div>
+        </div>
+      </transition>
 
-          <button type="button" class="primary-btn" :disabled="!canFindRoute || isPlanning" @click="findRoute">
-            Find My Route
+      <!-- ─── TOP TOOLBAR: layer toggles (visible in all phases) ─── -->
+      <transition name="toolbar-slide">
+        <div v-show="mapReady" class="float-toolbar">
+          <button
+            v-for="l in layerDefs"
+            :key="l.id"
+            class="toolbar-pill"
+            :class="{ active: layerState[l.id] }"
+            @click="toggleLayer(l.id)"
+            :aria-pressed="layerState[l.id]"
+          >
+            <span class="pill-icon" :style="{ background: l.color, color: l.fg }">{{ l.icon }}</span>
+            <span class="pill-label">{{ l.label }}</span>
+            <span v-if="layerLoading[l.id]" class="pill-spinner"></span>
+            <span v-else-if="layerState[l.id] && layerData[l.id].length" class="pill-count">{{ layerData[l.id].length }}</span>
           </button>
-        </article>
+        </div>
+      </transition>
 
-        <article class="route-card">
-          <div class="map-shell">
-            <div ref="mapContainer" class="route-map"></div>
-            <p v-if="mapError" class="map-error">{{ mapError }}</p>
-            <p v-if="planError" class="map-error">{{ planError }}</p>
+      <!-- Right-side floating controls -->
+      <div v-show="mapReady" class="float-controls">
+        <button class="ctrl-btn" @click="recenter" title="Recenter">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          </svg>
+        </button>
+        <button v-if="canUse3D" class="ctrl-btn ctrl-3d" :class="{ active: tilted3D }" @click="toggle3D" :title="tilted3D ? 'Flatten to 2D' : 'Tilt to 3D'">
+          <span class="threed-label">{{ tilted3D ? '2D' : '3D' }}</span>
+        </button>
+        <button class="ctrl-btn ctrl-zoom" @click="zoomIn" title="Zoom in">＋</button>
+        <button class="ctrl-btn ctrl-zoom" @click="zoomOut" title="Zoom out">−</button>
+      </div>
+
+      <!-- ─── ASIDE PANEL ─── -->
+      <aside class="float-panel" :class="['panel-' + phase, { collapsed: panelCollapsed }]">
+        <button class="panel-collapse" @click="panelCollapsed = !panelCollapsed" :title="panelCollapsed ? 'Expand' : 'Collapse'">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline :points="panelCollapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6'"/>
+          </svg>
+        </button>
+
+        <!-- ═══ PHASE: PLAN ═══ -->
+        <div v-if="phase === 'plan'" class="phase-plan-content">
+          <div class="plan-hero">
+            <span class="plan-eyebrow">Journey Planner</span>
+            <h1>Get there<br/>comfortably.</h1>
+            <p>Plan a route with toilets, rest stops, and accessibility info along the way.</p>
           </div>
 
-          <div class="route-head">
-            <p class="route-chip">Most comfortable for you</p>
-            <p class="route-time">{{ planData.departure_time || '--:--' }} → {{ planData.arrival_time || '--:--' }}</p>
-          </div>
-
-          <h3>{{ planData.total_duration_label || 'Route not loaded' }}</h3>
-          <p class="route-meta">{{ planData.total_distance_label || '--' }} · {{ planData.total_walk_label || '--' }}</p>
-          <p class="route-meta" v-if="planData.mode || planData.provider">
-            {{ planData.mode || 'mode n/a' }} · {{ planData.provider || 'provider n/a' }} · Route {{ planData.route_index + 1 }}
-          </p>
-          <p class="route-meta" v-if="planData.total_duration_mins || planData.total_duration_secs">
-            {{ planData.total_duration_mins || '--' }} mins · {{ planData.total_duration_secs || '--' }} secs
-          </p>
-          <p class="route-meta" v-if="planData.summary">{{ planData.summary }}</p>
-          <p class="route-meta" v-if="planData.waypoints?.origin"><strong>From:</strong> {{ planData.waypoints.origin }}</p>
-          <p class="route-meta" v-if="planData.waypoints?.destination"><strong>To:</strong> {{ planData.waypoints.destination }}</p>
-          <div class="trip-key-info" v-if="planData.total_duration_label">
-            <p>
-              <strong>{{ planData.leave_home_by ? 'Leave home:' : 'Suggested start time:' }}</strong>
-              {{ planData.leave_home_by || planData.departure_time || '--:--' }}
-            </p>
-            <p><strong>Vehicle:</strong> {{ firstTransitVehicle || 'No transit leg' }}</p>
-            <p><strong>Transit departs:</strong> {{ firstTransitDeparture || '--:--' }}</p>
-          </div>
-
-          <h4 class="section-title" v-if="displayLegs.length">Route Summary</h4>
-          <div class="steps" v-if="displayLegs.length">
-            <p v-for="(leg, idx) in displayLegs" :key="`leg-${idx}`">
-              <strong>{{ leg?.label || leg?.type || 'Leg' }}</strong>
-              <span v-if="leg?.duration_label"> · {{ leg.duration_label }}</span>
-              <span v-if="leg?.distance_label"> · {{ leg.distance_label }}</span>
-              <span v-if="leg?.num_stops != null"> · {{ leg.num_stops }} stops</span>
-              <span v-if="leg?.departure_time"> · departs {{ leg.departure_time }}</span>
-            </p>
-          </div>
-
-          <p class="warning-note" v-if="displayWarnings.length">
-            {{ displayWarnings.join(' · ') }}
-          </p>
-
-          <h4 class="section-title" v-if="displaySteps.length">Step-by-step Directions</h4>
-          <div class="steps" v-if="displaySteps.length">
-            <div v-for="(step, idx) in displaySteps" :key="`step-${idx}`" class="step-item">
-              <p>
-                <strong>{{ step?.instruction || step?.label || step?.type || 'Step' }}</strong>
-                <span v-if="step?.duration_label"> · {{ step.duration_label }}</span>
-                <span v-if="step?.distance_label"> · {{ step.distance_label }}</span>
-              </p>
-              <p v-if="step?.transit_info" class="step-transit">
-                {{ step.transit_info.vehicle_name || step.transit_info.vehicle_type || 'Transit' }}
-                {{ step.transit_info.line_name ? ` ${step.transit_info.line_name}` : '' }}
-                <span v-if="step.transit_info.departure_stop || step.transit_info.arrival_stop">
-                  · {{ step.transit_info.departure_stop || '--' }} → {{ step.transit_info.arrival_stop || '--' }}
+          <div class="plan-form">
+            <!-- FROM row -->
+            <div class="form-row" :class="{ focused: fromFocused }">
+              <div class="form-pin pin-from">
+                <span class="pin-dot pin-dot-from"></span>
+              </div>
+              <div class="form-input-wrap">
+                <label class="form-label">From</label>
+                <input
+                  v-model="fromText"
+                  type="text"
+                  class="form-input"
+                  placeholder="Your starting point"
+                  @input="onFromInput"
+                  @focus="onFromFocus"
+                  @blur="onFromBlur"
+                  ref="fromInputEl"
+                />
+              </div>
+              <button class="form-locate" :class="{ loading: isLocating }" @click="locateMe" :disabled="isLocating" title="Use my current location">
+                <span v-if="!isLocating">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+                  </svg>
                 </span>
-                <span v-if="step.transit_info.departure_time || step.transit_info.arrival_time">
-                  · {{ step.transit_info.departure_time || '--:--' }} → {{ step.transit_info.arrival_time || '--:--' }}
-                </span>
-                <span v-if="step.transit_info.num_stops != null"> · {{ step.transit_info.num_stops }} stops</span>
-              </p>
-              <ul v-if="filteredSubSteps(step).length" class="sub-steps">
-                <li v-for="(sub, subIdx) in filteredSubSteps(step)" :key="`sub-${idx}-${subIdx}`">
-                  {{ sub.instruction }}
-                  <span v-if="sub.distance_label"> · {{ sub.distance_label }}</span>
-                </li>
-              </ul>
+                <span v-else class="mini-spinner"></span>
+              </button>
+              <div v-if="fromFocused && fromSuggestions.length" class="form-dropdown">
+                <button v-for="(s, i) in fromSuggestions" :key="i" class="dropdown-item" @mousedown.prevent="pickFromSuggestion(s)">
+                  <span class="suggest-icon">📍</span>
+                  <span class="suggest-name">
+                    <strong>{{ s.suburb_name }}</strong>
+                    <small v-if="s.state">{{ s.state }}</small>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Swap button between rows -->
+            <div class="form-swap-rail">
+              <button class="form-swap-btn" :disabled="!canSwap" @click="swapEndpoints" title="Swap from and to">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M7 4v16M3 8l4-4 4 4"/>
+                  <path d="M17 20V4M21 16l-4 4-4-4"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- TO row -->
+            <div class="form-row" :class="{ focused: toFocused }">
+              <div class="form-pin pin-to">
+                <span class="pin-dot pin-dot-to"></span>
+              </div>
+              <div class="form-input-wrap">
+                <label class="form-label">To</label>
+                <input
+                  v-model="toText"
+                  type="text"
+                  class="form-input"
+                  placeholder="Where do you want to go?"
+                  @input="onToInput"
+                  @focus="onToFocus"
+                  @blur="onToBlur"
+                  ref="toInputEl"
+                />
+              </div>
+              <div v-if="toFocused && toSuggestions.length" class="form-dropdown">
+                <button v-for="(s, i) in toSuggestions" :key="i" class="dropdown-item" @mousedown.prevent="pickToSuggestion(s)">
+                  <span class="suggest-icon">📍</span>
+                  <span class="suggest-name">
+                    <strong>{{ s.suburb_name }}</strong>
+                    <small v-if="s.state">{{ s.state }}</small>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Time row -->
+            <div class="form-row form-row-time">
+              <div class="form-pin pin-time">🕐</div>
+              <div class="form-input-wrap">
+                <label class="form-label">Arrive by</label>
+                <input v-model="arriveBy" type="datetime-local" class="form-input" />
+              </div>
+              <button class="time-pill" :class="{ active: !arriveBy }" @click="arriveBy = ''">Leave now</button>
+            </div>
+
+            <button class="form-submit" :disabled="!canSearch || isSearching" @click="findRoute">
+              <span v-if="isSearching" class="mini-spinner light"></span>
+              <span v-else>Find my route</span>
+              <svg v-if="!isSearching" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </button>
+
+            <p v-if="searchError" class="search-error" role="alert">{{ searchError }}</p>
+          </div>
+
+          <!-- Recents -->
+          <div v-if="recentDestinations.length" class="plan-section">
+            <h3 class="plan-section-title">Recent journeys</h3>
+            <div class="recents-list">
+              <button v-for="(r, i) in recentDestinations" :key="i" class="recent-pill" @click="useRecent(r)">
+                <span class="recent-icon">↗</span>
+                <span class="recent-name">{{ r.name }}</span>
+              </button>
             </div>
           </div>
-          <div class="steps" v-else>
-            <p>Find route to load step-by-step guidance.</p>
+
+          <!-- Tips / what's new -->
+          <div class="plan-tips">
+            <div class="tip-card">
+              <div class="tip-icon" style="background:#fce8d4;color:#a85a1f">🚻</div>
+              <div>
+                <strong>Toilets along the way</strong>
+                <p>Public toilets near every stop on your route.</p>
+              </div>
+            </div>
+            <div class="tip-card">
+              <div class="tip-icon" style="background:#dff3dc;color:#286c2a">🌳</div>
+              <div>
+                <strong>Green rest stops</strong>
+                <p>Parks &amp; benches show up next to your route.</p>
+              </div>
+            </div>
+            <div class="tip-card">
+              <div class="tip-icon" style="background:#dceafd;color:#1d4ed8">♿</div>
+              <div>
+                <strong>Accessibility-first</strong>
+                <p>Step-free transit and lift access on each stop.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PHASE: ROUTES ═══ -->
+        <div v-else-if="phase === 'routes'" class="phase-routes-content">
+          <div class="routes-header">
+            <button class="header-back" @click="returnToPlan" title="Edit journey">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="routes-header-text">
+              <span class="routes-eyebrow">{{ routes.length }} {{ routes.length === 1 ? 'route' : 'routes' }} found</span>
+              <h2>{{ truncate(fromText, 26) }} <span class="arrow">→</span> {{ truncate(toText, 26) }}</h2>
+            </div>
           </div>
 
-        </article>
-    </section>
+          <div v-if="leaveByText" class="leave-callout">
+            <div class="callout-icon">⏰</div>
+            <div class="callout-body">
+              <strong>Leave by {{ leaveByText }}</strong>
+              <p>To arrive at <span>{{ arriveAtText }}</span></p>
+            </div>
+          </div>
+
+          <div class="routes-list">
+            <button
+              v-for="(r, idx) in routes"
+              :key="idx"
+              class="route-card"
+              :class="{ selected: idx === selectedRouteIdx }"
+              @click="selectRoute(idx)"
+            >
+              <div class="route-card-top">
+                <span v-if="idx === 0" class="badge badge-comfort">Most comfortable</span>
+                <span v-else-if="idx === routes.length - 1 && routes.length > 1" class="badge badge-fast">Fastest</span>
+                <span v-else class="badge badge-alt">Alternative {{ idx }}</span>
+                <span class="route-time">{{ r.duration_text }}</span>
+              </div>
+              <div class="route-meta">
+                <span>Leave {{ r.leave_by_text }}</span>
+                <span class="dot-sep">·</span>
+                <span>Arrive {{ r.arrive_at_text }}</span>
+              </div>
+              <div class="route-legs">
+                <template v-for="(leg, j) in r.leg_pills" :key="j">
+                  <span class="leg-pill" :class="`leg-${leg.kind}`">
+                    <span class="leg-icon">{{ leg.icon }}</span>
+                    <span v-if="leg.label" class="leg-label">{{ leg.label }}</span>
+                  </span>
+                  <span v-if="j < r.leg_pills.length - 1" class="leg-arrow">›</span>
+                </template>
+              </div>
+              <div v-if="r.transfers > 0" class="route-transfers">
+                {{ r.transfers }} {{ r.transfers === 1 ? 'transfer' : 'transfers' }}
+              </div>
+            </button>
+          </div>
+
+          <div v-if="selectedRoute" class="route-actions">
+            <button class="action-secondary" @click="returnToPlan">Adjust trip</button>
+            <button class="action-primary" @click="startNavigation">
+              Start journey
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ═══ PHASE: NAVIGATE ═══ -->
+        <div v-else-if="phase === 'navigate'" class="phase-navigate-content">
+          <div class="nav-header">
+            <button class="header-back" @click="exitToRoutes" title="Back to routes">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="nav-header-text">
+              <span class="nav-progress-text">Step {{ currentStepIdx + 1 }} of {{ steps.length }}</span>
+              <h2 v-if="selectedRoute">Arrive {{ selectedRoute.arrive_at_text }}</h2>
+            </div>
+          </div>
+
+          <div class="nav-progress-bar">
+            <div class="nav-progress-fill" :style="{ width: navProgress + '%' }"></div>
+          </div>
+
+          <div v-if="currentStep" class="current-step" :class="`tone-${currentStep.kind}`" :key="currentStepIdx">
+            <div class="step-icon-big" v-html="currentStep.iconSvg"></div>
+            <div class="step-body">
+              <span class="step-kind-label">{{ currentStep.kindLabel }}</span>
+              <h3>{{ currentStep.title }}</h3>
+              <p v-if="currentStep.detail" class="step-detail">{{ currentStep.detail }}</p>
+              <div v-if="currentStep.flags?.length" class="step-flags">
+                <span v-for="f in currentStep.flags" :key="f.label" class="step-flag">
+                  <span>{{ f.icon }}</span> {{ f.label }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="nav-controls">
+            <button class="nav-prev" :disabled="currentStepIdx === 0" @click="prevStep">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+              Previous
+            </button>
+            <button v-if="currentStepIdx < steps.length - 1" class="nav-next" @click="nextStep">
+              Next step
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <button v-else class="nav-finish" @click="finishJourney">
+              Finish journey ✓
+            </button>
+          </div>
+
+          <details class="all-steps" :open="false">
+            <summary>All {{ steps.length }} steps</summary>
+            <ol class="steps-list">
+              <li v-for="(s, idx) in steps" :key="idx" :class="{ done: idx < currentStepIdx, current: idx === currentStepIdx }" @click="jumpToStep(idx)">
+                <span class="step-num">{{ idx + 1 }}</span>
+                <div class="step-li-body">
+                  <strong>{{ s.title }}</strong>
+                  <small v-if="s.detail">{{ s.detail }}</small>
+                </div>
+                <span class="step-li-icon" v-html="s.iconSmallSvg"></span>
+              </li>
+            </ol>
+          </details>
+        </div>
+      </aside>
+
+      <!-- ─── BOTTOM BAR (navigate only): comfort stats ─── -->
+      <transition name="slide-up">
+        <div v-if="phase === 'navigate' && selectedRoute" class="float-bottom">
+          <div class="bottom-stat">
+            <span class="stat-label">Total</span>
+            <span class="stat-value">{{ selectedRoute.duration_text }}</span>
+          </div>
+          <div class="bottom-stat">
+            <span class="stat-label">Walking</span>
+            <span class="stat-value">{{ totalWalkText }}</span>
+          </div>
+          <div class="bottom-stat">
+            <span class="stat-label">Transfers</span>
+            <span class="stat-value">{{ selectedRoute.transfers }}</span>
+          </div>
+          <button class="bottom-end" @click="finishJourney">End journey</button>
+        </div>
+      </transition>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useLocationState } from '../composables/useLocationState'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { uiStore } from '../stores/uiStore'
+import { resonanceStore } from '../stores/resonanceStore'
+import { useJourneyApi, searchSuburbs, decodePolyline, extractPath } from '../composables/useJourneyApi'
 
 const route = useRoute()
-const fromLocation = ref('')
-const toLocation = ref('')
+const router = useRouter()
+const api = useJourneyApi()
+
+// ─── Env config ───
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID'
+const RECENT_KEY = 'connectlocal-journey-recent'
+const MELBOURNE_FALLBACK = { lat: -37.8136, lng: 144.9631 }
+
+// ─── Page state ───
+const scrollY = ref(0)
+const phase = ref('plan') // 'plan' | 'routes' | 'navigate'
+const panelCollapsed = ref(false)
+
+// ─── Map state ───
+const mapEl = ref(null)
+const map = ref(null)
+const mapReady = ref(false)
+const mapError = ref('')
+const tilted3D = ref(false)
+const canUse3D = computed(() => !!GOOGLE_MAPS_MAP_ID && GOOGLE_MAPS_MAP_ID !== '')
+
+// Live map objects (raw, not reactive — Vue + GMaps don't mix well)
+let userMarker = null
+let destMarker = null
+let routePolylines = []
+let layerMarkers = { toilets: [], landmarks: [], greenspaces: [], stops: [] }
+let stepHighlightMarker = null
+let infoWindow = null
+
+// ─── Form state ───
+const fromText = ref('')
 const fromLat = ref(null)
 const fromLon = ref(null)
+const fromInputEl = ref(null)
+const fromFocused = ref(false)
+const fromSuggestions = ref([])
+let fromDebounce = null
+
+const toText = ref('')
 const toLat = ref(null)
 const toLon = ref(null)
-const isLocating = ref(false)
-const isApplying = ref(false)
-const fromLocationConfirmed = ref(false)
-const fromSuggestions = ref([])
+const toInputEl = ref(null)
+const toFocused = ref(false)
 const toSuggestions = ref([])
-const showFromSuggestions = ref(false)
-const showToSuggestions = ref(false)
-const isPlanning = ref(false)
-const mapError = ref('')
-const planError = ref('')
-const planData = ref({
-  mode: '',
-  provider: '',
-  route_index: 0,
-  summary: '',
-  total_duration_secs: null,
-  total_duration_mins: null,
-  total_duration_label: '',
-  total_distance_label: '',
-  total_walk_label: '',
-  departure_time: '',
-  arrival_time: '',
-  leave_home_by: '',
-  warnings: [],
-  legs_summary: [],
-  steps: [],
-  waypoints: null,
+let toDebounce = null
+
+const arriveBy = ref('')
+const isLocating = ref(false)
+const isSearching = ref(false)
+const searchError = ref('')
+
+const recentDestinations = ref(loadRecents())
+
+// ─── Routes / steps state ───
+const routes = ref([])
+const selectedRouteIdx = ref(0)
+const selectedRoute = computed(() => routes.value[selectedRouteIdx.value] || null)
+const steps = computed(() => selectedRoute.value?.steps || [])
+const currentStepIdx = ref(0)
+const currentStep = computed(() => steps.value[currentStepIdx.value] || null)
+const navProgress = computed(() => {
+  if (!steps.value.length) return 0
+  return Math.round(((currentStepIdx.value + 1) / steps.value.length) * 100)
 })
 
-let fromTimer = null
-let toTimer = null
-const mapContainer = ref(null)
-let map = null
-let startMarker = null
-let endMarker = null
-let routePolyline = null
-let resizeObserver = null
-let googleMapsPromise = null
+const leaveByText = computed(() => selectedRoute.value?.leave_by_text || '')
+const arriveAtText = computed(() => selectedRoute.value?.arrive_at_text || '')
+const totalWalkText = computed(() => {
+  const r = selectedRoute.value
+  if (!r) return '—'
+  if (r.walk_minutes != null) return `${r.walk_minutes} min`
+  return '—'
+})
 
-const scrollY = ref(0)
-const textScale = ref(100)
-const { detectedLocationText, setDetectedLocation, setDetectedUnavailable } = useLocationState()
+// ─── Layer overlay state ───
+const layerDefs = [
+  { id: 'toilets',     icon: '🚻', label: 'Toilets',     color: '#fde2c4', fg: '#a85a1f' },
+  { id: 'greenspaces', icon: '🌳', label: 'Green spaces', color: '#dff3dc', fg: '#286c2a' },
+  { id: 'landmarks',   icon: '🏛️', label: 'Landmarks',   color: '#dceafd', fg: '#1d4ed8' },
+  { id: 'stops',       icon: '🚏', label: 'Transit',     color: '#f3e6fb', fg: '#6b21a8' }
+]
+const layerState = reactive({ toilets: false, greenspaces: false, landmarks: false, stops: false })
+const layerLoading = reactive({ toilets: false, greenspaces: false, landmarks: false, stops: false })
+const layerData = reactive({ toilets: [], greenspaces: [], landmarks: [], stops: [] })
 
-const LOCATION_UNAVAILABLE_TEXT = 'Location not available'
-const MELBOURNE_NOT_FOUND = 'The location you specified was not found in Melbourne.'
-const JOURNEY_BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || 'https://connectlocal.duckdns.org'
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+// ─── Computed gates ───
+const canSwap = computed(() => fromLat.value != null && toLat.value != null)
+const canSearch = computed(() => fromLat.value != null && fromLon.value != null && toLat.value != null && toLon.value != null)
 
-const handleScroll = () => {
-  scrollY.value = window.scrollY
+// ─── Helpers ───
+function truncate(s, n) {
+  if (!s) return ''
+  return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
 
-const n = (v) => (Number.isFinite(+v) ? +v : null)
-const isPostcodeInput = (q) => /^\d{4}$/.test(q)
-const isSuburbInput = (q) => /^[A-Za-z][A-Za-z\s'-]{1,59}$/.test(q)
-
-const isValidManualLocation = (q) => {
-  if (isPostcodeInput(q)) {
-    const code = Number(q)
-    return Number.isInteger(code) && code >= 3000 && code <= 3999
-  }
-  return isSuburbInput(q)
+function loadRecents() {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.slice(0, 4) : []
+  } catch { return [] }
 }
 
-const isInMelbourne = (address = {}, displayName = '') => {
-  const state = String(address.state || '').toLowerCase()
-  const name = String(displayName || '').toLowerCase()
-  const city = String(address.city || address.town || address.village || '').toLowerCase()
-  const county = String(address.county || '').toLowerCase()
-  const postcode = Number(String(address.postcode || ''))
-  const metroPostcode = Number.isInteger(postcode) && postcode >= 3000 && postcode <= 3999
-
-  if (!state.includes('victoria')) return false
-  return (
-    name.includes('melbourne') ||
-    city.includes('melbourne') ||
-    county.includes('melbourne') ||
-    metroPostcode
-  )
+function saveRecent(entry) {
+  try {
+    const existing = loadRecents().filter(r => r.name !== entry.name)
+    const next = [entry, ...existing].slice(0, 4)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+    recentDestinations.value = next
+  } catch {}
 }
 
-const formatSuburbPostcode = (address = {}) => {
-  const suburb =
-    address.suburb || address.neighbourhood || address.city_district || address.town || address.village || address.city || ''
-  const postcode = address.postcode || ''
-  return [suburb, postcode].filter(Boolean).join(', ').trim()
+function fmtTime(iso) {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return iso
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  } catch { return iso }
 }
 
-const setLocation = (text, lat = null, lon = null) => {
-  fromLocation.value = text
-  fromLocationConfirmed.value = true
-  fromLat.value = n(lat)
-  fromLon.value = n(lon)
-  setDetectedLocation(text)
-}
+// ═════════ GOOGLE MAPS LOADER (FIXED) ═════════
+// Uses the official callback pattern so importLibrary is guaranteed
+// to be fully wired up before we call it — eliminating the race condition
+// that caused "importLibrary is not a function" on first load.
+function loadGoogleMaps(key) {
+  // Already fully loaded — nothing to do
+  if (window.google?.maps?.importLibrary) return Promise.resolve()
 
-const setLocationUnavailable = () => {
-  fromLocationConfirmed.value = false
-  fromLat.value = null
-  fromLon.value = null
-  fromLocation.value = MELBOURNE_NOT_FOUND
-  setDetectedUnavailable()
-}
+  if (!key) return Promise.reject(new Error('No Google Maps API key configured.'))
 
-const handleLocationInputFocus = () => {
-  if (fromLocation.value === MELBOURNE_NOT_FOUND) fromLocation.value = ''
-}
+  const SCRIPT_ID = 'gmaps-loader-script'
 
-const loadGoogleMaps = () => {
-  if (window.google?.maps) return Promise.resolve(window.google.maps)
-  if (!GOOGLE_MAPS_API_KEY) return Promise.reject(new Error('Missing VITE_GOOGLE_MAPS_API_KEY'))
-  if (googleMapsPromise) return googleMapsPromise
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Map loading timed out. Check your API key and network connection.'))
+    }, 15000)
 
-  googleMapsPromise = new Promise((resolve, reject) => {
-    const existing = document.getElementById('google-maps-sdk')
-    if (existing) {
-      existing.addEventListener('load', () => resolve(window.google.maps), { once: true })
-      existing.addEventListener('error', reject, { once: true })
+    // The callback Google calls AFTER importLibrary is fully initialised
+    window.__onGoogleMapsLoaded = () => {
+      clearTimeout(timeout)
+      resolve()
+    }
+
+    // Script already injected (e.g. hot-reload) — poll until callback fires
+    if (document.getElementById(SCRIPT_ID)) {
+      const tick = setInterval(() => {
+        if (window.google?.maps?.importLibrary) {
+          clearInterval(tick)
+          clearTimeout(timeout)
+          resolve()
+        }
+      }, 80)
       return
     }
 
-    const script = document.createElement('script')
-    script.id = 'google-maps-sdk'
-    script.async = true
-    script.defer = true
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`
-    script.onload = () => resolve(window.google.maps)
-    script.onerror = reject
-    document.head.appendChild(script)
+    // Inject the Maps script with the callback parameter.
+    // Google calls window.__onGoogleMapsLoaded ONLY after importLibrary is ready,
+    // which is later than onload — that was the root cause of the original bug.
+    const s = document.createElement('script')
+    s.id = SCRIPT_ID
+    s.async = true
+    s.defer = true
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&libraries=geometry,marker,places&loading=async&callback=__onGoogleMapsLoaded`
+    s.onerror = () => {
+      clearTimeout(timeout)
+      reject(new Error('Failed to load Google Maps. Check your API key and that the Maps JavaScript API is enabled.'))
+    }
+    document.head.appendChild(s)
   })
-
-  return googleMapsPromise
 }
 
-const clearOverlays = () => {
-  if (startMarker) {
-    startMarker.setMap(null)
-    startMarker = null
-  }
-  if (endMarker) {
-    endMarker.setMap(null)
-    endMarker = null
-  }
-  if (routePolyline) {
-    routePolyline.setMap(null)
-    routePolyline = null
-  }
-}
-
-const drawMapPreview = () => {
-  if (!map || !window.google?.maps) return
-  clearOverlays()
-
-  const hasFrom = fromLat.value != null && fromLon.value != null
-  const hasTo = toLat.value != null && toLon.value != null
-  if (!hasFrom && !hasTo) return
-
-  const bounds = new window.google.maps.LatLngBounds()
-  const path = []
-
-  if (hasFrom) {
-    const start = { lat: Number(fromLat.value), lng: Number(fromLon.value) }
-    startMarker = new window.google.maps.Marker({ position: start, map, title: 'Start' })
-    bounds.extend(start)
-    path.push(start)
-  }
-
-  if (hasTo) {
-    const end = { lat: Number(toLat.value), lng: Number(toLon.value) }
-    endMarker = new window.google.maps.Marker({ position: end, map, title: 'Destination' })
-    bounds.extend(end)
-    path.push(end)
-  }
-
-  if (path.length === 2) {
-    routePolyline = new window.google.maps.Polyline({
-      path,
-      map,
-      strokeColor: '#0b7a6d',
-      strokeWeight: 5,
-      strokeOpacity: 0.9,
-    })
-  }
-
-  map.fitBounds(bounds)
-}
-
-const drawGeometry = (geometry, waypoints = null) => {
-  if (!map || !window.google?.maps) return
-
-  const coords = geometry?.coordinates
-  if (!Array.isArray(coords) || !coords.length) {
-    drawMapPreview()
+async function initMap() {
+  if (!GOOGLE_MAPS_API_KEY) {
+    mapError.value = 'No Google Maps API key configured. The page works, but the map is hidden.'
     return
   }
+  try {
+    await loadGoogleMaps(GOOGLE_MAPS_API_KEY)
+    const { Map } = await window.google.maps.importLibrary('maps')
 
-  clearOverlays()
+    const center = (resonanceStore.userLat && resonanceStore.userLon)
+      ? { lat: resonanceStore.userLat, lng: resonanceStore.userLon }
+      : MELBOURNE_FALLBACK
 
-  const path = coords
-    .filter((pair) => Array.isArray(pair) && pair.length >= 2)
-    .map(([lon, lat]) => ({ lat: Number(lat), lng: Number(lon) }))
-    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+    const opts = {
+      center,
+      zoom: 13,
+      disableDefaultUI: true,
+      gestureHandling: 'greedy',
+      clickableIcons: false,
+      mapId: GOOGLE_MAPS_MAP_ID,
+      backgroundColor: '#eef5e8'
+    }
 
-  if (!path.length) {
-    drawMapPreview()
-    return
+    map.value = new Map(mapEl.value, opts)
+    infoWindow = new window.google.maps.InfoWindow({ pixelOffset: new window.google.maps.Size(0, -8) })
+    mapReady.value = true
+
+    if (resonanceStore.userLat && resonanceStore.userLon) {
+      placeUserMarker(resonanceStore.userLat, resonanceStore.userLon)
+    }
+
+    await applyQueryState()
+  } catch (e) {
+    console.error('[Journey] Map init failed:', e)
+    mapError.value = e.message || 'Could not load the map.'
   }
+}
 
-  const originCoords = waypoints?.origin_coords
-  const destinationCoords = waypoints?.destination_coords
+// ═════════ MARKER HELPERS ═════════
+async function getMarkerLib() {
+  return await window.google.maps.importLibrary('marker')
+}
 
-  const start =
-    originCoords && Number.isFinite(+originCoords.lat) && Number.isFinite(+originCoords.lon)
-      ? { lat: Number(originCoords.lat), lng: Number(originCoords.lon) }
-      : path[0]
+function makePinHTML({ icon, color = '#0a9b8a', label = '', size = 'md' }) {
+  const div = document.createElement('div')
+  div.className = `cl-pin cl-pin-${size}`
+  div.innerHTML = `
+    <div class="cl-pin-bubble" style="background:${color}">
+      <span class="cl-pin-icon">${icon}</span>
+    </div>
+    ${label ? `<span class="cl-pin-label">${label}</span>` : ''}
+    <div class="cl-pin-tail" style="background:${color}"></div>
+  `
+  return div
+}
 
-  const end =
-    destinationCoords && Number.isFinite(+destinationCoords.lat) && Number.isFinite(+destinationCoords.lon)
-      ? { lat: Number(destinationCoords.lat), lng: Number(destinationCoords.lon) }
-      : path[path.length - 1]
+async function placeUserMarker(lat, lng) {
+  if (!map.value) return
+  const { AdvancedMarkerElement } = await getMarkerLib()
+  if (userMarker) userMarker.map = null
+  userMarker = new AdvancedMarkerElement({
+    position: { lat, lng },
+    map: map.value,
+    content: makePinHTML({ icon: '👤', color: '#0a9b8a', label: 'You', size: 'lg' }),
+    zIndex: 1000
+  })
+}
 
-  startMarker = new window.google.maps.Marker({ position: start, map, title: 'Start' })
-  endMarker = new window.google.maps.Marker({ position: end, map, title: 'Destination' })
+async function placeDestMarker(lat, lng, name = '') {
+  if (!map.value) return
+  const { AdvancedMarkerElement } = await getMarkerLib()
+  if (destMarker) destMarker.map = null
+  destMarker = new AdvancedMarkerElement({
+    position: { lat, lng },
+    map: map.value,
+    content: makePinHTML({ icon: '🎯', color: '#ee6c4d', label: name || 'Destination', size: 'lg' }),
+    zIndex: 999
+  })
+}
 
-  routePolyline = new window.google.maps.Polyline({
+// ═════════ ROUTE RENDERING ═════════
+function clearRoutePolylines() {
+  for (const p of routePolylines) p.setMap(null)
+  routePolylines = []
+}
+
+let currentStepLines = []
+function clearCurrentStepHighlight() {
+  for (const l of currentStepLines) l.setMap(null)
+  currentStepLines = []
+}
+
+function renderCurrentStepHighlight() {
+  clearCurrentStepHighlight()
+  if (phase.value !== 'navigate') return
+  if (!map.value || !currentStep.value) return
+  const path = currentStep.value.path
+  if (!path?.length || path.length < 2) return
+
+  const color = legColor(currentStep.value.kind)
+  const halo = new window.google.maps.Polyline({
     path,
-    map,
-    strokeColor: '#0b7a6d',
-    strokeWeight: 5,
-    strokeOpacity: 0.9,
+    strokeColor: '#ffffff',
+    strokeOpacity: 1,
+    strokeWeight: 14,
+    zIndex: 80,
+    map: map.value
   })
+  const line = new window.google.maps.Polyline({
+    path,
+    strokeColor: color,
+    strokeOpacity: 1,
+    strokeWeight: 8,
+    zIndex: 81,
+    map: map.value
+  })
+  currentStepLines.push(halo, line)
+}
+
+function renderRoutesOnMap() {
+  if (!map.value) return
+  clearRoutePolylines()
+  clearCurrentStepHighlight()
+  if (!routes.value.length) return
 
   const bounds = new window.google.maps.LatLngBounds()
-  path.forEach((p) => bounds.extend(p))
-  map.fitBounds(bounds)
-}
 
-async function geocodePlace(query) {
-  try {
-    const text = `${query}, Melbourne, Victoria, Australia`
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
-        text
-      )}&addressdetails=1&limit=5&accept-language=en&countrycodes=au`
-    )
-    const list = (await r.json()) || []
-    const top = list.find((item) => isInMelbourne(item?.address, item?.display_name))
-    if (!top) return null
-    return { lat: n(top.lat), lon: n(top.lon) }
-  } catch {
-    return null
-  }
-}
+  routes.value.forEach((r, idx) => {
+    const isSelected = idx === selectedRouteIdx.value
+    const path = r.full_path
+    if (!path?.length || path.length < 2) return
 
-async function searchSuggestions(query) {
-  const text = `${query}, Melbourne, Victoria, Australia`
-  const r = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
-      text
-    )}&addressdetails=1&limit=6&accept-language=en&countrycodes=au`
-  )
-  const list = (await r.json()) || []
-  return list
-    .filter((item) => isInMelbourne(item?.address, item?.display_name))
-    .map((item, index) => ({
-      id: `${item.place_id || index}-${index}`,
-      label: (item.display_name || '').trim(),
-      lat: n(item.lat),
-      lon: n(item.lon),
-    }))
-    .filter((item) => item.label)
-}
+    const halo = new window.google.maps.Polyline({
+      path,
+      strokeColor: '#ffffff',
+      strokeOpacity: isSelected ? 0.95 : 0.5,
+      strokeWeight: isSelected ? 9 : 6,
+      zIndex: isSelected ? 10 : 5,
+      map: map.value
+    })
+    routePolylines.push(halo)
 
-const getLocation = () => {
-  if (!navigator.geolocation) return setLocationUnavailable()
+    const legs = r.legs_geometry?.length ? r.legs_geometry : [{ kind: r.leg_pills?.[0]?.kind || 'walk', path }]
+    legs.forEach(leg => {
+      if (!leg.path?.length || leg.path.length < 2) return
+      const isWalk = leg.kind === 'walk' || leg.kind === 'bike'
+      const color = isSelected ? legColor(leg.kind) : '#9ca3af'
 
-  isLocating.value = true
-  navigator.geolocation.getCurrentPosition(
-    async ({ coords }) => {
-      try {
-        const r = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&accept-language=en`
-        )
-        const top = await r.json()
-        if (!isInMelbourne(top?.address, top?.display_name)) {
-          setLocationUnavailable()
-        } else {
-          const label = (top?.display_name || '').trim() || formatSuburbPostcode(top?.address)
-          label ? setLocation(label, coords.latitude, coords.longitude) : setLocationUnavailable()
-        }
-      } catch {
-        setLocationUnavailable()
-      } finally {
-        isLocating.value = false
+      const opts = {
+        path: leg.path,
+        strokeColor: color,
+        strokeOpacity: isWalk ? 0 : (isSelected ? 0.95 : 0.55),
+        strokeWeight: isSelected ? 5 : 3.5,
+        zIndex: isSelected ? 11 : 6,
+        map: map.value
       }
-    },
-    () => {
-      setLocationUnavailable()
-      isLocating.value = false
-    }
-  )
-}
+      if (isWalk) {
+        opts.icons = [{
+          icon: {
+            path: 'M 0,-1 0,1',
+            strokeOpacity: isSelected ? 0.95 : 0.55,
+            strokeColor: color,
+            scale: isSelected ? 4 : 3
+          },
+          offset: '0',
+          repeat: '14px'
+        }]
+      }
+      const line = new window.google.maps.Polyline(opts)
+      routePolylines.push(line)
+    })
 
-const applyManualLocation = async () => {
-  const q = fromLocation.value.trim()
-  if (!q || !isValidManualLocation(q)) return setLocationUnavailable()
-
-  isApplying.value = true
-  try {
-    const queryText = isPostcodeInput(q)
-      ? `${q}, Victoria, Australia`
-      : `${q}, Melbourne, Victoria, Australia`
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
-        queryText
-      )}&addressdetails=1&limit=8&accept-language=en&countrycodes=au`
-    )
-    const list = (await r.json()) || []
-    const top = list.find((item) => isInMelbourne(item?.address, item?.display_name))
-    if (!top) {
-      setLocationUnavailable()
-    } else {
-      const label = (top?.display_name || '').trim() || formatSuburbPostcode(top?.address)
-      label ? setLocation(label, top?.lat, top?.lon) : setLocationUnavailable()
+    if (isSelected) {
+      path.forEach(p => bounds.extend(new window.google.maps.LatLng(p.lat, p.lng)))
     }
-  } catch {
-    setLocationUnavailable()
-  } finally {
-    isApplying.value = false
+  })
+
+  if (!bounds.isEmpty()) {
+    map.value.fitBounds(bounds, { top: 100, bottom: 100, left: 480, right: 100 })
+  }
+
+  if (phase.value === 'navigate') {
+    renderCurrentStepHighlight()
   }
 }
 
-const onFromInput = () => {
-  fromLocationConfirmed.value = false
-  const q = fromLocation.value.trim()
-  if (fromTimer) clearTimeout(fromTimer)
+function legColor(kind) {
+  switch (kind) {
+    case 'walk':  return '#0a9b8a'
+    case 'bike':  return '#0e8d7e'
+    case 'bus':   return '#f59e0b'
+    case 'tram':  return '#0ea5b7'
+    case 'train': return '#ef4444'
+    default:      return '#0a9b8a'
+  }
+}
 
-  if (q.length < 3 || q === MELBOURNE_NOT_FOUND) {
-    showFromSuggestions.value = false
+// ═════════ LAYER OVERLAYS ═════════
+function clearLayer(id) {
+  for (const m of (layerMarkers[id] || [])) m.map = null
+  layerMarkers[id] = []
+}
+
+async function loadLayer(id) {
+  if (!map.value) return
+  if (layerData[id].length) return
+  layerLoading[id] = true
+  try {
+    const center = getMapCenter()
+    let items = []
+    if (id === 'toilets') {
+      const res = await api.fetchToilets({ lat: center.lat, lon: center.lng, radius_m: 1500, limit: 30 })
+      items = res?.toilets || res?.items || res || []
+    } else if (id === 'greenspaces') {
+      const res = await api.fetchGreenSpaces({ lat: center.lat, lon: center.lng, radius_km: 2, limit: 30 })
+      items = res?.greenspaces || res?.spaces || res?.items || res || []
+    } else if (id === 'landmarks') {
+      const res = await api.fetchLandmarks({ lat: center.lat, lon: center.lng, radius_km: 2, limit: 40 })
+      items = res?.landmarks || res?.items || res || []
+    } else if (id === 'stops') {
+      const res = await api.fetchNearbyStops({ lat: center.lat, lon: center.lng, radius_m: 1200, limit: 40 })
+      items = res?.stops || res?.items || res || []
+    }
+    layerData[id] = Array.isArray(items) ? items : []
+  } catch (e) {
+    console.warn(`[Journey] Failed to load layer ${id}:`, e)
+    layerData[id] = []
+  } finally {
+    layerLoading[id] = false
+  }
+}
+
+async function renderLayer(id) {
+  if (!map.value) return
+  clearLayer(id)
+  if (!layerState[id] || !layerData[id].length) return
+  const { AdvancedMarkerElement } = await getMarkerLib()
+  const def = layerDefs.find(l => l.id === id)
+  const color = def?.color || '#fff'
+
+  for (const item of layerData[id]) {
+    const lat = item.lat ?? item.latitude ?? item.centroid_lat
+    const lng = item.lng ?? item.lon ?? item.longitude ?? item.centroid_lng
+    if (lat == null || lng == null) continue
+
+    const content = makePinHTML({ icon: def.icon, color, size: 'sm' })
+    const m = new AdvancedMarkerElement({
+      position: { lat, lng },
+      map: map.value,
+      content,
+      zIndex: 50
+    })
+    m.addListener('click', () => openLayerInfo(item, id, m))
+    layerMarkers[id].push(m)
+  }
+}
+
+function openLayerInfo(item, kind, marker) {
+  if (!infoWindow) return
+  const name = item.name || item.stop_name || item.title || 'Place'
+  const sub = item.suburb_name || item.suburb || item.address || item.theme || ''
+  const distance = item.distance_km != null ? `${(+item.distance_km).toFixed(2)} km` : ''
+  const access = item.is_accessible || item.accessibility ? '♿ Accessible' : ''
+
+  const content = `
+    <div class="cl-info">
+      <div class="cl-info-icon" style="background:${(layerDefs.find(l => l.id === kind)?.color) || '#eee'}">
+        ${(layerDefs.find(l => l.id === kind)?.icon) || '📍'}
+      </div>
+      <div class="cl-info-body">
+        <strong>${escapeHtml(name)}</strong>
+        ${sub ? `<small>${escapeHtml(sub)}</small>` : ''}
+        ${distance ? `<small>${distance} away</small>` : ''}
+        ${access ? `<small class="cl-info-tag">${access}</small>` : ''}
+      </div>
+    </div>
+  `
+  infoWindow.setContent(content)
+  infoWindow.open({ map: map.value, anchor: marker })
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]))
+}
+
+async function toggleLayer(id) {
+  layerState[id] = !layerState[id]
+  if (layerState[id]) {
+    await loadLayer(id)
+    await renderLayer(id)
+  } else {
+    clearLayer(id)
+  }
+}
+
+function getMapCenter() {
+  if (toLat.value != null && toLon.value != null) return { lat: toLat.value, lng: toLon.value }
+  if (resonanceStore.userLat && resonanceStore.userLon) return { lat: resonanceStore.userLat, lng: resonanceStore.userLon }
+  if (map.value) {
+    const c = map.value.getCenter()
+    return { lat: c.lat(), lng: c.lng() }
+  }
+  return MELBOURNE_FALLBACK
+}
+
+// ═════════ MAP CONTROLS ═════════
+function recenter() {
+  if (!map.value) return
+  if (resonanceStore.userLat && resonanceStore.userLon) {
+    map.value.panTo({ lat: resonanceStore.userLat, lng: resonanceStore.userLon })
+    map.value.setZoom(15)
+  } else if (selectedRoute.value?.full_path?.length) {
+    const bounds = new window.google.maps.LatLngBounds()
+    selectedRoute.value.full_path.forEach(p => bounds.extend(new window.google.maps.LatLng(p.lat, p.lng)))
+    map.value.fitBounds(bounds, { top: 80, bottom: 80, left: 480, right: 80 })
+  } else {
+    map.value.panTo(MELBOURNE_FALLBACK)
+    map.value.setZoom(13)
+  }
+}
+
+function toggle3D() {
+  if (!map.value || !canUse3D.value) return
+  tilted3D.value = !tilted3D.value
+  if (tilted3D.value) {
+    map.value.setTilt(67.5)
+    map.value.setHeading(20)
+    if (map.value.getZoom() < 16) map.value.setZoom(16)
+  } else {
+    map.value.setTilt(0)
+    map.value.setHeading(0)
+  }
+}
+
+function zoomIn() {
+  if (!map.value) return
+  map.value.setZoom((map.value.getZoom() || 13) + 1)
+}
+function zoomOut() {
+  if (!map.value) return
+  map.value.setZoom((map.value.getZoom() || 13) - 1)
+}
+
+// ═════════ FORM / AUTOCOMPLETE ═════════
+async function onFromInput() {
+  fromLat.value = null; fromLon.value = null
+  if (fromDebounce) clearTimeout(fromDebounce)
+  if (!fromText.value.trim() || fromText.value.trim().length < 2) {
     fromSuggestions.value = []
     return
   }
-
-  showFromSuggestions.value = true
-  fromTimer = setTimeout(async () => {
+  fromDebounce = setTimeout(async () => {
     try {
-      fromSuggestions.value = await searchSuggestions(q)
-    } catch {
-      fromSuggestions.value = []
-    }
-  }, 250)
+      const res = await searchSuburbs(fromText.value.trim(), 6)
+      fromSuggestions.value = (res?.suburbs || res || []).slice(0, 6)
+    } catch { fromSuggestions.value = [] }
+  }, 220)
 }
 
-const selectFromSuggestion = (item) => {
-  setLocation(item.label, item.lat, item.lon)
-  showFromSuggestions.value = false
+function onFromFocus() { fromFocused.value = true }
+function onFromBlur() { setTimeout(() => { fromFocused.value = false }, 180) }
+
+function pickFromSuggestion(s) {
+  fromText.value = s.suburb_name || s.name
+  fromLat.value = s.centroid_lat ?? s.lat ?? s.latitude
+  fromLon.value = s.centroid_lng ?? s.lng ?? s.lon ?? s.longitude
+  fromSuggestions.value = []
+  fromFocused.value = false
+  if (mapReady.value && fromLat.value != null) {
+    placeUserMarker(fromLat.value, fromLon.value)
+    map.value?.panTo({ lat: fromLat.value, lng: fromLon.value })
+  }
 }
 
-const onToInput = () => {
-  toLat.value = null
-  toLon.value = null
-  const q = toLocation.value.trim()
-  if (toTimer) clearTimeout(toTimer)
+function clearFrom() {
+  fromText.value = ''; fromLat.value = null; fromLon.value = null; fromSuggestions.value = []
+}
 
-  if (q.length < 3) {
-    showToSuggestions.value = false
+async function onToInput() {
+  toLat.value = null; toLon.value = null
+  if (toDebounce) clearTimeout(toDebounce)
+  if (!toText.value.trim() || toText.value.trim().length < 2) {
     toSuggestions.value = []
     return
   }
-
-  showToSuggestions.value = true
-  toTimer = setTimeout(async () => {
+  toDebounce = setTimeout(async () => {
     try {
-      toSuggestions.value = await searchSuggestions(q)
-    } catch {
-      toSuggestions.value = []
-    }
-  }, 250)
+      const res = await searchSuburbs(toText.value.trim(), 6)
+      toSuggestions.value = (res?.suburbs || res || []).slice(0, 6)
+    } catch { toSuggestions.value = [] }
+  }, 220)
 }
 
-const selectToSuggestion = (item) => {
-  toLocation.value = item.label
-  toLat.value = n(item.lat)
-  toLon.value = n(item.lon)
-  showToSuggestions.value = false
-}
+function onToFocus() { toFocused.value = true }
+function onToBlur() { setTimeout(() => { toFocused.value = false }, 180) }
 
-const hideToSuggestions = () => {
-  setTimeout(() => {
-    showToSuggestions.value = false
-  }, 120)
-}
-
-const reopenToSuggestions = () => {
-  if (toSuggestions.value.length) showToSuggestions.value = true
-}
-
-const emptyPlanState = () => ({
-  mode: '',
-  provider: '',
-  route_index: 0,
-  summary: '',
-  total_duration_secs: null,
-  total_duration_mins: null,
-  total_duration_label: '',
-  total_distance_label: '',
-  total_walk_label: '',
-  departure_time: '',
-  arrival_time: '',
-  leave_home_by: '',
-  warnings: [],
-  legs_summary: [],
-  steps: [],
-  waypoints: null,
-})
-
-const filteredSubSteps = (step) => {
-  const raw = Array.isArray(step?.sub_steps) ? step.sub_steps : []
-  return raw.filter((sub) => {
-    const instruction = String(sub?.instruction || '').trim()
-    return instruction.length > 0
-  })
-}
-
-const findRoute = async () => {
-  if (fromLat.value == null || fromLon.value == null || toLat.value == null || toLon.value == null) return
-
-  isPlanning.value = true
-  planError.value = ''
-  planData.value = emptyPlanState()
-  clearOverlays()
-  try {
-    const u = new URL(`${JOURNEY_BASE_URL}/api/journey/google/plan`)
-    u.searchParams.set('from_lat', String(fromLat.value))
-    u.searchParams.set('from_lon', String(fromLon.value))
-    u.searchParams.set('to_lat', String(toLat.value))
-    u.searchParams.set('to_lon', String(toLon.value))
-    u.searchParams.set('mode', 'transit')
-
-    const res = await fetch(u.toString())
-    if (!res.ok) throw new Error(`Plan API failed: ${res.status}`)
-    const data = await res.json()
-
-    planData.value = {
-      ...emptyPlanState(),
-      mode: data?.mode || '',
-      provider: data?.provider || '',
-      route_index: Number.isFinite(+data?.route_index) ? Number(data.route_index) : 0,
-      summary: data?.summary || '',
-      total_duration_secs: Number.isFinite(+data?.total_duration_secs) ? Number(data.total_duration_secs) : null,
-      total_duration_mins: Number.isFinite(+data?.total_duration_mins) ? Number(data.total_duration_mins) : null,
-      total_duration_label: data?.total_duration_label || '',
-      total_distance_label: data?.total_distance_label || '',
-      total_walk_label: data?.total_walk_label || '',
-      departure_time: data?.departure_time || '',
-      arrival_time: data?.arrival_time || '',
-      leave_home_by: data?.leave_home_by || data?.leave_by || '',
-      warnings: Array.isArray(data?.warnings) ? data.warnings.filter(Boolean) : [],
-      legs_summary: Array.isArray(data?.legs_summary) ? data.legs_summary.filter(Boolean) : [],
-      steps: Array.isArray(data?.steps) ? data.steps.filter(Boolean) : [],
-      waypoints: data?.waypoints || null,
-    }
-
-    drawGeometry(data?.geometry, data?.waypoints)
-  } catch (err) {
-    planError.value = 'Route data failed to render. Please try again.'
-    console.error('[Journey] findRoute failed:', err)
-    drawMapPreview()
-  } finally {
-    isPlanning.value = false
+function pickToSuggestion(s) {
+  toText.value = s.suburb_name || s.name
+  toLat.value = s.centroid_lat ?? s.lat ?? s.latitude
+  toLon.value = s.centroid_lng ?? s.lng ?? s.lon ?? s.longitude
+  toSuggestions.value = []
+  toFocused.value = false
+  if (mapReady.value && toLat.value != null) {
+    placeDestMarker(toLat.value, toLon.value, toText.value)
   }
 }
 
-watch(
-  detectedLocationText,
-  async (value) => {
-    const normalized = (value || '').trim()
-    if (normalized && normalized !== LOCATION_UNAVAILABLE_TEXT) {
-      fromLocation.value = normalized
-      fromLocationConfirmed.value = true
-      if (fromLat.value == null || fromLon.value == null) {
-        const point = await geocodePlace(normalized)
-        if (point) {
-          fromLat.value = point.lat
-          fromLon.value = point.lon
-        }
+function clearTo() {
+  toText.value = ''; toLat.value = null; toLon.value = null; toSuggestions.value = []
+}
+
+function swapEndpoints() {
+  if (!canSwap.value) return
+  const t = { text: fromText.value, lat: fromLat.value, lon: fromLon.value }
+  fromText.value = toText.value; fromLat.value = toLat.value; fromLon.value = toLon.value
+  toText.value = t.text; toLat.value = t.lat; toLon.value = t.lon
+  if (fromLat.value != null) placeUserMarker(fromLat.value, fromLon.value)
+  if (toLat.value != null) placeDestMarker(toLat.value, toLon.value, toText.value)
+}
+
+async function locateMe() {
+  if (!navigator.geolocation) {
+    searchError.value = 'Your browser does not support location services.'
+    return
+  }
+  isLocating.value = true
+  searchError.value = ''
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 })
+    })
+    fromLat.value = pos.coords.latitude
+    fromLon.value = pos.coords.longitude
+    fromText.value = 'My current location'
+    resonanceStore.setLocation?.(fromLat.value, fromLon.value, 'My current location')
+    if (mapReady.value) {
+      placeUserMarker(fromLat.value, fromLon.value)
+      map.value?.panTo({ lat: fromLat.value, lng: fromLon.value })
+      map.value?.setZoom(15)
+    }
+  } catch (e) {
+    searchError.value = e?.message || 'Could not access your location. Please type your starting point.'
+  } finally {
+    isLocating.value = false
+  }
+}
+
+function useRecent(r) {
+  toText.value = r.name
+  toLat.value = r.lat
+  toLon.value = r.lon
+  if (mapReady.value && r.lat != null) placeDestMarker(r.lat, r.lon, r.name)
+}
+
+// ═════════ SEARCH ROUTES ═════════
+async function findRoute() {
+  if (!canSearch.value) {
+    searchError.value = 'Please pick both a starting point and a destination.'
+    return
+  }
+  isSearching.value = true
+  searchError.value = ''
+  try {
+    const params = {
+      from_lat: fromLat.value,
+      from_lon: fromLon.value,
+      to_lat: toLat.value,
+      to_lon: toLon.value
+    }
+    if (arriveBy.value) params.arrive_by = new Date(arriveBy.value).toISOString()
+
+    const res = await api.fetchRoutes(params)
+    const rawRoutes = res?.routes || res?.alternatives || (Array.isArray(res) ? res : null) || (res ? [res] : [])
+    if (!rawRoutes.length) {
+      searchError.value = 'No routes found between those points. Try adjusting your start, destination, or time.'
+      isSearching.value = false
+      return
+    }
+    routes.value = rawRoutes.map(parseSingleRoute).filter(Boolean)
+    if (!routes.value.length) {
+      searchError.value = 'Could not parse the routes returned. Please try again.'
+      isSearching.value = false
+      return
+    }
+    selectedRouteIdx.value = 0
+
+    saveRecent({ name: toText.value, lat: toLat.value, lon: toLon.value })
+
+    phase.value = 'routes'
+
+    await nextTick()
+    const wp = routes.value[0]?.waypoints
+    const oc = wp?.origin_coords
+    const dc = wp?.destination_coords
+    const startLat = (oc?.lat ?? oc?.latitude) ?? fromLat.value
+    const startLng = (oc?.lon ?? oc?.lng ?? oc?.longitude) ?? fromLon.value
+    const endLat = (dc?.lat ?? dc?.latitude) ?? toLat.value
+    const endLng = (dc?.lon ?? dc?.lng ?? dc?.longitude) ?? toLon.value
+
+    if (startLat != null) placeUserMarker(startLat, startLng)
+    if (endLat != null) placeDestMarker(endLat, endLng, toText.value)
+    renderRoutesOnMap()
+  } catch (e) {
+    console.error('[Journey] Route search failed:', e)
+    searchError.value = e?.message || 'Could not search for routes. Please try again.'
+  } finally {
+    isSearching.value = false
+  }
+}
+
+function returnToPlan() {
+  phase.value = 'plan'
+  clearRoutePolylines()
+  clearCurrentStepHighlight()
+}
+
+function selectRoute(idx) {
+  if (idx === selectedRouteIdx.value) return
+  selectedRouteIdx.value = idx
+  currentStepIdx.value = 0
+  renderRoutesOnMap()
+}
+
+function startNavigation() {
+  if (!selectedRoute.value) return
+  phase.value = 'navigate'
+  currentStepIdx.value = 0
+  panelCollapsed.value = false
+  nextTick(() => {
+    renderCurrentStepHighlight()
+    focusStepOnMap(steps.value[0])
+    if (canUse3D.value && !tilted3D.value) {
+      toggle3D()
+    }
+  })
+}
+
+function exitToRoutes() {
+  phase.value = 'routes'
+  if (tilted3D.value) toggle3D()
+  clearCurrentStepHighlight()
+  renderRoutesOnMap()
+}
+
+function finishJourney() {
+  phase.value = 'plan'
+  if (tilted3D.value) toggle3D()
+  clearRoutePolylines()
+  clearCurrentStepHighlight()
+  routes.value = []
+  selectedRouteIdx.value = 0
+  currentStepIdx.value = 0
+}
+
+// ═════════ STEP NAVIGATION ═════════
+function nextStep() {
+  if (currentStepIdx.value < steps.value.length - 1) {
+    currentStepIdx.value++
+    focusStepOnMap(steps.value[currentStepIdx.value])
+  }
+}
+
+function prevStep() {
+  if (currentStepIdx.value > 0) {
+    currentStepIdx.value--
+    focusStepOnMap(steps.value[currentStepIdx.value])
+  }
+}
+
+function jumpToStep(idx) {
+  currentStepIdx.value = idx
+  focusStepOnMap(steps.value[idx])
+}
+
+function focusStepOnMap(step) {
+  if (!map.value || !step) return
+  renderCurrentStepHighlight()
+
+  const path = step.path
+  if (path?.length >= 2) {
+    const bounds = new window.google.maps.LatLngBounds()
+    path.forEach(p => bounds.extend(new window.google.maps.LatLng(p.lat, p.lng)))
+    if (tilted3D.value) {
+      const mid = path[Math.floor(path.length / 2)]
+      map.value.panTo({ lat: mid.lat, lng: mid.lng })
+      if (map.value.getZoom() < 17) map.value.setZoom(18)
+    } else {
+      map.value.fitBounds(bounds, { top: 80, bottom: 220, left: 480, right: 80, maxZoom: 18 })
+    }
+  } else if (step.start) {
+    map.value.panTo({ lat: step.start.lat, lng: step.start.lng })
+    if (map.value.getZoom() < 16) map.value.setZoom(17)
+  }
+}
+
+// ═════════ ROUTE PARSING ═════════
+function parseGeometry(g) {
+  if (!g) return []
+  if (g.type === 'LineString' && Array.isArray(g.coordinates)) {
+    return g.coordinates.map(c => ({ lat: Number(c[1]), lng: Number(c[0]) }))
+  }
+  if (typeof g === 'string') return decodePolyline(g)
+  if (typeof g.points === 'string') return decodePolyline(g.points)
+  if (typeof g.polyline === 'string') return decodePolyline(g.polyline)
+  if (Array.isArray(g)) {
+    return g.map(p => Array.isArray(p) ? { lat: Number(p[0]), lng: Number(p[1]) } : p)
+  }
+  return []
+}
+
+function parseSingleRoute(r) {
+  if (!r) return null
+
+  const durationMin = r.total_duration_mins
+    ?? (r.total_duration_secs ? Math.round(r.total_duration_secs / 60) : null)
+    ?? r.duration_min ?? r.duration_minutes ?? null
+  const durationText = r.total_duration_label
+    || (durationMin != null ? `${durationMin} min` : '—')
+
+  const distanceText = r.total_distance_label || ''
+
+  const departureIso = r.departure_time || r.departure || null
+  const leaveByIso = r.leave_by || r.leave_home_by || departureIso
+  const arriveAtIso = r.arrival_time || r.arrive_at || null
+
+  const transfers = r.transfers ?? r.num_transfers ?? 0
+
+  const totalWalkM = r.total_walk_m ?? null
+  let walkMinutes = r.walking_minutes ?? r.walk_minutes ?? null
+  if (walkMinutes == null && totalWalkM) {
+    walkMinutes = Math.max(1, Math.round(totalWalkM / 80))
+  }
+  const walkText = r.total_walk_label
+    || (totalWalkM ? `${totalWalkM} m` : (walkMinutes ? `${walkMinutes} min` : '—'))
+
+  const fullPath = parseGeometry(r.geometry)
+
+  const flatSubSteps = []
+  const topSteps = Array.isArray(r.steps) ? r.steps : []
+  for (const top of topSteps) {
+    const parentMode = top.travel_mode || top.mode || 'walking'
+    const subs = Array.isArray(top.sub_steps) && top.sub_steps.length
+      ? top.sub_steps
+      : [top]
+    for (const sub of subs) {
+      flatSubSteps.push({
+        ...sub,
+        parent_mode: parentMode,
+        instruction: sub.instruction || top.instruction || ''
+      })
+    }
+  }
+
+  const totalSubDist = flatSubSteps.reduce((s, x) => s + (x.distance_m || 0), 0)
+  let cumDist = 0
+
+  const steps = flatSubSteps.map((sub, idx) => {
+    const startRatio = totalSubDist
+      ? (cumDist / totalSubDist)
+      : (idx / Math.max(1, flatSubSteps.length))
+    cumDist += (sub.distance_m || 0)
+    const endRatio = totalSubDist
+      ? (cumDist / totalSubDist)
+      : ((idx + 1) / Math.max(1, flatSubSteps.length))
+
+    let stepPath = []
+    if (fullPath.length > 1) {
+      const startIdx = Math.max(0, Math.floor(startRatio * (fullPath.length - 1)))
+      const endIdx = Math.min(fullPath.length - 1, Math.ceil(endRatio * (fullPath.length - 1)))
+      stepPath = fullPath.slice(startIdx, endIdx + 1)
+      if (stepPath.length < 2 && fullPath[startIdx + 1]) stepPath = [fullPath[startIdx], fullPath[startIdx + 1]]
+    }
+
+    const kind = classifyMode(sub.parent_mode || sub.travel_mode || 'walking')
+
+    return {
+      kind,
+      kindLabel: kindLabel(kind),
+      title: stripHtml(sub.instruction || sub.text || 'Continue'),
+      detail: [sub.distance_label, sub.duration_label].filter(Boolean).join(' · '),
+      duration_min: sub.duration_secs ? Math.round(sub.duration_secs / 60) : null,
+      flags: [],
+      iconSvg: kindIconSvg(kind),
+      iconSmallSvg: kindIconSvgSmall(kind),
+      path: stepPath,
+      start: stepPath[0] || null,
+      end: stepPath[stepPath.length - 1] || null,
+      routeLabel: ''
+    }
+  })
+
+  const legPills = (Array.isArray(r.legs_summary) ? r.legs_summary : []).map(leg => {
+    const kind = classifyMode(leg.type || leg.mode || 'walking')
+    return {
+      kind,
+      icon: kindIcon(kind),
+      label: leg.duration_label || leg.distance_label || leg.label || ''
+    }
+  })
+  if (!legPills.length && steps.length) {
+    const seenKinds = new Set()
+    for (const s of steps) {
+      if (s.kind === 'arrive' || seenKinds.has(s.kind)) continue
+      seenKinds.add(s.kind)
+      legPills.push({ kind: s.kind, icon: kindIcon(s.kind), label: '' })
+    }
+  }
+
+  const legsGeometry = []
+  if (fullPath.length) {
+    const dominantKind = legPills[0]?.kind || 'walk'
+    legsGeometry.push({ kind: dominantKind, path: fullPath })
+  }
+
+  const destCoords = r.waypoints?.destination_coords
+  const destName = r.waypoints?.destination
+  if (destCoords) {
+    const dLat = destCoords.lat ?? destCoords.latitude
+    const dLng = destCoords.lon ?? destCoords.lng ?? destCoords.longitude
+    if (dLat != null && dLng != null) {
+      steps.push({
+        kind: 'arrive',
+        kindLabel: 'Arrive',
+        title: destName ? `Arrive at ${destName.split(',')[0]}` : `You've arrived${toText.value ? ' at ' + toText.value : ''}`,
+        detail: arriveAtIso ? `Arrive ${fmtTime(arriveAtIso)}` : (destName || null),
+        iconSvg: kindIconSvg('arrive'),
+        iconSmallSvg: kindIconSvgSmall('arrive'),
+        flags: [],
+        path: [],
+        start: { lat: dLat, lng: dLng },
+        end: { lat: dLat, lng: dLng },
+        routeLabel: ''
+      })
+    }
+  } else if (steps.length && toLat.value != null) {
+    steps.push({
+      kind: 'arrive',
+      kindLabel: 'Arrive',
+      title: `Arrive at ${toText.value || 'destination'}`,
+      detail: arriveAtIso ? `Arrive ${fmtTime(arriveAtIso)}` : null,
+      iconSvg: kindIconSvg('arrive'),
+      iconSmallSvg: kindIconSvgSmall('arrive'),
+      flags: [],
+      path: [],
+      start: { lat: toLat.value, lng: toLon.value },
+      end: { lat: toLat.value, lng: toLon.value },
+      routeLabel: ''
+    })
+  }
+
+  return {
+    duration_min: durationMin,
+    duration_text: durationText,
+    distance_text: distanceText,
+    leave_by_iso: leaveByIso,
+    leave_by_text: fmtTime(leaveByIso) || 'now',
+    arrive_at_iso: arriveAtIso,
+    arrive_at_text: fmtTime(arriveAtIso) || (durationMin != null ? `in ${durationMin} min` : ''),
+    transfers,
+    walk_minutes: walkMinutes,
+    walk_text: walkText,
+    summary: r.summary || '',
+    recommendation_label: r.recommendation_label || (r.recommended ? 'Most comfortable' : ''),
+    warnings: Array.isArray(r.warnings) ? r.warnings : [],
+    steps,
+    legs_geometry: legsGeometry,
+    leg_pills: legPills,
+    full_path: fullPath,
+    waypoints: r.waypoints || null
+  }
+}
+
+function classifyMode(travelMode, td) {
+  const m = String(travelMode || '').toUpperCase().trim()
+  if (m === 'WALKING' || m === 'WALK' || m === 'FOOT') return 'walk'
+  if (m === 'BICYCLING' || m === 'BIKE' || m === 'CYCLING' || m === 'CYCLE') return 'bike'
+  if (m === 'TRAIN' || m === 'RAIL' || m === 'METRO' || m === 'SUBWAY' || m === 'HEAVY_RAIL') return 'train'
+  if (m === 'TRAM' || m === 'LIGHT_RAIL' || m === 'STREETCAR') return 'tram'
+  if (m === 'BUS' || m === 'COACH') return 'bus'
+  const v = (td?.line?.vehicle?.type || td?.vehicle_type || td?.mode || td?.type || '').toString().toUpperCase()
+  if (v.includes('TRAIN') || v.includes('RAIL') || v.includes('METRO') || v.includes('SUBWAY') || v.includes('HEAVY')) return 'train'
+  if (v.includes('TRAM') || v.includes('LIGHT') || v.includes('STREETCAR')) return 'tram'
+  if (v.includes('BUS')) return 'bus'
+  if (m === 'TRANSIT') return 'bus'
+  return 'walk'
+}
+
+function stripHtml(s) {
+  if (!s) return ''
+  return String(s).replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+}
+
+function kindIcon(kind) {
+  switch (kind) {
+    case 'walk': return '🚶'
+    case 'bike': return '🚴'
+    case 'bus': return '🚌'
+    case 'tram': return '🚊'
+    case 'train': return '🚆'
+    case 'arrive': return '🎯'
+    default: return '➡️'
+  }
+}
+
+function kindLabel(kind) {
+  switch (kind) {
+    case 'walk': return 'Walk'
+    case 'bike': return 'Cycle'
+    case 'bus': return 'Take the bus'
+    case 'tram': return 'Take the tram'
+    case 'train': return 'Take the train'
+    case 'arrive': return 'Arrive'
+    default: return 'Travel'
+  }
+}
+
+function kindIconSvg(kind) {
+  const svgWrap = (path) => `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`
+  switch (kind) {
+    case 'walk': return svgWrap('<circle cx="12" cy="4" r="2"/><path d="M9 22l1-7 3-3 4 3-1-5-3-3-3 2-3 5"/>')
+    case 'bike': return svgWrap('<circle cx="6" cy="17" r="3.5"/><circle cx="18" cy="17" r="3.5"/><path d="M6 17l4-9h4l4 9M14 4l2 4"/>')
+    case 'bus': return svgWrap('<rect x="4" y="4" width="16" height="14" rx="2"/><path d="M4 11h16"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/>')
+    case 'tram': return svgWrap('<rect x="5" y="3" width="14" height="14" rx="2"/><path d="M5 10h14M9 17l-2 4M15 17l2 4"/>')
+    case 'train': return svgWrap('<rect x="5" y="3" width="14" height="14" rx="3"/><circle cx="9" cy="11" r="1.4"/><circle cx="15" cy="11" r="1.4"/><path d="M9 17l-2 4M15 17l2 4M5 8h14"/>')
+    case 'arrive': return svgWrap('<path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>')
+    default: return svgWrap('<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>')
+  }
+}
+
+function kindIconSvgSmall(kind) {
+  return kindIconSvg(kind).replace('width="28"', 'width="18"').replace('height="28"', 'height="18"')
+}
+
+// ═════════ URL QUERY HANDLING ═════════
+async function applyQueryState() {
+  const q = route.query || {}
+
+  if (q.from_lat && q.from_lon) {
+    fromLat.value = parseFloat(q.from_lat); fromLon.value = parseFloat(q.from_lon)
+    fromText.value = q.from_name || 'Custom location'
+  } else if (resonanceStore.userLat && resonanceStore.userLon && resonanceStore.locationReady) {
+    fromLat.value = resonanceStore.userLat
+    fromLon.value = resonanceStore.userLon
+    fromText.value = resonanceStore.locationLabel || 'My current location'
+  }
+
+  if (q.dest_lat && q.dest_lon) {
+    toLat.value = parseFloat(q.dest_lat); toLon.value = parseFloat(q.dest_lon)
+    toText.value = q.dest_name || 'Destination'
+  } else if (q.destination || q.to_name || q.place) {
+    const dest = q.destination || q.to_name || q.place
+    toText.value = dest
+    try {
+      const res = await searchSuburbs(dest, 1)
+      const first = (res?.suburbs || res || [])[0]
+      if (first) {
+        toLat.value = first.centroid_lat ?? first.lat
+        toLon.value = first.centroid_lng ?? first.lng
       }
+    } catch {}
+  } else if (q.to_lat && q.to_lon) {
+    toLat.value = parseFloat(q.to_lat); toLon.value = parseFloat(q.to_lon)
+    toText.value = q.to_name || q.place || 'Destination'
+  }
+
+  if (q.arrive_by) arriveBy.value = q.arrive_by
+
+  if (mapReady.value) {
+    if (fromLat.value != null) await placeUserMarker(fromLat.value, fromLon.value)
+    if (toLat.value != null) await placeDestMarker(toLat.value, toLon.value, toText.value)
+    if (fromLat.value != null && toLat.value != null) {
+      const bounds = new window.google.maps.LatLngBounds()
+      bounds.extend(new window.google.maps.LatLng(fromLat.value, fromLon.value))
+      bounds.extend(new window.google.maps.LatLng(toLat.value, toLon.value))
+      map.value.fitBounds(bounds, { top: 100, bottom: 100, left: 480, right: 100 })
     }
-  },
-  { immediate: true }
-)
+  }
 
-watch(
-  () => route.query.destination,
-  async (value) => {
-    const destination = String(value || '').trim()
-    if (!destination) return
-    toLocation.value = destination
-    const point = await geocodePlace(destination)
-    if (point) {
-      toLat.value = point.lat
-      toLon.value = point.lon
-    }
-  },
-  { immediate: true }
-)
+  if (q.auto === '1' && canSearch.value) {
+    setTimeout(() => findRoute(), 200)
+  }
+}
 
-const canFindRoute = computed(() => {
-  return fromLocationConfirmed.value && toLocation.value.trim().length >= 3
-})
-
-const displayLegs = computed(() =>
-  Array.isArray(planData.value.legs_summary) ? planData.value.legs_summary.filter(Boolean) : []
-)
-const displayWarnings = computed(() =>
-  Array.isArray(planData.value.warnings) ? planData.value.warnings.filter(Boolean) : []
-)
-const displaySteps = computed(() =>
-  Array.isArray(planData.value.steps) ? planData.value.steps.filter(Boolean) : []
-)
-
-const firstTransitLeg = computed(() => {
-  if (!displayLegs.value.length) return null
-  return displayLegs.value.find((leg) => String(leg?.type || '').toLowerCase() === 'transit') || null
-})
-
-const firstTransitStep = computed(() => {
-  if (!displaySteps.value.length) return null
-  return displaySteps.value.find((step) => String(step?.travel_mode || '').toLowerCase() === 'transit') || null
-})
-
-const firstTransitVehicle = computed(() => {
-  const leg = firstTransitLeg.value
-  if (leg?.label) return leg.label
-  const info = firstTransitStep.value?.transit_info
-  if (!info) return ''
-  const vehicle = info.vehicle_name || info.vehicle_type || 'Transit'
-  const line = info.line_name ? ` ${info.line_name}` : ''
-  return `${vehicle}${line}`.trim()
-})
-
-const firstTransitDeparture = computed(() => {
-  const leg = firstTransitLeg.value
-  if (leg?.departure_time) return leg.departure_time
-  const info = firstTransitStep.value?.transit_info
-  return info?.departure_time || ''
-})
-
-watch([fromLat, fromLon, toLat, toLon], () => {
-  drawMapPreview()
-})
+// ═════════ LIFECYCLE ═════════
+const handleScroll = () => { scrollY.value = window.scrollY }
 
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll, { passive: true })
-  if (!mapContainer.value) return
-
-  try {
-    await loadGoogleMaps()
-  } catch {
-    mapError.value = 'Google Map failed to load. Check VITE_GOOGLE_MAPS_API_KEY and API key restrictions.'
-    return
-  }
-
-  map = new window.google.maps.Map(mapContainer.value, {
-    center: { lat: -37.8136, lng: 144.9631 },
-    zoom: 11,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-  })
-
-  drawMapPreview()
-
-  nextTick(() => {
-    window.google?.maps?.event.trigger(map, 'resize')
-  })
-
-  resizeObserver = new ResizeObserver(() => {
-    window.google?.maps?.event.trigger(map, 'resize')
-  })
-  resizeObserver.observe(mapContainer.value)
+  await nextTick()
+  await initMap()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
-  if (fromTimer) clearTimeout(fromTimer)
-  if (toTimer) clearTimeout(toTimer)
-  clearOverlays()
-  if (resizeObserver) {
-    resizeObserver.disconnect()
-    resizeObserver = null
+  if (userMarker) userMarker.map = null
+  if (destMarker) destMarker.map = null
+  if (stepHighlightMarker) stepHighlightMarker.map = null
+  for (const id of Object.keys(layerMarkers)) clearLayer(id)
+  clearRoutePolylines()
+  clearCurrentStepHighlight()
+  if (infoWindow) infoWindow.close()
+  // Clean up the global callback to avoid leaks on hot-reload
+  delete window.__onGoogleMapsLoaded
+})
+
+watch(selectedRouteIdx, () => {
+  if (phase.value !== 'plan') renderRoutesOnMap()
+})
+
+watch(() => [toLat.value, toLon.value], async () => {
+  for (const id of Object.keys(layerData)) {
+    layerData[id] = []
+    if (layerState[id]) {
+      await loadLayer(id)
+      await renderLayer(id)
+    }
   }
 })
 </script>
@@ -810,393 +1503,814 @@ onBeforeUnmount(() => {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 .journey-page {
+  position: relative;
   min-height: 100vh;
   background: #f2faf0;
   color: #1a2e1e;
-  font-family: system-ui, sans-serif;
-  position: relative;
-  overflow-x: hidden;
-}
-
-.noise {
-  position: fixed; inset: 0; z-index: 1000; pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-  background-size: 180px; opacity: 0.45;
-}
-
-.orb { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(80px); }
-.orb-1 { width: 500px; height: 500px; background: rgba(90,180,110,0.18); top: -100px; left: -80px; animation: orb-drift 22s ease-in-out infinite alternate; }
-.orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 5%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
-@keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
-
-.nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 24px 52px; transition: background 0.4s, padding 0.4s, box-shadow 0.4s;
-}
-.nav.scrolled { background: rgba(242,250,240,0.9); backdrop-filter: blur(18px); padding: 16px 52px; box-shadow: 0 1px 0 rgba(29,113,105,0.12); }
-.nav-brand { display: flex; align-items: center; gap: 12px; }
-.nav-logo { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
-.nav-wordmark { font-family: Georgia,serif; font-size: 20px; color: #1a2e1e; }
-.nav-wordmark em { color: #0a9b8a; font-style: italic; }
-.nav-links { display: flex; gap: 32px; align-items: center; }
-.nav-links a { font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none; transition: color 0.2s; }
-.nav-links a:hover { color: #0a9b8a; }
-.nav-links .router-link-active { color: #0a9b8a; }
-.nav-cta { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
-.nav-cta:hover { background: #0a9b8a; color: white; }
-
-.a11y-bar {
-  position: fixed; top: 86px; right: 0; left: 0; z-index: 90;
-  background: rgba(255,255,255,0.92); backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(29,113,105,0.1);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-}
-.a11y-inner { display: flex; align-items: center; justify-content: flex-end; padding: 10px 52px; }
-.text-size-control {
-  display: inline-flex; align-items: center; gap: 12px;
-  background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(29,113,105,0.18); border-radius: 999px; padding: 8px 18px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-}
-.a-small { font-family: Georgia,serif; font-size: 13px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.a-large { font-family: Georgia,serif; font-size: 22px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.text-slider { -webkit-appearance: none; appearance: none; width: 120px; height: 4px; background: #d1e8d4; border-radius: 999px; outline: none; cursor: pointer; }
-.text-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #0a9b8a; box-shadow: 0 2px 8px rgba(10,155,138,0.4); cursor: pointer; }
-.scale-pct { font-size: 13px; font-weight: 700; color: #6a8e6e; min-width: 38px; }
-
-.hero-banner {
-  background: radial-gradient(circle at 92% 20%, #2b7e71 0 160px, transparent 161px),
-    linear-gradient(180deg, #0a7468 0%, #07685d 100%);
-  color: #f4f8f8;
-  padding: 190px 44px 40px;
-  position: relative;
-  z-index: 1;
-}
-
-.hero-banner h2 {
-  margin: 0;
-  font-family: 'Fraunces', serif;
-  font-size: clamp(calc(36px * var(--font-scale)), calc(4vw * var(--font-scale)), calc(56px * var(--font-scale)));
-  line-height: 1;
-}
-
-.hero-banner h2 span {
-  display: block;
-  color: #f4bf2c;
-  font-style: italic;
-}
-
-.hero-copy {
-  margin: 18px 0 0;
-  max-width: 1200px;
-  font-size: clamp(calc(18px * var(--font-scale)), calc(2.2vw * var(--font-scale)), calc(34px * var(--font-scale)));
-  color: #d1ece6;
-}
-
-.main-content {
-  padding: 22px 40px 40px;
-  display: grid;
-  gap: 22px;
-  position: relative;
-  z-index: 1;
-}
-
-.journey-form-card,
-.route-card {
-  border: 2px solid #cbccdf;
-  border-radius: 20px;
-  background: var(--panel-2);
-  padding: 20px;
-}
-
-.route-card {
-  border-color: #0b7a6d;
-}
-
-.map-shell {
-  margin-bottom: 16px;
-}
-
-.map-error {
-  margin-top: 8px;
-  color: #b13030;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.route-map {
-  width: 100%;
-  height: 580px;
-  border: 2px solid #0b7a6d;
-  border-radius: 14px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
 }
 
-h3 {
-  margin: 0 0 14px;
-  color: #585a7b;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: calc(18px * var(--font-scale));
+/* ─── Ambient ─── */
+.noise {
+  position: fixed; inset: 0; pointer-events: none; z-index: 1;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.orb { position: fixed; border-radius: 50%; filter: blur(90px); opacity: 0.32; z-index: 1; pointer-events: none; }
+.orb-1 { width: 480px; height: 480px; background: #b8e8c8; top: -180px; right: -120px; }
+.orb-2 { width: 400px; height: 400px; background: #c5e4d4; bottom: -160px; left: -120px; }
+
+/* ─── Nav ─── */
+.cl-nav {
+  position: fixed; top: 0; left: 0; right: 0; height: 70px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 28px 52px; z-index: 100;
+  background: rgba(242, 250, 240, 0.7);
+  backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
+  transition: background 0.5s,padding 0.4s, box-shadow 0.4s, border-color 0.3s;
+  border-bottom: 1px solid transparent;
 }
 
-.field {
-  border: 2px solid #c7c8dc;
-  border-radius: 16px;
-  background: #fff;
-  padding: 12px 14px;
-  color: #2f3148;
-  font-size: clamp(calc(18px * var(--font-scale)), calc(2vw * var(--font-scale)), calc(28px * var(--font-scale)));
-  font-weight: 800;
-  margin-bottom: 16px;
+.nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.nav-logo { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
+.nav-wordmark { font-family: Georgia,serif; font-size: 22px; color: #1a2e1e; }
+.nav-wordmark em { color: #0a9b8a; font-style: italic; }
+
+.cl-nav.scrolled {
+  background: rgba(242, 250, 240, 0.92);
+  border-bottom-color: rgba(29, 113, 105, 0.12);
+  box-shadow: 0 2px 18px rgba(0,0,0,0.04);
+}
+.cl-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #0f1e12; }
+.cl-logo-mark {
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #0a9b8a, #066258);
+  color: white; border-radius: 9px; font-weight: 800; font-size: 13px; letter-spacing: 0.5px;
+  box-shadow: 0 4px 14px rgba(10, 155, 138, 0.3);
+}
+.cl-logo-text { font-family: Georgia, serif; font-style: italic; font-size: 19px; font-weight: 700; }
+
+.cl-nav-links { display: flex; gap: 30px; align-items: center; }
+.cl-nav-links a {
+  font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none;
+  position: relative; padding: 6px 0; transition: color 0.2s;
+}
+.cl-nav-links a:hover, .cl-nav-links a.router-link-active, .cl-nav-links a.is-active { color: #0a9b8a; }
+.cl-nav-links a.is-active::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
+  background: #0a9b8a; border-radius: 2px;
 }
 
-.field.destination {
-  background: #dfebe8;
-  border-color: #0b7a6d;
+.cl-nav-cta {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 22px; border-radius: 999px;
+  background: #0a9b8a; color: white; text-decoration: none;
+  font-size: 14px; font-weight: 700;
+  box-shadow: 0 6px 18px rgba(10, 155, 138, 0.32);
+  transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+}
+.cl-nav-cta:hover { background: #088478; transform: translateY(-1px); box-shadow: 0 9px 22px rgba(10, 155, 138, 0.4); }
+
+/* ─── Main canvas ─── */
+.journey-canvas {
+  position: relative; width: 100%; height: 100vh;
+  padding-top: 70px;
 }
 
-.location-picker {
-  width: 100%;
-  display: block;
-  margin-bottom: 16px;
+.map-canvas {
+  position: absolute; inset: 70px 0 0 0;
+  background: #eef5e8;
+  z-index: 2;
 }
 
-.input-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 0;
-  position: relative;
+/* ─── Map overlays (loading / error) ─── */
+.map-overlay {
+  position: absolute; inset: 70px 0 0 0; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #f2faf0 0%, #e8f5e3 100%);
+  text-align: center; padding: 40px;
+}
+.loading-orb {
+  position: relative; width: 100px; height: 100px; margin-bottom: 24px;
+}
+.loading-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid rgba(10, 155, 138, 0.15);
+  border-top-color: #0a9b8a;
+  animation: spin 1s linear infinite;
+}
+.loading-pin {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 36px; animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.loading-overlay h2 { font-family: Georgia, serif; font-size: 30px; color: #0f1e12; margin-bottom: 8px; }
+.loading-overlay p { color: #4a6a4e; font-size: 16px; }
+
+.error-overlay { background: linear-gradient(135deg, #fff7ed, #fef3e2); }
+.error-card {
+  max-width: 520px; padding: 40px;
+  background: white; border-radius: 22px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(29, 113, 105, 0.1);
+}
+.error-icon { font-size: 50px; margin-bottom: 12px; }
+.error-card h2 { font-family: Georgia, serif; font-size: 26px; margin-bottom: 8px; color: #0f1e12; }
+.error-msg { color: #b45309; font-weight: 600; margin-bottom: 20px; }
+.error-help { text-align: left; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+.error-help summary { cursor: pointer; font-weight: 700; color: #0f1e12; }
+.error-help-body { padding-top: 14px; }
+.error-help-body p { font-size: 14px; color: #4a6a4e; margin-bottom: 10px; }
+.error-help code { background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+.error-help pre {
+  background: #1a2e1e; color: #d1fae5; padding: 12px 14px; border-radius: 8px;
+  font-size: 13px; overflow-x: auto; margin: 8px 0;
 }
 
-.primary-btn {
-  border-radius: 22px;
-  border: 4px solid #0b7a6d;
-  font-size: calc(20px * var(--font-scale));
-  font-weight: 800;
-  cursor: pointer;
-}
+.overlay-fade-enter-active, .overlay-fade-leave-active { transition: opacity 0.4s; }
+.overlay-fade-enter-from, .overlay-fade-leave-to { opacity: 0; }
 
-.primary-btn {
-  width: 100%;
-  background: #0b7a6d;
-  color: #fff;
-  padding: 24px 20px;
-  box-shadow: 0 12px 26px rgba(6, 110, 98, 0.18);
-}
-
-.secondary-btn {
-  border: 2px solid #c7c8dc;
-  border-radius: 999px;
-  background: transparent;
-  color: #616580;
-  font-size: calc(16px * var(--font-scale));
-  font-weight: 800;
-  padding: 10px 18px;
-  cursor: pointer;
-  height: fit-content;
-}
-
-.secondary-btn:disabled {
-  opacity: 0.75;
-  cursor: wait;
-}
-
-.primary-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.input-field {
-  width: 100%;
-}
-
-.input-field::placeholder {
-  color: #9a9db3;
-}
-
-.location-picker .input-field {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  font-family: 'Manrope', sans-serif;
-  font-size: clamp(calc(18px * var(--font-scale)), calc(2vw * var(--font-scale)), calc(28px * var(--font-scale)));
-  font-weight: 800;
-  line-height: 1.2;
-  color: #2f3148;
-}
-
-.destination-wrap {
-  position: relative;
-}
-
-.suggestions-list {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% - 10px);
-  margin: 0;
-  padding: 8px;
-  list-style: none;
-  background: #fff;
-  border: 2px solid #c7c8dc;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(42, 46, 68, 0.12);
+/* ─── Floating toolbar (top of map) ─── */
+.float-toolbar {
+  position: absolute; top: 92px; left: 50%; transform: translateX(calc(-50% + 220px));
   z-index: 20;
-  max-height: 240px;
-  overflow: auto;
+  display: flex; gap: 8px;
+  background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  padding: 8px; border-radius: 999px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08), 0 0 0 1px rgba(29,113,105,0.08);
+  max-width: calc(100vw - 540px);
+  overflow-x: auto;
+}
+.toolbar-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px 8px 8px; border: none; background: transparent;
+  border-radius: 999px; cursor: pointer;
+  font-size: 13.5px; font-weight: 600; color: #3a5a3e;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  white-space: nowrap;
+}
+.toolbar-pill:hover { background: rgba(10, 155, 138, 0.08); }
+.toolbar-pill.active {
+  background: linear-gradient(135deg, #0a9b8a, #088478); color: white;
+  box-shadow: 0 4px 12px rgba(10, 155, 138, 0.32);
+}
+.toolbar-pill.active .pill-icon { background: rgba(255,255,255,0.25) !important; color: white !important; }
+.pill-icon {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; transition: background 0.2s;
+}
+.pill-label { font-size: 13.5px; }
+.pill-count {
+  font-size: 11px; font-weight: 800; padding: 2px 7px;
+  background: rgba(255,255,255,0.3); border-radius: 999px;
+  min-width: 22px; text-align: center;
+}
+.toolbar-pill:not(.active) .pill-count {
+  background: rgba(10, 155, 138, 0.12); color: #0a9b8a;
+}
+.pill-spinner {
+  width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
 }
 
-.suggestion-item {
-  width: 100%;
-  border: none;
-  background: transparent;
-  text-align: left;
-  font-family: 'Manrope', sans-serif;
-  color: #2f3148;
-  font-size: calc(16px * var(--font-scale));
-  border-radius: 10px;
-  padding: 10px 8px;
+.toolbar-slide-enter-active, .toolbar-slide-leave-active { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s; }
+.toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translate(calc(-50% + 220px), -28px); opacity: 0; }
+
+/* ─── Floating map controls (right side) ─── */
+.float-controls {
+  position: absolute; top: 92px; right: 24px; z-index: 20;
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  padding: 6px; border-radius: 14px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08), 0 0 0 1px rgba(29,113,105,0.08);
+}
+.ctrl-btn {
+  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; border-radius: 10px; cursor: pointer;
+  color: #3a5a3e; font-size: 18px; font-weight: 700;
+  transition: background 0.18s, color 0.18s, transform 0.15s;
+}
+.ctrl-btn:hover { background: rgba(10, 155, 138, 0.1); color: #0a9b8a; }
+.ctrl-btn.active {
+  background: #0a9b8a; color: white;
+  box-shadow: 0 4px 10px rgba(10, 155, 138, 0.3);
+}
+.threed-label { font-size: 13px; font-weight: 800; letter-spacing: 0.5px; }
+
+/* ─── Floating side panel (left) ─── */
+.float-panel {
+  position: absolute; top: 92px; left: 24px;
+  width: 420px; max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 130px);
+  z-index: 25;
+  background: rgba(255,255,255,0.85); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 22px; padding: 24px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.10), 0 0 0 1px rgba(29,113,105,0.08);
+  overflow-y: auto; overflow-x: hidden;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), max-height 0.45s, padding 0.3s;
+  scrollbar-width: thin;
+}
+.float-panel::-webkit-scrollbar { width: 6px; }
+.float-panel::-webkit-scrollbar-thumb { background: rgba(10, 155, 138, 0.2); border-radius: 3px; }
+.float-panel.collapsed { transform: translateX(calc(-100% + 32px)); }
+.panel-collapse {
+  position: absolute; top: 50%; right: -14px; transform: translateY(-50%);
+  width: 28px; height: 56px;
+  background: white; border: 1px solid rgba(29, 113, 105, 0.12);
+  border-radius: 0 14px 14px 0;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #3a5a3e;
+  box-shadow: 6px 0 16px rgba(0,0,0,0.05);
+  z-index: 1;
+  transition: background 0.18s, color 0.18s;
+}
+.panel-collapse:hover { background: #0a9b8a; color: white; }
+
+/* ─── PHASE: PLAN ─── */
+.phase-plan-content { animation: fadeUp 0.4s ease-out; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.plan-hero { margin-bottom: 24px; }
+.plan-eyebrow {
+  display: inline-block; padding: 6px 14px;
+  background: linear-gradient(135deg, rgba(10,155,138,0.12), rgba(8,132,120,0.18));
+  color: #066258; border-radius: 999px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.plan-hero h1 {
+  font-family: Georgia, serif; font-size: 40px; line-height: 1.05;
+  color: #0f1e12; margin-bottom: 10px; letter-spacing: -0.02em;
+}
+.plan-hero p { color: #4a6a4e; font-size: 15.5px; line-height: 1.5; }
+
+.plan-form {
+  background: white;
+  border: 1px solid rgba(29, 113, 105, 0.1);
+  border-radius: 18px; padding: 18px; margin-bottom: 20px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+}
+
+.form-row {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  background: #f7faf7; border: 1.5px solid #e5ede2;
+  border-radius: 14px; padding: 8px 8px 8px 14px;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  min-height: 60px;
+}
+.form-row.focused {
+  border-color: #0a9b8a; background: white;
+  box-shadow: 0 0 0 4px rgba(10, 155, 138, 0.1);
+}
+.form-row + .form-row { margin-top: 0; }
+.form-row-time { margin-top: 12px; }
+
+.form-pin {
+  flex-shrink: 0; width: 24px; display: flex; align-items: center; justify-content: center;
+}
+.pin-dot {
+  width: 12px; height: 12px; border-radius: 50%; display: block;
+}
+.pin-dot-from { background: #0a9b8a; box-shadow: 0 0 0 3px rgba(10,155,138,0.2); }
+.pin-dot-to { background: #ee6c4d; box-shadow: 0 0 0 3px rgba(238,108,77,0.2); }
+.pin-time { font-size: 17px; }
+
+.form-input-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.form-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: #6b8470; line-height: 1;
+}
+.form-input {
+  width: 100%; border: none; background: transparent;
+  padding: 0; font-size: 15px; font-weight: 500; color: #0f1e12;
+  font-family: inherit; outline: none; line-height: 1.3;
+}
+.form-input::placeholder { color: #9eaba0; font-weight: 400; }
+.form-input[type="datetime-local"] { font-size: 14px; }
+
+.form-locate {
+  width: 38px; height: 38px;
+  border: none; background: rgba(10, 155, 138, 0.1); color: #0a9b8a;
+  border-radius: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.18s, transform 0.15s;
+}
+.form-locate:hover { background: rgba(10, 155, 138, 0.2); }
+.form-locate:disabled { opacity: 0.5; cursor: wait; }
+
+.form-clear {
+  width: 24px; height: 24px; border: none; background: rgba(0,0,0,0.05);
+  border-radius: 50%; cursor: pointer; color: #6b8470;
+  font-size: 16px; line-height: 1;
+}
+.form-clear:hover { background: rgba(0,0,0,0.1); color: #0f1e12; }
+
+.form-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 10;
+  background: white; border: 1px solid rgba(29, 113, 105, 0.12);
+  border-radius: 14px; padding: 6px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+  max-height: 280px; overflow-y: auto;
+}
+.dropdown-item {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 10px 12px;
+  border: none; background: transparent;
+  border-radius: 9px; cursor: pointer; text-align: left;
+  transition: background 0.15s;
+}
+.dropdown-item:hover { background: rgba(10, 155, 138, 0.08); }
+.suggest-icon { font-size: 16px; }
+.suggest-name { display: flex; flex-direction: column; gap: 2px; }
+.suggest-name strong { font-size: 14.5px; color: #0f1e12; font-weight: 600; }
+.suggest-name small { font-size: 12px; color: #6b8470; }
+
+.form-swap-rail {
+  display: flex; justify-content: center; padding: 4px 0;
+  position: relative;
+}
+.form-swap-rail::before {
+  content: ''; position: absolute; left: 22px; top: 0; bottom: 0; width: 2px;
+  background: repeating-linear-gradient(to bottom, #d3dccd 0 4px, transparent 4px 8px);
+  border-radius: 1px;
+}
+.form-swap-btn {
+  width: 28px; height: 28px;
+  border: 1px solid rgba(29, 113, 105, 0.15);
+  background: white; color: #3a5a3e;
+  border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.18s, color 0.18s, transform 0.2s;
+  position: relative; z-index: 1;
+}
+.form-swap-btn:hover:not(:disabled) {
+  background: #0a9b8a; color: white; transform: rotate(180deg);
+}
+.form-swap-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.time-pill {
+  flex-shrink: 0; padding: 7px 14px;
+  border: 1.5px solid #e5ede2; background: white;
+  color: #3a5a3e; border-radius: 999px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.18s;
+}
+.time-pill:hover { border-color: #0a9b8a; color: #0a9b8a; }
+.time-pill.active {
+  background: #0a9b8a; border-color: #0a9b8a; color: white;
+  box-shadow: 0 3px 8px rgba(10, 155, 138, 0.28);
+}
+
+.form-submit {
+  width: 100%; margin-top: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 20px;
+  border: none; border-radius: 14px;
+  background: linear-gradient(135deg, #0a9b8a, #066258);
+  color: white; font-size: 15.5px; font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 8px 22px rgba(10, 155, 138, 0.35);
+  transition: transform 0.18s, box-shadow 0.18s, opacity 0.18s;
+}
+.form-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 11px 26px rgba(10, 155, 138, 0.42);
+}
+.form-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.search-error {
+  margin-top: 12px; padding: 10px 12px;
+  background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 10px; color: #b91c1c;
+  font-size: 13.5px; font-weight: 500;
 }
 
-.suggestion-item:hover {
-  background: #eef3fb;
+.mini-spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid rgba(0,0,0,0.15); border-top-color: currentColor;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+.mini-spinner.light { border-color: rgba(255,255,255,0.3); border-top-color: white; }
+
+.plan-section { margin-bottom: 22px; }
+.plan-section-title {
+  font-size: 12px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #6b8470;
+  margin-bottom: 10px;
+}
+.recents-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.recent-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 14px;
+  background: white; border: 1px solid rgba(29, 113, 105, 0.15);
+  border-radius: 999px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: #1a2e1e;
+  transition: all 0.18s;
+}
+.recent-pill:hover { background: #0a9b8a; color: white; border-color: #0a9b8a; transform: translateY(-1px); }
+.recent-icon { font-size: 13px; opacity: 0.7; }
+.recent-pill:hover .recent-icon { opacity: 1; }
+
+.plan-tips { display: flex; flex-direction: column; gap: 10px; }
+.tip-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: white; border: 1px solid rgba(29, 113, 105, 0.08);
+  border-radius: 14px; padding: 14px;
+}
+.tip-icon {
+  flex-shrink: 0; width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-size: 18px;
+}
+.tip-card strong { display: block; font-size: 14px; color: #0f1e12; margin-bottom: 2px; }
+.tip-card p { font-size: 13px; color: #4a6a4e; line-height: 1.4; }
+
+/* ─── PHASE: ROUTES ─── */
+.phase-routes-content { animation: fadeUp 0.4s ease-out; }
+.routes-header {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+  padding-bottom: 16px; border-bottom: 1px solid rgba(29, 113, 105, 0.08);
+}
+.header-back {
+  width: 36px; height: 36px;
+  border: 1px solid rgba(29, 113, 105, 0.15);
+  background: white; color: #3a5a3e;
+  border-radius: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.18s;
+}
+.header-back:hover { background: #0a9b8a; color: white; border-color: #0a9b8a; }
+.routes-header-text { min-width: 0; flex: 1; }
+.routes-eyebrow {
+  font-size: 11.5px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #0a9b8a;
+}
+.routes-header-text h2 {
+  font-family: Georgia, serif; font-size: 20px;
+  color: #0f1e12; line-height: 1.25; margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.routes-header-text h2 .arrow { color: #0a9b8a; margin: 0 4px; }
+
+.leave-callout {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, #ee6c4d, #d44827);
+  color: white; border-radius: 14px; padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 22px rgba(238, 108, 77, 0.3);
+}
+.callout-icon { font-size: 22px; flex-shrink: 0; }
+.callout-body strong { display: block; font-size: 16px; font-weight: 700; }
+.callout-body p { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+.callout-body p span { font-weight: 700; }
+
+.routes-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.route-card {
+  width: 100%; text-align: left;
+  background: white; border: 2px solid rgba(29, 113, 105, 0.1);
+  border-radius: 16px; padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.route-card:hover {
+  border-color: rgba(10, 155, 138, 0.4); transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+.route-card.selected {
+  border-color: #0a9b8a;
+  box-shadow: 0 8px 22px rgba(10, 155, 138, 0.18);
 }
 
-.route-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
+.route-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
 }
-
-.route-chip {
-  margin: 0;
-  border-radius: 999px;
-  background: #d6ece8;
-  color: #0b7a6d;
-  padding: 8px 18px;
-  font-size: calc(16px * var(--font-scale));
-  font-weight: 800;
+.badge {
+  display: inline-block; padding: 4px 10px;
+  border-radius: 999px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.6px;
 }
-
+.badge-comfort { background: #ddf2ed; color: #066258; }
+.badge-fast { background: #fde7d4; color: #b14b1f; }
+.badge-alt { background: #ecf2e9; color: #4a6a4e; }
 .route-time {
-  margin: 0;
-  color: #0b7a6d;
-  font-size: calc(16px * var(--font-scale));
-  font-weight: 800;
+  font-family: Georgia, serif; font-size: 18px; font-weight: 700;
+  color: #0f1e12;
 }
-
-.route-card h3 {
-  margin-top: 14px;
-  text-transform: none;
-  letter-spacing: 0;
-  color: #2e3047;
-  font-family: 'Fraunces', serif;
-  font-size: clamp(calc(30px * var(--font-scale)), calc(3vw * var(--font-scale)), calc(46px * var(--font-scale)));
-}
-
 .route-meta {
-  margin: 0 0 10px;
-  color: #5d5f78;
-  font-size: calc(16px * var(--font-scale));
-  font-weight: 700;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: #4a6a4e; margin-bottom: 10px;
+}
+.dot-sep { opacity: 0.4; }
+
+.route-legs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  margin-bottom: 6px;
+}
+.leg-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+}
+.leg-pill .leg-icon { font-size: 13px; }
+.leg-walk { background: #ecf2e9; color: #4a6a4e; }
+.leg-bike { background: #e3eee3; color: #3a5a3e; }
+.leg-bus { background: #fde7c4; color: #a85a1f; }
+.leg-tram { background: #d3eef2; color: #0e6d7e; }
+.leg-train { background: #fde2e2; color: #c1272d; }
+.leg-arrow { color: #c0cdc1; font-size: 16px; font-weight: 600; }
+.route-transfers {
+  font-size: 12.5px; color: #6b8470; font-weight: 500;
 }
 
-.section-title {
-  margin: 12px 0 6px;
-  color: #4f5271;
-  font-size: calc(16px * var(--font-scale));
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.route-actions {
+  position: sticky; bottom: -24px;
+  display: flex; gap: 10px; padding: 14px 0;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.95) 30%);
+}
+.action-secondary, .action-primary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 18px;
+  border: none; border-radius: 12px; cursor: pointer;
+  font-size: 14.5px; font-weight: 700;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.action-secondary {
+  flex: 1; background: white; color: #3a5a3e;
+  border: 1.5px solid rgba(29, 113, 105, 0.15);
+}
+.action-secondary:hover { background: rgba(10, 155, 138, 0.06); border-color: #0a9b8a; color: #0a9b8a; }
+.action-primary {
+  flex: 1.5;
+  background: linear-gradient(135deg, #0a9b8a, #066258);
+  color: white;
+  box-shadow: 0 6px 18px rgba(10, 155, 138, 0.32);
+}
+.action-primary:hover { transform: translateY(-1px); box-shadow: 0 9px 22px rgba(10, 155, 138, 0.42); }
+
+/* ─── PHASE: NAVIGATE ─── */
+.phase-navigate-content { animation: fadeUp 0.4s ease-out; }
+.nav-header {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+}
+.nav-header-text { flex: 1; min-width: 0; }
+.nav-progress-text {
+  font-size: 11.5px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #0a9b8a;
+}
+.nav-header-text h2 {
+  font-family: Georgia, serif; font-size: 22px; line-height: 1.25;
+  color: #0f1e12; margin-top: 4px;
 }
 
-.warning-note {
-  margin: 8px 0 10px;
-  color: #7a6a35;
-  background: #fff5d6;
-  border: 1px solid #ecdca3;
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: calc(14px * var(--font-scale));
+.nav-progress-bar {
+  height: 4px; background: rgba(10, 155, 138, 0.1);
+  border-radius: 2px; overflow: hidden; margin-bottom: 18px;
+}
+.nav-progress-fill {
+  height: 100%; background: linear-gradient(90deg, #0a9b8a, #ee6c4d);
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.trip-key-info {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border: 1px solid #d5d8e8;
-  border-radius: 12px;
-  background: #f7f9ff;
+.current-step {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 18px;
+  border-radius: 16px;
+  margin-bottom: 16px;
+  animation: stepIn 0.4s ease-out;
+}
+@keyframes stepIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+.current-step.tone-walk { background: linear-gradient(135deg, #f0f7ed, #e1efdc); }
+.current-step.tone-bike { background: linear-gradient(135deg, #ecf4e8, #d8e9d2); }
+.current-step.tone-bus { background: linear-gradient(135deg, #fdf2dc, #fbe4ba); }
+.current-step.tone-tram { background: linear-gradient(135deg, #d8eef3, #bce0e8); }
+.current-step.tone-train { background: linear-gradient(135deg, #fde2e2, #fbcfcf); }
+.current-step.tone-arrive { background: linear-gradient(135deg, #fde0d3, #fac0a8); color: #5b1d0a; }
+.step-icon-big {
+  flex-shrink: 0; width: 52px; height: 52px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+  color: #0f1e12;
+}
+.current-step.tone-arrive .step-icon-big { color: #5b1d0a; }
+.step-body { flex: 1; min-width: 0; }
+.step-kind-label {
+  display: inline-block;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: rgba(15, 30, 18, 0.6);
+  margin-bottom: 4px;
+}
+.step-body h3 {
+  font-family: Georgia, serif; font-size: 18px; line-height: 1.3;
+  color: #0f1e12; margin-bottom: 4px;
+}
+.step-detail { font-size: 14px; color: #3a5a3e; line-height: 1.45; }
+.step-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.step-flag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px;
+  background: rgba(255,255,255,0.65);
+  border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; color: #0f1e12;
 }
 
-.trip-key-info p {
-  margin: 6px 0;
-  color: #3d405b;
-  font-size: calc(16px * var(--font-scale));
+.nav-controls { display: flex; gap: 10px; margin-bottom: 16px; }
+.nav-prev, .nav-next, .nav-finish {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 12px 16px;
+  border: none; border-radius: 12px; cursor: pointer;
+  font-size: 14px; font-weight: 700;
+  transition: all 0.18s;
+}
+.nav-prev {
+  background: white; color: #3a5a3e;
+  border: 1.5px solid rgba(29, 113, 105, 0.15);
+}
+.nav-prev:hover:not(:disabled) { background: rgba(10, 155, 138, 0.06); border-color: #0a9b8a; color: #0a9b8a; }
+.nav-prev:disabled { opacity: 0.4; cursor: not-allowed; }
+.nav-next {
+  background: linear-gradient(135deg, #0a9b8a, #066258);
+  color: white;
+  box-shadow: 0 5px 14px rgba(10, 155, 138, 0.32);
+}
+.nav-next:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(10, 155, 138, 0.42); }
+.nav-finish {
+  background: linear-gradient(135deg, #ee6c4d, #d44827);
+  color: white;
+  box-shadow: 0 5px 14px rgba(238, 108, 77, 0.32);
+}
+.nav-finish:hover { transform: translateY(-1px); }
+
+.all-steps {
+  background: white; border: 1px solid rgba(29, 113, 105, 0.08);
+  border-radius: 12px; padding: 12px;
+}
+.all-steps summary {
+  cursor: pointer; font-weight: 700; font-size: 13.5px;
+  color: #3a5a3e; user-select: none;
+}
+.steps-list {
+  list-style: none; margin-top: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.steps-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px; cursor: pointer;
+  transition: background 0.18s;
+}
+.steps-list li:hover { background: rgba(10, 155, 138, 0.06); }
+.steps-list li.current { background: rgba(10, 155, 138, 0.1); }
+.steps-list li.done { opacity: 0.5; }
+.step-num {
+  width: 22px; height: 22px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 155, 138, 0.12); color: #0a9b8a;
+  border-radius: 50%; font-size: 11.5px; font-weight: 800;
+}
+.steps-list li.current .step-num { background: #0a9b8a; color: white; }
+.step-li-body { flex: 1; min-width: 0; }
+.step-li-body strong { display: block; font-size: 13.5px; color: #0f1e12; line-height: 1.3; }
+.step-li-body small { font-size: 12px; color: #6b8470; }
+.step-li-icon { color: #6b8470; flex-shrink: 0; }
+.steps-list li.current .step-li-icon { color: #0a9b8a; }
+
+/* ─── Bottom bar (navigate) ─── */
+.float-bottom {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(calc(-50% + 220px));
+  z-index: 20;
+  display: flex; gap: 18px; align-items: center;
+  background: rgba(15, 30, 18, 0.92); color: white;
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  padding: 12px 20px; border-radius: 999px;
+  box-shadow: 0 14px 38px rgba(0,0,0,0.25);
+}
+.bottom-stat { display: flex; flex-direction: column; align-items: center; min-width: 64px; }
+.stat-label { font-size: 10.5px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; }
+.stat-value { font-family: Georgia, serif; font-size: 18px; font-weight: 700; margin-top: 1px; }
+.bottom-end {
+  margin-left: 6px; padding: 9px 18px;
+  border: none; border-radius: 999px;
+  background: #ee6c4d; color: white;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background 0.18s, transform 0.15s;
+}
+.bottom-end:hover { background: #d44827; transform: translateY(-1px); }
+
+.slide-up-enter-active, .slide-up-leave-active { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s; }
+.slide-up-enter-from, .slide-up-leave-to { transform: translate(calc(-50% + 220px), 28px); opacity: 0; }
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+  .float-panel { width: 380px; left: 16px; top: 86px; }
+  .float-toolbar { transform: translateX(calc(-50% + 198px)); max-width: calc(100vw - 470px); }
+  .float-bottom { transform: translateX(calc(-50% + 198px)); }
+  .toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translate(calc(-50% + 198px), -28px); opacity: 0; }
+  .slide-up-enter-from, .slide-up-leave-to { transform: translate(calc(-50% + 198px), 28px); opacity: 0; }
 }
 
-.steps p {
-  margin: 8px 0;
-  color: #5d5f78;
-  font-size: calc(18px * var(--font-scale));
-}
-
-.steps p strong {
-  color: #2f3045;
-  font-size: calc(20px * var(--font-scale));
-}
-
-.step-item {
-  margin: 8px 0 10px;
-}
-
-.step-transit {
-  margin: 2px 0 0;
-  color: #4e6f65;
-  font-size: calc(15px * var(--font-scale));
-  font-weight: 700;
-}
-
-.sub-steps {
-  margin: 6px 0 0 18px;
-  color: #5d5f78;
-}
-
-.sub-steps li {
-  margin: 4px 0;
-  font-size: calc(15px * var(--font-scale));
-}
-
-@media (max-width: 980px) {
-  .nav { padding: 16px 18px; }
-  .nav-links { display: none; }
-  .a11y-inner { padding: 10px 18px; }
-
-  .hero-banner {
-    padding: 24px 18px 30px;
-    margin-top: 132px;
+@media (max-width: 760px) {
+  .cl-nav { padding: 0 16px; }
+  .cl-nav-links { display: none; }
+  .cl-logo-text { display: none; }
+  .float-panel {
+    width: calc(100vw - 24px);
+    left: 12px; right: 12px;
+    top: auto; bottom: 12px;
+    max-height: 60vh;
+    padding: 18px;
+    border-radius: 18px 18px 14px 14px;
   }
-
-  .main-content {
-    padding: 16px;
+  .float-panel.collapsed { transform: translateY(calc(100% - 56px)); }
+  .panel-collapse {
+    top: 6px; left: 50%; right: auto;
+    transform: translateX(-50%);
+    width: 56px; height: 28px;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
   }
-
-  .location-picker {
-    display: block;
+  .panel-collapse svg { transform: rotate(90deg); }
+  .float-toolbar {
+    top: 84px; left: 12px; right: 12px; transform: none;
+    max-width: none; justify-content: flex-start;
   }
+  .toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translateY(-28px); opacity: 0; }
+  .float-controls { top: 138px; right: 12px; }
+  .float-bottom { left: 12px; right: 12px; transform: none; bottom: 12px; }
+  .slide-up-enter-from, .slide-up-leave-to { transform: translateY(28px); opacity: 0; }
+  .plan-hero h1 { font-size: 32px; }
+}
+</style>
 
-  .input-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
+<!-- Global styles for Google Maps marker HTML (cannot be scoped) -->
+<style>
+.cl-pin {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: auto;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.cl-pin-bubble {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 50% 50% 50% 4px;
+  transform: rotate(-45deg);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), 0 0 0 2px white;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cl-pin-bubble:hover {
+  transform: rotate(-45deg) scale(1.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3), 0 0 0 2px white;
+}
+.cl-pin-icon {
+  transform: rotate(45deg);
+  font-size: 15px;
+  line-height: 1;
+}
+.cl-pin-tail { display: none; }
+.cl-pin-label {
+  position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+  background: rgba(15, 30, 18, 0.92); color: white;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+  letter-spacing: 0.3px;
+}
+.cl-pin-lg .cl-pin-bubble { width: 40px; height: 40px; }
+.cl-pin-lg .cl-pin-icon { font-size: 18px; }
+.cl-pin-sm .cl-pin-bubble { width: 26px; height: 26px; }
+.cl-pin-sm .cl-pin-icon { font-size: 12px; }
+
+/* Info window */
+.cl-info {
+  display: flex; gap: 10px;
+  padding: 6px 4px 6px 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  max-width: 240px;
+}
+.cl-info-icon {
+  flex-shrink: 0; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-size: 18px;
+}
+.cl-info-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cl-info-body strong { font-size: 14px; color: #0f1e12; }
+.cl-info-body small { font-size: 12px; color: #4a6a4e; }
+.cl-info-tag {
+  display: inline-block; margin-top: 4px;
+  background: #ddf2ed; color: #066258;
+  padding: 2px 7px; border-radius: 6px;
+  font-size: 11px; font-weight: 700;
+  width: fit-content;
 }
 </style>

@@ -13,6 +13,7 @@
     <div class="bt-nav-links" role="navigation" aria-label="Main navigation">
       <RouterLink to="/home">Home</RouterLink>
       <RouterLink to="/discover">Events</RouterLink>
+      <RouterLink to="/journey" >Journey</RouterLink>
 
       <div class="bt-nav-dropdown" @mouseenter="openSubmenu" @mouseleave="scheduleClose">
         <RouterLink
@@ -123,6 +124,12 @@ function closeSubmenu() { cancelClose(); submenuOpen.value = false }
   font-size: 15px; font-weight: 600; color: #3a5a3e;
   text-decoration: none; cursor: pointer;
   transition: color 0.2s;
+}
+
+
+.bt-nav-trigger .is-active::after {
+  content: ''; position: absolute;     left: 33.5rem;
+    right: 0rem; bottom: 34px; height: 2px;
 }
 .bt-nav-trigger:hover, .bt-nav-trigger.is-active, .bt-nav-trigger.router-link-active { color: #0a9b8a; }
 .bt-nav-chevron { transition: transform 0.25s; }

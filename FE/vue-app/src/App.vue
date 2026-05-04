@@ -20,7 +20,7 @@ const isBestTimeRoute = computed(() => {
 // Hide slider on intensive form pages where it adds noise; show everywhere else
 const showSlider = computed(() => {
   const p = route.path || ''
-  return p !== '/checkin/form' && p !== '/results'
+  return p !== '/checkin/form' && p !== '/results' && p !== '/journey'
 })
 </script>
 

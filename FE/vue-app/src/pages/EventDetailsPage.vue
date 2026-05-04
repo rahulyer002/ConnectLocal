@@ -17,6 +17,7 @@
       <div class="nav-links" role="navigation" aria-label="Main navigation">
         <RouterLink to="/home">Home</RouterLink>
         <RouterLink to="/discover">Events</RouterLink>
+        <RouterLink to="/journey">Journey</RouterLink>
 
         <RouterLink to="/best-time">Best Time</RouterLink>
       </div>
@@ -132,8 +133,8 @@
         </div>
 
         <div class="actions" data-reveal>
-          <button class="btn-primary" type="button" @click="goToJourney" :style="{ fontSize: scaledPx(16) }">
-            I would like to go — show me how to get there
+          <button class="btn-primary" type="button" @click="goToJourney(event)" :style="{ fontSize: scaledPx(16) }">
+            I would like to go - show me how to get there
           </button>
           <a v-if="event.url" class="btn-primary" :href="event.url" target="_blank" rel="noopener noreferrer" :style="{ fontSize: scaledPx(16) }">Open original event page</a>
           <RouterLink to="/discover" class="btn-secondary" :style="{ fontSize: scaledPx(16) }">Back to activities</RouterLink>
@@ -147,7 +148,10 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { resonanceStore } from '../stores/resonanceStore'
+import { searchSuburbs } from '../composables/useResonanceApi'
 
+const store = resonanceStore
 const route = useRoute()
 const router = useRouter()
 const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || 'https://connectlocal.duckdns.org'
@@ -222,18 +226,44 @@ const restrictionsText = computed(() => {
   return event.value.restrictions || 'No restrictions listed'
 })
 
-const goToJourney = () => {
-  if (!event.value) return
+const goToJourney = (space) => {
 
-  const destination =
-    event.value.location_summary ||
-    event.value.address ||
-    venueText.value
 
+  const lat = space.lat ?? space.latitude
+  const lon = space.lng ?? space.lon ?? space.longitude
+
+  if (!navigator.geolocation) {
+    locationError.value = 'Geolocation is not supported by your browser.'
+    return
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      store.setLocation(pos.coords.latitude, pos.coords.longitude, 'Your current location')
+
+      
+      if (lat == null || lon == null) return
   router.push({
     path: '/journey',
-    query: destination ? { destination } : {}
+    query: {
+      from_lat:pos.coords.latitude,
+      from_lon:pos.coords.longitude,
+      dest_lat: lat,
+      dest_lon: lon,
+      dest_name: space.name,
+      auto: '1'
+    }
   })
+    },
+    () => {
+      locationError.value = 'Could not detect location. Please type a suburb instead.'
+      isLocating.value = false
+    },
+    { timeout: 8000, enableHighAccuracy: false }
+  )
+
+
+  
 }
 
 onMounted(() => {
