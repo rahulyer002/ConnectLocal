@@ -18,6 +18,7 @@
       <div class="nav-links">
         <RouterLink to="/home">Home</RouterLink>
         <RouterLink to="/discover">Events</RouterLink>
+        <RouterLink to="/journey">Journey</RouterLink>
         <RouterLink to="/best-time">Best Time</RouterLink>
       </div>
       <RouterLink to="/checkin" class="nav-cta">
@@ -475,7 +476,6 @@
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
 
 const API_URL = 'https://connectlocal.duckdns.org/api/suburbs/psychological-distress'
 

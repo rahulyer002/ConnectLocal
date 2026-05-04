@@ -1,7 +1,57 @@
 <template>
-  <MainLayout>
-    <div class="journey-page">
-      <section class="hero-banner">
+  <div class="journey-page">
+    <div class="noise" aria-hidden="true"></div>
+    <div class="orb orb-1" aria-hidden="true"></div>
+    <div class="orb orb-2" aria-hidden="true"></div>
+
+    <nav class="nav" :class="{ scrolled: scrollY > 60 }">
+      <div class="nav-brand">
+        <div class="nav-logo">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
+            <circle cx="12" cy="10" r="2.5"/>
+          </svg>
+        </div>
+        <span class="nav-wordmark"><em>Connect</em>Local</span>
+      </div>
+      <div class="nav-links" role="navigation" aria-label="Main navigation">
+        <RouterLink to="/home">Home</RouterLink>
+        <RouterLink to="/discover">Events</RouterLink>
+        <RouterLink to="/journey">Journey</RouterLink>
+        <RouterLink to="/best-time">Best Time</RouterLink>
+      </div>
+      <RouterLink to="/checkin" class="nav-cta" aria-label="Start your wellbeing check-in">
+        Start Check-in
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h14M13 5l7 7-7 7"/>
+        </svg>
+      </RouterLink>
+    </nav>
+
+    <div class="a11y-bar" role="region" aria-label="Accessibility options">
+      <div class="a11y-inner">
+        <div class="text-size-control" role="group" aria-label="Adjust text size">
+          <span class="a-small" aria-hidden="true">A</span>
+          <input
+            type="range"
+            class="text-slider"
+            min="90"
+            max="140"
+            step="5"
+            v-model.number="textScale"
+            aria-label="Text size"
+            aria-valuemin="90"
+            aria-valuemax="140"
+            :aria-valuenow="textScale"
+            :aria-valuetext="`Text size ${textScale}%`"
+          />
+          <span class="a-large" aria-hidden="true">A</span>
+          <span class="scale-pct" aria-hidden="true">{{ textScale }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="hero-banner">
         <h2>
           Get there
           <span>comfortably</span>
@@ -10,9 +60,9 @@
           Step-by-step travel guidance from your front door. Fewer transfers, less
           walking, and a clear time to leave home.
         </p>
-      </section>
+    </section>
 
-      <section class="main-content">
+    <section class="main-content">
         <article class="journey-form-card">
           <h3>Your Location</h3>
           <form class="location-picker" @submit.prevent="applyManualLocation">
@@ -91,14 +141,12 @@
 
           <button type="button" class="primary-btn">Start this journey</button>
         </article>
-      </section>
-    </div>
-  </MainLayout>
+    </section>
+  </div>
 </template>
 
 <script setup>
 import 'leaflet/dist/leaflet.css'
-import MainLayout from '../layouts/MainLayout.vue'
 import L from 'leaflet'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -124,9 +172,12 @@ const mapContainer = ref(null)
 let map = null
 let previewLayer = null
 let resizeObserver = null
+const scrollY = ref(0)
+const textScale = ref(100)
 const { detectedLocationText, setDetectedLocation, setDetectedUnavailable } = useLocationState()
 const LOCATION_UNAVAILABLE_TEXT = 'Location not available'
 const MELBOURNE_NOT_FOUND = 'The location you specified was not found in Melbourne.'
+const handleScroll = () => { scrollY.value = window.scrollY }
 
 watch(
   detectedLocationText,
@@ -409,6 +460,7 @@ const drawMapPreview = () => {
 }
 
 onMounted(() => {
+  window.addEventListener('scroll', handleScroll, { passive: true })
   if (!mapContainer.value) return
   map = L.map(mapContainer.value, { zoomControl: true }).setView([-37.8136, 144.9631], 11)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -433,6 +485,7 @@ watch([fromLat, fromLon, toLat, toLon], () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll)
   if (fromTimer) clearTimeout(fromTimer)
   if (toTimer) clearTimeout(toTimer)
   if (map) {
@@ -447,16 +500,71 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 .journey-page {
   min-height: 100vh;
-  background: #f5f5fa;
+  background: #f2faf0;
+  color: #1a2e1e;
+  font-family: system-ui, sans-serif;
+  position: relative;
+  overflow-x: hidden;
 }
+
+.noise {
+  position: fixed; inset: 0; z-index: 1000; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 180px; opacity: 0.45;
+}
+
+.orb { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(80px); }
+.orb-1 { width: 500px; height: 500px; background: rgba(90,180,110,0.18); top: -100px; left: -80px; animation: orb-drift 22s ease-in-out infinite alternate; }
+.orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 5%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
+@keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
+
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 24px 52px; transition: background 0.4s, padding 0.4s, box-shadow 0.4s;
+}
+.nav.scrolled { background: rgba(242,250,240,0.9); backdrop-filter: blur(18px); padding: 16px 52px; box-shadow: 0 1px 0 rgba(29,113,105,0.12); }
+.nav-brand { display: flex; align-items: center; gap: 12px; }
+.nav-logo { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
+.nav-wordmark { font-family: Georgia,serif; font-size: 20px; color: #1a2e1e; }
+.nav-wordmark em { color: #0a9b8a; font-style: italic; }
+.nav-links { display: flex; gap: 32px; align-items: center; }
+.nav-links a { font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none; transition: color 0.2s; }
+.nav-links a:hover { color: #0a9b8a; }
+.nav-links .router-link-active { color: #0a9b8a; }
+.nav-cta { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
+.nav-cta:hover { background: #0a9b8a; color: white; }
+
+.a11y-bar {
+  position: fixed; top: 86px; right: 0; left: 0; z-index: 90;
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(29,113,105,0.1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.a11y-inner { display: flex; align-items: center; justify-content: flex-end; padding: 10px 52px; }
+.text-size-control {
+  display: inline-flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(29,113,105,0.18); border-radius: 999px; padding: 8px 18px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+.a-small { font-family: Georgia,serif; font-size: 13px; font-weight: 700; color: #0a9b8a; line-height: 1; }
+.a-large { font-family: Georgia,serif; font-size: 22px; font-weight: 700; color: #0a9b8a; line-height: 1; }
+.text-slider { -webkit-appearance: none; appearance: none; width: 120px; height: 4px; background: #d1e8d4; border-radius: 999px; outline: none; cursor: pointer; }
+.text-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #0a9b8a; box-shadow: 0 2px 8px rgba(10,155,138,0.4); cursor: pointer; }
+.scale-pct { font-size: 13px; font-weight: 700; color: #6a8e6e; min-width: 38px; }
 
 .hero-banner {
   background: radial-gradient(circle at 92% 20%, #2b7e71 0 160px, transparent 161px),
     linear-gradient(180deg, #0a7468 0%, #07685d 100%);
   color: #f4f8f8;
-  padding: 26px 44px 40px;
+  padding: 190px 44px 40px;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-banner h2 {
@@ -483,6 +591,8 @@ onBeforeUnmount(() => {
   padding: 22px 40px 40px;
   display: grid;
   gap: 22px;
+  position: relative;
+  z-index: 1;
 }
 
 .journey-form-card,
@@ -692,8 +802,13 @@ h3 {
 }
 
 @media (max-width: 980px) {
+  .nav { padding: 16px 18px; }
+  .nav-links { display: none; }
+  .a11y-inner { padding: 10px 18px; }
+
   .hero-banner {
     padding: 24px 18px 30px;
+    margin-top: 132px;
   }
 
   .main-content {

@@ -313,7 +313,6 @@
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useLocationState } from '../composables/useLocationState'
 
 const { setDetectedLocation, setDetectedUnavailable } = useLocationState()
