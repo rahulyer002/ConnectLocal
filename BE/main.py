@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.routers import events, suburbs, landmarks, open_spaces, categories
 from app.routers import resonance, safety, greenspace, journey
-
+from app.routers import journey_google
 settings = get_settings()
 
 app = FastAPI(
@@ -29,7 +29,7 @@ app.include_router(categories.router,  prefix="/api/categories",  tags=["Categor
 
 # ─── Epic 3 — Journey Support ─────────────────────────────────────────────────
 app.include_router(journey.router,     prefix="/api/journey",     tags=["Journey (Epic 3)"])
-
+app.include_router(journey_google.router, prefix="/api/journey/google", tags=["Journey (Google)"])
 # ─── Epic 4 — Resonance Engine ────────────────────────────────────────────────
 app.include_router(resonance.router,   prefix="/api/resonance",   tags=["Resonance (Epic 4)"])
 app.include_router(safety.router,      prefix="/api/safety",      tags=["Safety (Epic 4)"])
