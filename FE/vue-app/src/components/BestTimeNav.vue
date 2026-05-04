@@ -13,9 +13,6 @@
     <div class="bt-nav-links" role="navigation" aria-label="Main navigation">
       <RouterLink to="/home">Home</RouterLink>
       <RouterLink to="/discover">Events</RouterLink>
-      <span class="bt-nav-coming" aria-disabled="true">Places</span>
-      <RouterLink to="/about">About</RouterLink>
-      <RouterLink to="/resources">Resources</RouterLink>
 
       <!-- Best Time with submenu -->
       <div class="bt-nav-dropdown" @mouseenter="openSubmenu" @mouseleave="scheduleClose">

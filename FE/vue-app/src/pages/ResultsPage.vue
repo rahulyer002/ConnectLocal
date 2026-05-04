@@ -17,9 +17,6 @@
       <div class="nav-links" role="navigation" aria-label="Main navigation">
         <RouterLink to="/home">Home</RouterLink>
         <RouterLink to="/discover">Events</RouterLink>
-        <span class="nav-link-coming" aria-disabled="true" role="link">Places</span>
-        <RouterLink to="/about">About</RouterLink>
-        <RouterLink to="/resources">Resources</RouterLink>
         <RouterLink to="/best-time">Best Time</RouterLink>
       </div>
     </nav>

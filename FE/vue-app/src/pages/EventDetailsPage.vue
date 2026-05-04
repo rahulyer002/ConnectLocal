@@ -17,9 +17,7 @@
       <div class="nav-links" role="navigation" aria-label="Main navigation">
         <RouterLink to="/home">Home</RouterLink>
         <RouterLink to="/discover">Events</RouterLink>
-        <span class="nav-link-coming" aria-disabled="true" role="link">Places</span>
-        <RouterLink to="/about">About</RouterLink>
-        <RouterLink to="/resources">Resources</RouterLink>
+
         <RouterLink to="/best-time">Best Time</RouterLink>
       </div>
       <RouterLink to="/checkin" class="nav-cta" aria-label="Start your wellbeing check-in">
@@ -80,47 +78,63 @@
             </svg>
             Back to activities
           </RouterLink>
-
-          <div class="tags">
-            <span class="tag price-tag">{{ priceText }}</span>
-
-            <span v-if="event.category" class="tag category-tag">
-              {{ event.category }}
-            </span>
+          <div class="tags" role="list">
+            <span class="tag tag-price" role="listitem" :style="{ fontSize: scaledPx(13) }">{{ priceText }}</span>
+            <span v-if="event.category" class="tag tag-category" role="listitem" :style="{ fontSize: scaledPx(13) }">{{ event.category }}</span>
           </div>
           <h1 class="hero-title" :style="{ fontSize: scaledPx(64) }">{{ event.name }}</h1>
           <p v-if="event.source" class="hero-organiser" :style="{ fontSize: scaledPx(17) }">by {{ event.source }}</p>
         </div>
       </header>
 
-        <section class="content-section">
-          <article class="info-card">
-            <div class="info-row">
-              <div class="icon-box">📅</div>
-              <div>
-                <p class="label">Date and Time</p>
-                <p class="value">{{ dateTimeText }}</p>
-              </div>
+      <main class="content" id="main-content">
+        <div class="info-card" data-reveal>
+          <div class="info-row">
+            <div class="info-icon mint" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18"/>
+              </svg>
             </div>
-
-            <div class="divider"></div>
-
-            <div class="info-row">
-              <div class="icon-box">📍</div>
-              <div>
-                <p class="label">Venue</p>
-                <p class="value">{{ venueText }}</p>
-              </div>
+            <div>
+              <p class="info-label" :style="{ fontSize: scaledPx(12) }">Date and Time</p>
+              <p class="info-value" :style="{ fontSize: scaledPx(18) }">{{ dateTimeText }}</p>
             </div>
-
-            <div class="divider"></div>
-
-            <div class="info-row">
-              <div class="icon-box">🚶</div>
-              <div>
-                <p class="label">Distance from you</p>
-                <p class="value">{{ distanceText }}</p>
-              </div>
+          </div>
+          <div class="info-divider" aria-hidden="true"></div>
+          <div class="info-row">
+            <div class="info-icon yellow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
+                <circle cx="12" cy="10" r="2.5"/>
+              </svg>
+            </div>
+            <div>
+              <p class="info-label" :style="{ fontSize: scaledPx(12) }">Venue</p>
+              <p class="info-value" :style="{ fontSize: scaledPx(18) }">{{ venueText }}</p>
+            </div>
+          </div>
+          <div class="info-divider" aria-hidden="true"></div>
+          <div class="info-row">
+            <div class="info-icon purple" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+              </svg>
+            </div>
+            <div>
+              <p class="info-label" :style="{ fontSize: scaledPx(12) }">Distance from you</p>
+              <p class="info-value" :style="{ fontSize: scaledPx(18) }">{{ distanceText }}</p>
+            </div>
+          </div>
+          <div class="info-divider" aria-hidden="true"></div>
+          <div class="info-row">
+            <div class="info-icon pink" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
             </div>
             <div>
               <p class="info-label" :style="{ fontSize: scaledPx(12) }">Restrictions</p>
@@ -133,19 +147,10 @@
           <img :src="event.image_url" :alt="event.name" />
         </div>
 
-          <article class="about-card">
-            <p class="label">About this activity</p>
-            <p class="description">
-              {{ event.description || "Activity details are not available yet." }}
-            </p>
-          </article>
-
-          <!-- Action buttons -->
-          <div class="action-buttons">
-            <button class="detail-btn go-btn" type="button" @click="goToJourney">
-              I would like to go — show me how to get there
-            </button>
-          </div>
+        <div class="about-card" data-reveal>
+          <p class="section-label" :style="{ fontSize: scaledPx(12) }">About this activity</p>
+          <p class="about-text" :style="{ fontSize: scaledPx(17) }">{{ event.description || 'Activity details are not available yet.' }}</p>
+        </div>
 
         <div class="actions" data-reveal>
           <a v-if="event.url" class="btn-primary" :href="event.url" target="_blank" rel="noopener noreferrer" :style="{ fontSize: scaledPx(16) }">Open original event page</a>
@@ -158,15 +163,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import MainLayout from "../layouts/MainLayout.vue";
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { useRoute, RouterLink } from 'vue-router'
 
-const route = useRoute();
-const router = useRouter();
-
-const BASE_URL =
-  import.meta.env.VITE_ACTIVITIES_API_URL || "https://connectlocal.duckdns.org";
+const route = useRoute()
+const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || 'https://connectlocal.duckdns.org'
 
 const event = ref(null)
 const isLoading = ref(false)
@@ -234,24 +235,9 @@ const distanceText = computed(() => {
   return distance == null ? 'Distance unavailable' : `${distance.toFixed(1)} km`
 })
 const restrictionsText = computed(() => {
-  if (!event.value) return "No restrictions listed";
-
-  return event.value.restrictions || "No restrictions listed";
-});
-
-const goToJourney = () => {
-  if (!event.value) return;
-
-  const destination =
-    event.value.location_summary ||
-    event.value.address ||
-    venueText.value;
-
-  router.push({
-    path: "/journey",
-    query: destination ? { destination } : {},
-  });
-};
+  if (!event.value) return 'No restrictions listed'
+  return event.value.restrictions || 'No restrictions listed'
+})
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true })
@@ -362,112 +348,33 @@ onBeforeUnmount(() => {
 .image-card.in-view { opacity: 1; transform: none; }
 .image-card img { display: block; width: 100%; max-height: 440px; object-fit: cover; }
 
-.about-card {
-  margin-top: 28px;
-  padding: 40px 44px;
+.about-card { background: white; border: 1px solid rgba(29,113,105,0.12); border-radius: 20px; padding: 36px; box-shadow: 0 8px 28px rgba(0,0,0,0.05); opacity: 0; transform: translateY(24px); transition: opacity 0.7s 0.15s cubic-bezier(0.22,1,0.36,1), transform 0.7s 0.15s cubic-bezier(0.22,1,0.36,1); }
+.about-card.in-view { opacity: 1; transform: none; }
+.section-label { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #0a9b8a; margin-bottom: 14px; }
+.about-text { font-size: 17px; line-height: 1.75; color: #2a4a2e; }
+
+.actions { display: flex; gap: 14px; flex-wrap: wrap; opacity: 0; transform: translateY(24px); transition: opacity 0.7s 0.2s cubic-bezier(0.22,1,0.36,1), transform 0.7s 0.2s cubic-bezier(0.22,1,0.36,1); }
+.actions.in-view { opacity: 1; transform: none; }
+
+.btn-primary { display: inline-flex; align-items: center; gap: 10px; padding: 16px 28px; border-radius: 12px; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; font-size: 16px; font-weight: 700; text-decoration: none; font-family: system-ui,sans-serif; box-shadow: 0 10px 28px rgba(10,155,138,0.28); transition: all 0.3s cubic-bezier(0.22,1,0.36,1); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 36px rgba(10,155,138,0.38); }
+.btn-primary:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
+
+.btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 16px 24px; border-radius: 12px; background: white; border: 1.5px solid rgba(29,113,105,0.2); color: #3a5a3e; font-size: 16px; font-weight: 700; text-decoration: none; font-family: system-ui,sans-serif; transition: all 0.25s; }
+.btn-secondary:hover { border-color: #0a9b8a; color: #0a9b8a; }
+.btn-secondary:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
+
+@media (max-width: 900px) {
+  .nav { padding: 18px 20px; }
+  .nav.scrolled { padding: 14px 20px; }
+  .nav-links { display: none; }
+  .a11y-inner { padding: 10px 20px; }
+  .hero { padding: 40px 20px 60px; margin-top: 140px; }
+  .content { padding: 32px 20px 80px; }
+  .info-card, .about-card { padding: 24px 20px; }
 }
 
-.description {
-  margin: 0;
-  color: #25243b;
-  font-size: calc(28px * var(--font-scale));
-  line-height: 1.65;
-}
-
-/* Action buttons */
-.action-buttons {
-  display: grid;
-  gap: 20px;
-  margin-top: 28px;
-}
-
-.detail-btn {
-  width: 100%;
-  border-radius: 28px;
-  padding: 26px 32px;
-  font-size: calc(26px * var(--font-scale));
-  font-weight: 900;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: transform 0.2s ease, background-color 0.2s ease;
-}
-
-.detail-btn:hover {
-  transform: translateY(-2px);
-}
-
-.go-btn {
-  border: none;
-  background: #ef4b1d;
-  color: #ffffff;
-}
-
-.go-btn:hover {
-  background: #d94117;
-}
-
-.save-btn {
-  background: #ffffff;
-  color: #575770;
-  border: 4px solid #575770;
-}
-
-.save-btn:hover {
-  background: #f2f2f7;
-}
-
-.external-link {
-  display: inline-flex;
-  margin-top: 24px;
-  padding: 16px 24px;
-  border-radius: 999px;
-  background: #06786f;
-  color: #ffffff;
-  font-size: calc(20px * var(--font-scale));
-  font-weight: 900;
-  text-decoration: none;
-}
-
-/* Mobile layout */
-@media (max-width: 768px) {
-  .hero-section {
-    padding: 24px 22px 48px;
-  }
-
-  .content-section {
-    padding: 24px 18px 44px;
-  }
-
-  .info-card {
-    padding: 28px 24px;
-  }
-
-  .info-row {
-    align-items: flex-start;
-    gap: 18px;
-  }
-
-  .icon-box {
-    width: 54px;
-    height: 54px;
-    font-size: calc(24px * var(--font-scale));
-  }
-
-  .value {
-    font-size: calc(23px * var(--font-scale));
-  }
-
-  .about-card {
-    padding: 30px 24px;
-  }
-
-  .description {
-    font-size: calc(23px * var(--font-scale));
-  }
-
-  .detail-btn {
-    padding: 22px 24px;
-    font-size: calc(22px * var(--font-scale));
-  }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 </style>

@@ -22,9 +22,7 @@
       <div class="nav-links">
         <RouterLink to="/home">Home</RouterLink>
         <RouterLink to="/discover">Events</RouterLink>
-        <span class="nav-link-disabled">Places</span>
-        <RouterLink to="/about">About</RouterLink>
-        <RouterLink to="/resources">Resources</RouterLink>
+
         <RouterLink to="/best-time">Best Time</RouterLink>
       </div>
       <RouterLink to="/checkin" class="nav-cta">
