@@ -1,5 +1,5 @@
 <template>
-  <nav class="bt-nav" :class="{ scrolled: scrollY > 60 }" @mouseleave="closeSubmenu">
+  <nav class="bt-nav" @mouseleave="closeSubmenu">
     <div class="bt-nav-brand">
       <div class="bt-nav-logo">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -14,7 +14,6 @@
       <RouterLink to="/home">Home</RouterLink>
       <RouterLink to="/discover">Events</RouterLink>
 
-      <!-- Best Time with submenu -->
       <div class="bt-nav-dropdown" @mouseenter="openSubmenu" @mouseleave="scheduleClose">
         <RouterLink
           to="/best-time"
@@ -32,9 +31,7 @@
         <div v-show="submenuOpen" class="bt-nav-submenu" @mouseenter="cancelClose" @mouseleave="scheduleClose">
           <RouterLink to="/best-time" class="bt-nav-sub" @click="closeSubmenu">
             <span class="bt-nav-sub-icon mint">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </span>
             <span class="bt-nav-sub-text">
               <span class="bt-nav-sub-label">Live score</span>
@@ -43,10 +40,7 @@
           </RouterLink>
           <RouterLink to="/best-time/now" class="bt-nav-sub" @click="closeSubmenu">
             <span class="bt-nav-sub-icon green">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
-                <circle cx="12" cy="10" r="2.5"/>
-              </svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
             </span>
             <span class="bt-nav-sub-text">
               <span class="bt-nav-sub-label">Best spots now</span>
@@ -55,10 +49,7 @@
           </RouterLink>
           <RouterLink to="/best-time/week" class="bt-nav-sub" @click="closeSubmenu">
             <span class="bt-nav-sub-icon yellow">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <path d="M16 2v4M8 2v4M3 10h18"/>
-              </svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
             </span>
             <span class="bt-nav-sub-text">
               <span class="bt-nav-sub-label">Week forecast</span>
@@ -67,9 +58,7 @@
           </RouterLink>
           <RouterLink to="/welcoming-spaces" class="bt-nav-sub" @click="closeSubmenu">
             <span class="bt-nav-sub-icon purple">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-              </svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </span>
             <span class="bt-nav-sub-text">
               <span class="bt-nav-sub-label">Welcoming spaces</span>
@@ -90,10 +79,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-const scrollY = ref(0)
 const submenuOpen = ref(false)
 const route = useRoute()
 let closeTimer = null
@@ -102,37 +90,22 @@ const isBestTimeRoute = computed(() =>
   ['/best-time', '/best-time/now', '/best-time/week', '/welcoming-spaces'].includes(route.path)
 )
 
-function openSubmenu() {
-  cancelClose()
-  submenuOpen.value = true
-}
-function scheduleClose() {
-  cancelClose()
-  closeTimer = setTimeout(() => { submenuOpen.value = false }, 200)
-}
-function cancelClose() {
-  if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
-}
-function closeSubmenu() {
-  cancelClose()
-  submenuOpen.value = false
-}
-function handleScroll() { scrollY.value = window.scrollY }
-
-onMounted(() => window.addEventListener('scroll', handleScroll, { passive: true }))
-onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
-  cancelClose()
-})
+function openSubmenu() { cancelClose(); submenuOpen.value = true }
+function scheduleClose() { cancelClose(); closeTimer = setTimeout(() => { submenuOpen.value = false }, 200) }
+function cancelClose() { if (closeTimer) { clearTimeout(closeTimer); closeTimer = null } }
+function closeSubmenu() { cancelClose(); submenuOpen.value = false }
 </script>
 
 <style scoped>
 .bt-nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 24px 52px; transition: background 0.4s, padding 0.4s, box-shadow 0.4s;
+  padding: 16px 52px;
+  background: rgba(242, 250, 240, 0.92);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(29, 113, 105, 0.12);
+  box-shadow: 0 1px 0 rgba(29,113,105,0.06);
 }
-.bt-nav.scrolled { background: rgba(242,250,240,0.9); backdrop-filter: blur(18px); padding: 16px 52px; box-shadow: 0 1px 0 rgba(29,113,105,0.12); }
 
 .bt-nav-brand { display: flex; align-items: center; gap: 12px; }
 .bt-nav-logo { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
@@ -203,8 +176,7 @@ onBeforeUnmount(() => {
 .bt-nav-cta:hover { background: #0a9b8a; color: white; }
 
 @media (max-width: 1000px) {
-  .bt-nav { padding: 18px 20px; }
-  .bt-nav.scrolled { padding: 14px 20px; }
+  .bt-nav { padding: 12px 20px; }
   .bt-nav-links { display: none; }
 }
 </style>

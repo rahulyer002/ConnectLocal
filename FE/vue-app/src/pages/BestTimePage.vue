@@ -4,29 +4,8 @@
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
 
-    <BestTimeNav />
-
-    <div class="a11y-bar" role="region" aria-label="Accessibility options">
-      <div class="a11y-inner">
-        <div class="text-size-control" role="group" aria-label="Adjust text size">
-          <span class="a-small" aria-hidden="true">A</span>
-          <input
-            type="range" class="text-slider"
-            min="90" max="140" step="5"
-            v-model.number="textScale"
-            aria-label="Text size"
-            :aria-valuenow="textScale"
-            :aria-valuetext="`Text size ${textScale}%`"
-          />
-          <span class="a-large" aria-hidden="true">A</span>
-          <span class="scale-pct" aria-hidden="true">{{ textScale }}%</span>
-        </div>
-      </div>
-    </div>
-
     <BestTimeLocationBar />
 
-    <!-- Hero -->
     <section class="hero">
       <div class="hero-bg-word" aria-hidden="true">TIMING</div>
       <div class="hero-inner">
@@ -44,7 +23,6 @@
       </div>
     </section>
 
-    <!-- Empty state -->
     <section v-if="!store.locationReady" class="empty-band">
       <div class="empty-card">
         <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="#0a9b8a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -56,7 +34,6 @@
       </div>
     </section>
 
-    <!-- Dashboard -->
     <section v-else class="dashboard-band" data-reveal>
       <div class="dashboard-inner">
         <div v-if="store.loadingScore && !store.scoreResult" class="dash-loading">
@@ -127,7 +104,6 @@
       </div>
     </section>
 
-    <!-- Safety strip -->
     <div
       v-if="store.locationReady && store.safetyConditions"
       class="safety-strip"
@@ -143,7 +119,6 @@
       </div>
     </div>
 
-    <!-- Quietest times -->
     <section v-if="store.locationReady && store.bestTimesResult?.best_times?.length" class="quiet-band" data-reveal>
       <div class="quiet-inner">
         <div class="quiet-header">
@@ -184,7 +159,6 @@
       </div>
     </section>
 
-    <!-- CTA strip -->
     <section v-if="store.locationReady" class="cta-band" data-reveal>
       <div class="cta-inner">
         <RouterLink to="/best-time/now" class="cta-card cta-primary">
@@ -230,18 +204,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { resonanceStore } from '../stores/resonanceStore'
+import { uiStore } from '../stores/uiStore'
 import { useResonanceApi } from '../composables/useResonanceApi'
-import BestTimeNav from '../components/BestTimeNav.vue'
 import BestTimeLocationBar from '../components/BestTimeLocationBar.vue'
 
 const store = resonanceStore
 const { fetchScore, fetchSafety, fetchBestTimes } = useResonanceApi()
-
-const textScale = ref(100)
-const scaledPx = (base) => `${(base * textScale.value) / 100}px`
+const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
 const gradeColor = computed(() => {
   const score = store.scoreResult?.resonance_score ?? 0
@@ -332,37 +304,13 @@ onBeforeUnmount(() => {
 .orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 10%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
-/* A11y bar — sits BETWEEN nav (top 0) and location bar (top 86) */
-.a11y-bar {
-  position: fixed; top: 86px; right: 0; left: 0; z-index: 95;
-  background: rgba(255,255,255,0.92); backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(29,113,105,0.08);
-}
-.a11y-inner { display: flex; align-items: center; justify-content: flex-end; padding: 8px 52px; }
-.text-size-control { display: inline-flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.9); border: 1.5px solid rgba(29,113,105,0.18); border-radius: 999px; padding: 6px 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
-.a-small { font-family: Georgia,serif; font-size: 12px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.a-large { font-family: Georgia,serif; font-size: 19px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.text-slider { -webkit-appearance: none; appearance: none; width: 110px; height: 4px; background: #d1e8d4; border-radius: 999px; outline: none; cursor: pointer; }
-.text-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #0a9b8a; box-shadow: 0 2px 8px rgba(10,155,138,0.4); cursor: pointer; }
-.scale-pct { font-size: 12px; font-weight: 700; color: #6a8e6e; min-width: 34px; }
-
-/* Important: the BestTimeLocationBar component is fixed at top:86 in its own scoped CSS.
-   The a11y bar above also sits at top:86. To stack them, override here: */
-:global(.bt-loc-bar) { top: 130px !important; }
-
-/* Hero — top padding accounts for: nav(86) + a11y(~38) + locbar(~62) ≈ 186 */
 .hero {
   position: relative; overflow: hidden;
   background: linear-gradient(160deg, #e4f5e0 0%, #c8edc8 100%);
   padding: 220px 52px 80px;
   border-bottom: 1px solid rgba(29,113,105,0.12);
 }
-.hero-bg-word {
-  position: absolute; right: -2%; top: 50%; transform: translateY(-50%);
-  font-family: Georgia,serif; font-size: clamp(140px, 20vw, 280px);
-  font-weight: 700; font-style: italic; color: rgba(10,155,138,0.085);
-  white-space: nowrap; pointer-events: none; user-select: none; letter-spacing: -0.04em;
-}
+.hero-bg-word { position: absolute; right: -2%; top: 50%; transform: translateY(-50%); font-family: Georgia,serif; font-size: clamp(140px, 20vw, 280px); font-weight: 700; font-style: italic; color: rgba(10,155,138,0.085); white-space: nowrap; pointer-events: none; user-select: none; letter-spacing: -0.04em; }
 .hero-inner { position: relative; z-index: 2; max-width: 1500px; margin: 0 auto; }
 .hero-eyebrow { display: inline-flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #0a9b8a; margin-bottom: 22px; }
 .eyebrow-line { display: block; width: 32px; height: 1px; background: #0a9b8a; }
@@ -370,7 +318,6 @@ onBeforeUnmount(() => {
 .hero-headline em { color: #0a9b8a; font-style: italic; }
 .hero-sub { font-family: system-ui,sans-serif; font-size: 18px; color: #4a6a4e; line-height: 1.6; max-width: 720px; }
 
-/* Empty band */
 .empty-band { padding: 60px 52px 100px; }
 .empty-card {
   display: flex; flex-direction: column; align-items: center; gap: 16px;
@@ -382,7 +329,6 @@ onBeforeUnmount(() => {
 .empty-card h3 { font-family: Georgia,serif; color: #0f1e12; font-weight: 700; }
 .empty-card p { font-family: system-ui,sans-serif; color: #4a6a4e; line-height: 1.6; }
 
-/* Dashboard band */
 .dashboard-band {
   background: white;
   border-bottom: 1px solid rgba(29,113,105,0.1);
@@ -426,7 +372,6 @@ onBeforeUnmount(() => {
 .w-num { font-family: Georgia,serif; font-weight: 700; color: #0f1e12; line-height: 1; }
 .w-label { font-family: system-ui,sans-serif; color: #6a8e6e; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 
-/* Safety strip */
 .safety-strip { padding: 16px 52px; border-bottom: 1px solid rgba(29,113,105,0.08); }
 .safety-inner { max-width: 1500px; margin: 0 auto; display: flex; align-items: flex-start; gap: 12px; }
 .safety-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex-shrink: 0; margin-top: 6px; }
@@ -437,7 +382,6 @@ onBeforeUnmount(() => {
 .verdict-poor    { background: #ffeaea; color: #c44a2c; }
 .verdict-unknown { background: #f0f0f8; color: #4a6a4e; }
 
-/* Quiet band */
 .quiet-band {
   background: linear-gradient(180deg, #faf8f0 0%, #f4f8e8 100%);
   padding: 90px 52px;
@@ -484,7 +428,6 @@ onBeforeUnmount(() => {
 .crowd-unknown { background: #f0f0f8; color: #6a8e6e; }
 .tile-count { font-family: system-ui,sans-serif; color: #8aaa8e; font-weight: 600; }
 
-/* CTA band */
 .cta-band {
   background: linear-gradient(180deg, #e4f5e0 0%, #c8edc8 100%);
   padding: 70px 52px 90px;
@@ -519,7 +462,6 @@ onBeforeUnmount(() => {
   .cta-card:first-child { grid-column: 1 / -1; }
 }
 @media (max-width: 980px) {
-  .a11y-inner { padding: 8px 20px; }
   .hero { padding: 280px 20px 60px; }
   .empty-band { padding: 40px 20px 80px; }
   .dashboard-band { padding: 48px 20px; }

@@ -28,28 +28,7 @@
       </RouterLink>
     </nav>
 
-    <div class="a11y-bar" role="region" aria-label="Accessibility options">
-      <div class="a11y-inner">
-        <div class="text-size-control" role="group" aria-label="Adjust text size">
-          <span class="a-small" aria-hidden="true">A</span>
-          <input
-            type="range"
-            class="text-slider"
-            min="90"
-            max="140"
-            step="5"
-            v-model.number="textScale"
-            aria-label="Text size"
-            aria-valuemin="90"
-            aria-valuemax="140"
-            :aria-valuenow="textScale"
-            :aria-valuetext="`Text size ${textScale}%`"
-          />
-          <span class="a-large" aria-hidden="true">A</span>
-          <span class="scale-pct" aria-hidden="true">{{ textScale }}%</span>
-        </div>
-      </div>
-    </div>
+
 
     <div v-if="isLoading" class="state-wrap">
       <div class="state-card" role="status" aria-live="polite">
@@ -173,8 +152,8 @@ const event = ref(null)
 const isLoading = ref(false)
 const loadError = ref('')
 const scrollY = ref(0)
-const textScale = ref(100)
-const scaledPx = (base) => `${(base * textScale.value) / 100}px`
+import { uiStore } from '../stores/uiStore'
+const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 const handleScroll = () => { scrollY.value = window.scrollY }
 
 let observer = null
@@ -286,27 +265,6 @@ onBeforeUnmount(() => {
 .nav-cta:hover { background: #0a9b8a; color: white; }
 .nav-cta:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
 
-.a11y-bar {
-  position: fixed; top: 86px; right: 0; left: 0; z-index: 90;
-  background: rgba(255,255,255,0.92); backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(29,113,105,0.1);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-}
-.a11y-inner { display: flex; align-items: center; justify-content: flex-end; padding: 10px 52px; }
-.text-size-control {
-  display: inline-flex; align-items: center; gap: 12px;
-  background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(29,113,105,0.18); border-radius: 999px; padding: 8px 18px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-}
-.a-small { font-family: Georgia,serif; font-size: 13px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.a-large { font-family: Georgia,serif; font-size: 22px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.text-slider { -webkit-appearance: none; appearance: none; width: 120px; height: 4px; background: #d1e8d4; border-radius: 999px; outline: none; cursor: pointer; }
-.text-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #0a9b8a; box-shadow: 0 2px 8px rgba(10,155,138,0.4); cursor: pointer; transition: transform 0.2s; }
-.text-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
-.text-slider:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
-.scale-pct { font-size: 13px; font-weight: 700; color: #6a8e6e; min-width: 38px; }
-
 .state-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
 .state-card { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; background: white; border: 1px solid rgba(29,113,105,0.12); border-radius: 20px; padding: 60px 40px; max-width: 480px; width: 100%; color: #4a6a4e; font-size: 18px; font-weight: 500; }
 .state-error { border-color: rgba(180,50,50,0.2); color: #8b2020; }
@@ -368,8 +326,7 @@ onBeforeUnmount(() => {
   .nav { padding: 18px 20px; }
   .nav.scrolled { padding: 14px 20px; }
   .nav-links { display: none; }
-  .a11y-inner { padding: 10px 20px; }
-  .hero { padding: 40px 20px 60px; margin-top: 140px; }
+  .hero { padding: 40px 20px 60px; margin-top: 160px; }
   .content { padding: 32px 20px 80px; }
   .info-card, .about-card { padding: 24px 20px; }
 }

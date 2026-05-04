@@ -4,22 +4,8 @@
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
 
-    <BestTimeNav />
-
-    <div class="a11y-bar">
-      <div class="a11y-inner">
-        <div class="text-size-control">
-          <span class="a-small">A</span>
-          <input type="range" class="text-slider" min="90" max="140" step="5" v-model.number="textScale" aria-label="Text size" />
-          <span class="a-large">A</span>
-          <span class="scale-pct">{{ textScale }}%</span>
-        </div>
-      </div>
-    </div>
-
     <BestTimeLocationBar />
 
-    <!-- Hero -->
     <section class="hero">
       <div class="hero-bg-word" aria-hidden="true">FORECAST</div>
       <div class="hero-inner">
@@ -37,7 +23,6 @@
         </p>
       </div>
 
-      <!-- Best window callout floats over hero -->
       <div v-if="store.locationReady && quietestDay" class="best-window-callout">
         <div class="bw-icon">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -53,7 +38,6 @@
       </div>
     </section>
 
-    <!-- Empty / loading -->
     <section v-if="!store.locationReady" class="empty-band">
       <div class="empty-card">
         <h3 :style="{ fontSize: scaledPx(24) }">Set your location to see your forecast</h3>
@@ -68,7 +52,6 @@
       </section>
 
       <template v-else-if="store.forecastResult">
-        <!-- Heatmap -->
         <section class="heatmap-band" data-reveal>
           <div class="heatmap-inner">
             <div class="heatmap-header">
@@ -82,13 +65,11 @@
             </div>
 
             <div class="heatmap-wrap">
-              <!-- Hour axis -->
               <div class="heat-grid axis-row">
                 <div class="day-spacer"></div>
                 <span v-for="h in displayHours" :key="`hh-${h}`" class="hour-label">{{ formatHour(h) }}</span>
               </div>
 
-              <!-- Day rows -->
               <div v-for="day in forecastDays" :key="day" class="heat-grid day-row">
                 <div class="day-label">{{ day.slice(0, 3) }}</div>
                 <button
@@ -106,7 +87,6 @@
                 </button>
               </div>
 
-              <!-- Gradient legend -->
               <div class="legend-row">
                 <div class="day-spacer"></div>
                 <div class="legend-content">
@@ -117,7 +97,6 @@
               </div>
             </div>
 
-            <!-- Selected cell detail -->
             <div v-if="selectedCell" class="cell-detail">
               <div class="cd-icon">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -141,7 +120,6 @@
           </div>
         </section>
 
-        <!-- Quietest day + Green spaces -->
         <section class="cream-band" data-reveal>
           <div class="cream-inner">
             <div class="cream-grid">
@@ -200,7 +178,6 @@
         </div>
       </section>
 
-      <!-- Bottom nav -->
       <section class="bottom-nav-band">
         <div class="bottom-nav-inner">
           <RouterLink to="/best-time" class="bnav-btn">
@@ -225,15 +202,14 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { resonanceStore } from '../stores/resonanceStore'
+import { uiStore } from '../stores/uiStore'
 import { useResonanceApi } from '../composables/useResonanceApi'
-import BestTimeNav from '../components/BestTimeNav.vue'
 import BestTimeLocationBar from '../components/BestTimeLocationBar.vue'
 
 const store = resonanceStore
 const { fetchForecast, fetchGreenSpaces } = useResonanceApi()
+const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
-const textScale = ref(100)
-const scaledPx = (base) => `${(base * textScale.value) / 100}px`
 const selectedCell = ref(null)
 const displayHours = Array.from({ length: 13 }, (_, i) => i + 8)
 
@@ -254,7 +230,6 @@ function selectCell(day, hour) {
 }
 function isBestCell(day, hour) { return quietestDay.value?.day === day && quietestDay.value?.hour === hour }
 
-// Max count for normalization
 const maxCount = computed(() => {
   let m = 1
   for (const day of forecastDays.value) {
@@ -266,16 +241,14 @@ const maxCount = computed(() => {
   return m
 })
 
-// New gradient — earthy and brand-aligned
 function countToColor(count) {
   const t = Math.min(count / maxCount.value, 1)
-  // 5 stops: deep teal → sage → soft amber → coral → terracotta
   const stops = [
-    [10, 110, 98],    // 0.00 deep teal (quietest)
-    [86, 154, 102],   // 0.25 sage green
-    [212, 168, 84],   // 0.50 soft amber
-    [196, 110, 76],   // 0.75 coral
-    [156, 60, 50],    // 1.00 terracotta (busiest)
+    [10, 110, 98],
+    [86, 154, 102],
+    [212, 168, 84],
+    [196, 110, 76],
+    [156, 60, 50],
   ]
   const seg = t * (stops.length - 1)
   const lo  = Math.floor(seg)
@@ -365,18 +338,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 .orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 5%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
-.a11y-bar { position: fixed; top: 86px; right: 0; left: 0; z-index: 95; background: rgba(255,255,255,0.92); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(29,113,105,0.08); }
-.a11y-inner { display: flex; align-items: center; justify-content: flex-end; padding: 8px 52px; }
-.text-size-control { display: inline-flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.9); border: 1.5px solid rgba(29,113,105,0.18); border-radius: 999px; padding: 6px 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
-.a-small { font-family: Georgia,serif; font-size: 12px; font-weight: 700; color: #0a9b8a; }
-.a-large { font-family: Georgia,serif; font-size: 19px; font-weight: 700; color: #0a9b8a; }
-.text-slider { -webkit-appearance: none; appearance: none; width: 110px; height: 4px; background: #d1e8d4; border-radius: 999px; outline: none; cursor: pointer; }
-.text-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #0a9b8a; cursor: pointer; }
-.scale-pct { font-size: 12px; font-weight: 700; color: #6a8e6e; min-width: 34px; }
-
-:global(.bt-loc-bar) { top: 130px !important; }
-
-/* Hero — deeper teal */
 .hero {
   position: relative; overflow: hidden;
   background: linear-gradient(160deg, #0a9b8a 0%, #056b5e 100%);
@@ -420,7 +381,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 .loading-band p { font-family: system-ui,sans-serif; color: #4a6a4e; font-weight: 600; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Heatmap band */
 .heatmap-band {
   background: white;
   padding: 90px 52px;
@@ -479,7 +439,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 
 .data-note { margin-top: 18px; font-family: system-ui,sans-serif; font-size: 12px; color: #8aaa8e; font-style: italic; }
 
-/* Cream band */
 .cream-band {
   background: linear-gradient(180deg, #faf8f0 0%, #f4f8e8 100%);
   padding: 90px 52px;
@@ -536,7 +495,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 .comfort-fill.mid  { background: linear-gradient(90deg, #d4a854, #b88a00); }
 .comfort-fill.low  { background: #c44a2c; }
 
-/* Bottom nav */
 .bottom-nav-band { padding: 50px 52px 80px; }
 .bottom-nav-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 .bnav-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 18px 24px; border-radius: 14px; background: white; border: 1.5px solid rgba(29,113,105,0.2); color: #1a2e1e; font-family: system-ui,sans-serif; font-weight: 700; text-decoration: none; transition: all 0.25s; }
@@ -550,7 +508,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 }
 @media (max-width: 980px) {
   .hero { padding: 280px 20px 140px; }
-  .a11y-inner { padding: 8px 20px; }
   .heatmap-band, .cream-band { padding: 60px 20px; }
   .empty-band, .loading-band { padding: 80px 20px 60px; }
   .space-row { grid-template-columns: 36px 1fr 90px; gap: 10px; padding: 12px; }

@@ -4,22 +4,8 @@
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
 
-    <BestTimeNav />
-
-    <div class="a11y-bar">
-      <div class="a11y-inner">
-        <div class="text-size-control">
-          <span class="a-small">A</span>
-          <input type="range" class="text-slider" min="90" max="140" step="5" v-model.number="textScale" aria-label="Text size" />
-          <span class="a-large">A</span>
-          <span class="scale-pct">{{ textScale }}%</span>
-        </div>
-      </div>
-    </div>
-
     <BestTimeLocationBar />
 
-    <!-- Hero: split pane -->
     <section class="hero">
       <div class="hero-bg-word" aria-hidden="true">SPOTS</div>
       <div class="hero-inner">
@@ -38,7 +24,6 @@
           </p>
         </div>
 
-        <!-- Conditions snapshot card -->
         <div v-if="store.locationReady && store.safetyConditions" class="snapshot-card">
           <p class="snapshot-label">Conditions right now</p>
           <div class="snapshot-verdict" :class="`verdict-${(store.safetyConditions.conditions?.safety_verdict || 'unknown').toLowerCase()}`">
@@ -63,7 +48,6 @@
       </div>
     </section>
 
-    <!-- Empty state -->
     <section v-if="!store.locationReady" class="empty-band">
       <div class="empty-card">
         <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="#0a9b8a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
@@ -73,7 +57,6 @@
     </section>
 
     <template v-else>
-      <!-- Loading -->
       <section v-if="store.loadingGoNow && !store.goNowResult" class="loading-band">
         <div class="loading-inner">
           <div class="big-spinner" aria-hidden="true"></div>
@@ -82,7 +65,6 @@
       </section>
 
       <template v-else-if="recommendations.length">
-        <!-- Meta strip -->
         <div class="meta-strip">
           <div class="meta-inner">
             <span class="meta-pill" v-if="store.goNowResult?.generated_at">
@@ -95,7 +77,6 @@
           </div>
         </div>
 
-        <!-- Featured #1 -->
         <section class="featured-band" data-reveal>
           <div class="featured-inner">
             <div class="featured-rank-badge">
@@ -146,7 +127,6 @@
                 </span>
               </div>
 
-              <!-- Toilet detail -->
               <div v-if="recommendations[0].has_toilet_nearby && nearestToilet" class="detail-row toilet-detail">
                 <div class="detail-icon mint">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -166,7 +146,6 @@
                 </div>
               </div>
 
-              <!-- Transport -->
               <div v-if="nearbyStops.length" class="transport-block">
                 <p class="transport-label">Nearby transport</p>
                 <div class="transport-list">
@@ -189,7 +168,6 @@
           </div>
         </section>
 
-        <!-- Runners-up #2 and #3 -->
         <section v-if="recommendations.length > 1" class="runners-band" data-reveal>
           <div class="runners-inner">
             <h2 class="runners-heading" :style="{ fontSize: scaledPx(28) }">Other great options</h2>
@@ -229,7 +207,6 @@
         </section>
       </template>
 
-      <!-- No results -->
       <section v-else class="empty-band">
         <div class="empty-card">
           <h3 :style="{ fontSize: scaledPx(24) }">No spots found nearby</h3>
@@ -237,7 +214,6 @@
         </div>
       </section>
 
-      <!-- Bottom nav strip -->
       <section class="bottom-nav-band">
         <div class="bottom-nav-inner">
           <RouterLink to="/best-time" class="bnav-btn">
@@ -255,19 +231,17 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { resonanceStore } from '../stores/resonanceStore'
+import { uiStore } from '../stores/uiStore'
 import { useResonanceApi } from '../composables/useResonanceApi'
-import BestTimeNav from '../components/BestTimeNav.vue'
 import BestTimeLocationBar from '../components/BestTimeLocationBar.vue'
 
 const store = resonanceStore
 const router = useRouter()
 const { fetchGoNow, fetchSafety, fetchToilets, fetchNearbyStops } = useResonanceApi()
-
-const textScale = ref(100)
-const scaledPx = (base) => `${(base * textScale.value) / 100}px`
+const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
 const recommendations = computed(() => store.goNowResult?.recommendations ?? [])
 const nearbyStops     = computed(() => store.nearbyStops ?? [])
@@ -330,19 +304,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 .orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 5%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
-/* a11y bar */
-.a11y-bar { position: fixed; top: 86px; right: 0; left: 0; z-index: 95; background: rgba(255,255,255,0.92); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(29,113,105,0.08); }
-.a11y-inner { display: flex; align-items: center; justify-content: flex-end; padding: 8px 52px; }
-.text-size-control { display: inline-flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.9); border: 1.5px solid rgba(29,113,105,0.18); border-radius: 999px; padding: 6px 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
-.a-small { font-family: Georgia,serif; font-size: 12px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.a-large { font-family: Georgia,serif; font-size: 19px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.text-slider { -webkit-appearance: none; appearance: none; width: 110px; height: 4px; background: #d1e8d4; border-radius: 999px; outline: none; cursor: pointer; }
-.text-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #0a9b8a; cursor: pointer; }
-.scale-pct { font-size: 12px; font-weight: 700; color: #6a8e6e; min-width: 34px; }
-
-:global(.bt-loc-bar) { top: 130px !important; }
-
-/* Hero */
 .hero {
   position: relative; overflow: hidden;
   background: linear-gradient(160deg, #e4f5e0 0%, #c8edc8 100%);
@@ -381,7 +342,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 .snap-lbl { font-family: system-ui,sans-serif; font-size: 11px; color: #6a8e6e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 .snap-divider { width: 1px; height: 36px; background: rgba(29,113,105,0.18); }
 
-/* Empty / loading */
 .empty-band { padding: 60px 52px 100px; }
 .empty-card { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; max-width: 600px; margin: 0 auto; padding: 70px 40px; background: white; border: 1px solid rgba(29,113,105,0.12); border-radius: 24px; box-shadow: 0 8px 28px rgba(0,0,0,0.04); }
 .empty-card h3 { font-family: Georgia,serif; color: #0f1e12; font-weight: 700; }
@@ -393,12 +353,10 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-inner p { font-family: system-ui,sans-serif; color: #4a6a4e; font-weight: 600; }
 
-/* Meta strip */
 .meta-strip { background: white; border-bottom: 1px solid rgba(29,113,105,0.08); padding: 14px 52px; }
 .meta-inner { max-width: 1500px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px; }
 .meta-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: #f0faf0; border: 1px solid rgba(10,155,138,0.18); border-radius: 999px; color: #1d7169; font-family: system-ui,sans-serif; font-size: 12px; font-weight: 700; }
 
-/* Featured */
 .featured-band {
   background: white;
   padding: 64px 52px;
@@ -474,7 +432,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 .get-there-btn.outline { background: white; color: #0a9b8a; border: 1.5px solid rgba(10,155,138,0.3); font-size: 14px; padding: 12px 22px; }
 .get-there-btn.outline:hover { background: #0a9b8a; color: white; border-color: #0a9b8a; }
 
-/* Runners */
 .runners-band {
   background: linear-gradient(180deg, #faf8f0 0%, #f4f8e8 100%);
   padding: 80px 52px;
@@ -512,7 +469,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 .runner-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .info-tag-sm { padding: 4px 10px; border-radius: 999px; font-family: system-ui,sans-serif; font-size: 11px; font-weight: 700; }
 
-/* Bottom nav */
 .bottom-nav-band { padding: 50px 52px 80px; }
 .bottom-nav-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .bnav-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 18px 24px; border-radius: 14px; background: white; border: 1.5px solid rgba(29,113,105,0.2); color: #1a2e1e; font-family: system-ui,sans-serif; font-weight: 700; text-decoration: none; transition: all 0.25s; }
@@ -527,7 +483,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 }
 @media (max-width: 980px) {
   .hero { padding: 280px 20px 60px; }
-  .a11y-inner { padding: 8px 20px; }
   .meta-strip { padding: 12px 20px; }
   .featured-band, .runners-band { padding: 50px 20px; }
   .empty-band, .loading-band { padding: 40px 20px 80px; }

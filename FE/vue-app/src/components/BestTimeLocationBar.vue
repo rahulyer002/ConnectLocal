@@ -1,5 +1,5 @@
 <template>
-  <div class="bt-loc-bar" :class="{ scrolled: scrolledPast }" ref="rootRef">
+  <div class="bt-loc-bar" ref="rootRef">
     <div class="bt-loc-inner">
       <div class="bt-loc-search-wrap">
         <svg class="bt-loc-pin" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -58,24 +58,14 @@
       </div>
 
       <div class="bt-loc-actions">
-        <button
-          type="button"
-          class="bt-loc-btn locate"
-          :disabled="isLocating"
-          @click="locateMe"
-        >
+        <button type="button" class="bt-loc-btn locate" :disabled="isLocating" @click="locateMe">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3"/>
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
           </svg>
           {{ isLocating ? 'Locating…' : 'Locate me' }}
         </button>
-        <button
-          type="button"
-          class="bt-loc-btn search"
-          :disabled="!locationInput.trim() || isSearching"
-          @click="submitSearch"
-        >
+        <button type="button" class="bt-loc-btn search" :disabled="!locationInput.trim() || isSearching" @click="submitSearch">
           Search
         </button>
       </div>
@@ -106,7 +96,6 @@ const isLocating = ref(false)
 const locationError = ref('')
 const activeIndex = ref(-1)
 const noResultsHint = ref(false)
-const scrolledPast = ref(false)
 const rootRef = ref(null)
 const inputRef = ref(null)
 let debounceTimer = null
@@ -237,31 +226,21 @@ function handleOutsideClick(e) {
   }
 }
 
-function handleScroll() {
-  scrolledPast.value = window.scrollY > 60
-}
-
-onMounted(() => {
-  document.addEventListener('mousedown', handleOutsideClick)
-  window.addEventListener('scroll', handleScroll, { passive: true })
-})
+onMounted(() => { document.addEventListener('mousedown', handleOutsideClick) })
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleOutsideClick)
-  window.removeEventListener('scroll', handleScroll)
   clearTimeout(debounceTimer)
 })
 </script>
 
 <style scoped>
 .bt-loc-bar {
-  position: fixed; top: 86px; left: 0; right: 0; z-index: 80;
+  position: fixed; top: 130px; left: 0; right: 0; z-index: 80;
   background: rgba(255,255,255,0.94); backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(29,113,105,0.12);
   box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-  transition: padding 0.3s, box-shadow 0.3s;
-  padding: 12px 0;
+  padding: 10px 0;
 }
-.bt-loc-bar.scrolled { box-shadow: 0 6px 20px rgba(0,0,0,0.07); padding: 8px 0; }
 
 .bt-loc-inner {
   max-width: 1500px; margin: 0 auto;

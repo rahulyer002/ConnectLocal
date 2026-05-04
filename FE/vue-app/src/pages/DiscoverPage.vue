@@ -123,47 +123,6 @@
       </div>
     </section>
 
-    <!-- ═══ ACCESSIBILITY TOOLBAR ═══ -->
-    <div class="a11y-bar" role="region" aria-label="Accessibility options">
-      <div class="a11y-inner">
-        <div class="a11y-left">
-          <span class="results-count" aria-live="polite" aria-atomic="true">
-            <strong :style="{ fontSize: scaledPx(28) }">{{ totalCount }}</strong>
-            <span :style="{ fontSize: scaledPx(15) }">activities found</span>
-          </span>
-        </div>
-        <div class="a11y-right">
-          <div class="text-size-control" role="group" aria-label="Adjust text size">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <text x="4" y="17" font-size="12" fill="currentColor" stroke="none">A</text>
-              <text x="12" y="19" font-size="16" fill="currentColor" stroke="none">A</text>
-            </svg>
-            <input
-              type="range"
-              class="text-slider"
-              min="90"
-              max="140"
-              step="5"
-              v-model.number="textScale"
-              aria-label="Text size"
-              aria-valuemin="90"
-              aria-valuemax="140"
-              :aria-valuenow="textScale"
-              :aria-valuetext="`Text size ${textScale}%`"
-            />
-            <span class="text-scale-label" :style="{ fontSize: scaledPx(13) }" aria-hidden="true">{{ textScale }}%</span>
-          </div>
-          <button class="print-btn" type="button" @click="printList" :style="{ fontSize: scaledPx(14) }" aria-label="Print activity list">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-              <rect x="6" y="14" width="12" height="8"/>
-            </svg>
-            Print list
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- ═══ ACTIVITY LIST ═══ -->
     <main class="activity-list" id="main-content">
 
@@ -338,9 +297,8 @@ const locationLon = ref(null)
 const locationQueryMode = ref('suburb')
 const totalHint = ref(null)
 const scrollY = ref(0)
-const textScale = ref(100)
-
-const scaledPx = (base) => `${(base * textScale.value) / 100}px`
+import { uiStore } from '../stores/uiStore'
+const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
 const activeFilters = reactive({ free: true, thisWeek: true, closeHome: true })
 const chips = [
@@ -648,14 +606,6 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 .chip.active { background: #0a9b8a; border-color: #0a9b8a; color: white; }
 .chip:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 2px; }
 
-/* A11y bar */
-.a11y-bar {
-  position: sticky; top: 70px; z-index: 50;
-  background: rgba(255,255,255,0.88); backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(29,113,105,0.1);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-}
-.a11y-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 52px; gap: 20px; flex-wrap: wrap; }
 .a11y-left { display: flex; align-items: baseline; gap: 8px; }
 .results-count { display: flex; align-items: baseline; gap: 8px; }
 .results-count strong { font-family: Georgia,serif; font-size: 28px; color: #0a9b8a; line-height: 1; }
@@ -663,26 +613,6 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 
 .a11y-right { display: flex; align-items: center; gap: 20px; }
 
-.text-size-control {
-  display: flex; align-items: center; gap: 10px;
-  background: #f0faf0; border: 1px solid rgba(29,113,105,0.15);
-  border-radius: 10px; padding: 8px 14px;
-}
-.text-size-control svg { color: #0a9b8a; flex-shrink: 0; }
-.text-slider {
-  -webkit-appearance: none; appearance: none;
-  width: 100px; height: 4px;
-  background: linear-gradient(to right, #0a9b8a calc((var(--val,100) - 90) / 50 * 100%), #d1e8d4 0%);
-  border-radius: 999px; outline: none; cursor: pointer;
-}
-.text-slider::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 18px; height: 18px;
-  border-radius: 50%; background: #0a9b8a;
-  box-shadow: 0 2px 8px rgba(10,155,138,0.35);
-  cursor: pointer; transition: transform 0.2s;
-}
-.text-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-.text-slider:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
 .text-scale-label { font-size: 13px; color: #6a8e6e; font-weight: 700; min-width: 36px; }
 
 .print-btn {
@@ -777,7 +707,6 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
   .nav.scrolled { padding: 14px 20px; }
   .nav-links { display: none; }
   .hero { padding: 120px 20px 60px; }
-  .a11y-inner { padding: 12px 20px; }
   .activity-list { padding: 28px 20px 60px; }
   .event-card { padding: 20px; }
   .card-foot { flex-direction: column; align-items: flex-start; }
@@ -789,7 +718,7 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 }
 
 @media print {
-  .nav, .a11y-bar, .hero, .pagination, .noise, .orb { display: none !important; }
+  .nav, .hero, .pagination, .noise, .orb { display: none !important; }
   .activity-list { padding: 0; }
   .event-card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
 }

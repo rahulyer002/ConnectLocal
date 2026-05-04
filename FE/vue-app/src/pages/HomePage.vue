@@ -28,28 +28,7 @@
       </RouterLink>
     </nav>
 
-    <div class="a11y-bar" role="region" aria-label="Accessibility options">
-      <div class="a11y-inner">
-        <div class="text-size-control" role="group" aria-label="Adjust text size">
-          <span class="a-small" aria-hidden="true">A</span>
-          <input
-            type="range"
-            class="text-slider"
-            min="90"
-            max="140"
-            step="5"
-            v-model.number="textScale"
-            aria-label="Text size"
-            aria-valuemin="90"
-            aria-valuemax="140"
-            :aria-valuenow="textScale"
-            :aria-valuetext="`Text size ${textScale}%`"
-          />
-          <span class="a-large" aria-hidden="true">A</span>
-          <span class="scale-pct" aria-hidden="true">{{ textScale }}%</span>
-        </div>
-      </div>
-    </div>
+   
 
     <section class="hero">
       <div
@@ -489,8 +468,8 @@ const selectOpen = ref(false)
 const scrollY = ref(0)
 const mouse = ref({ x: 0, y: 0 })
 const animatedCount = ref(1)
-const textScale = ref(100)
-const scaledPx = (base) => `${(base * textScale.value) / 100}px`
+import { uiStore } from '../stores/uiStore'
+const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
 const steps = [
   { icon: 'pin',     tone: 'mint',   title: 'Local places',      body: 'Find nearby places that feel familiar and easy to reach.' },
@@ -582,27 +561,6 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect(); window.
 .nav-link-coming { font-family: system-ui,sans-serif; font-size: 15px; font-weight: 600; color: #3a5a3e; cursor: default; }
 .nav-cta { display: inline-flex; align-items: center; gap: 8px; font-family: system-ui,sans-serif; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
 .nav-cta:hover { background: #0a9b8a; color: white; }
-
-.a11y-bar {
-  position: fixed; top: 86px; right: 0; left: 0; z-index: 90;
-  background: rgba(255,255,255,0.92); backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(29,113,105,0.1);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-}
-.a11y-inner { display: flex; align-items: center; justify-content: flex-end; padding: 10px 52px; }
-.text-size-control {
-  display: inline-flex; align-items: center; gap: 12px;
-  background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(29,113,105,0.18); border-radius: 999px; padding: 8px 18px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-}
-.a-small { font-family: Georgia,serif; font-size: 13px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.a-large { font-family: Georgia,serif; font-size: 22px; font-weight: 700; color: #0a9b8a; line-height: 1; }
-.text-slider { -webkit-appearance: none; appearance: none; width: 120px; height: 4px; background: #d1e8d4; border-radius: 999px; outline: none; cursor: pointer; }
-.text-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #0a9b8a; box-shadow: 0 2px 8px rgba(10,155,138,0.4); cursor: pointer; transition: transform 0.2s; }
-.text-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
-.text-slider:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
-.scale-pct { font-size: 13px; font-weight: 700; color: #6a8e6e; min-width: 38px; }
 
 .hero {
   position: relative; min-height: 100vh;
@@ -799,7 +757,7 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect(); window.
   .nav { padding: 20px 24px; }
   .nav.scrolled { padding: 14px 24px; }
   .nav-links { display: none; }
-  .a11y-inner { padding: 10px 20px; }
+
   .hero { grid-template-columns: 1fr; padding: 180px 24px 60px; }
   .hero-scene { height: 420px; }
   .hero-tag { display: none; }
