@@ -16,7 +16,7 @@
         <span class="nav-wordmark"><em>Connect</em>Local</span>
       </div>
       <div class="nav-links">
-        <RouterLink to="/home"class="is-active" >Home</RouterLink>
+        <RouterLink to="/home">Home</RouterLink>
         <RouterLink to="/discover">Events</RouterLink>
         <RouterLink to="/journey">Journey</RouterLink>
         <RouterLink to="/best-time">Best Time</RouterLink>

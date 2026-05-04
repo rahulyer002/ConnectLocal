@@ -21,7 +21,7 @@
       </div>
       <div class="nav-links">
         <RouterLink to="/home">Home</RouterLink>
-        <RouterLink to="/discover" class="is-active">Events</RouterLink>
+        <RouterLink to="/discover" >Events</RouterLink>
         <RouterLink to="/journey">Journey</RouterLink>
 
         <RouterLink to="/best-time">Best Time</RouterLink>
