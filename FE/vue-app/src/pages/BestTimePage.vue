@@ -30,7 +30,7 @@
           <circle cx="12" cy="10" r="2.5"/>
         </svg>
         <h3 :style="{ fontSize: scaledPx(24) }">Set your location to begin</h3>
-        <p :style="{ fontSize: scaledPx(16) }">Use the location bar above — type a Melbourne suburb or postcode, or tap "Locate me".</p>
+        <p :style="{ fontSize: scaledPx(16) }">Use the location bar above - type a Melbourne suburb or postcode, or tap "Locate me".</p>
       </div>
     </section>
 
@@ -114,7 +114,7 @@
         <span class="safety-dot" aria-hidden="true"></span>
         <p :style="{ fontSize: scaledPx(15) }">
           <strong>{{ store.safetyConditions.conditions?.safety_verdict || 'Conditions' }} conditions</strong>
-          <span v-if="store.safetyConditions.advice"> — {{ store.safetyConditions.advice }}</span>
+          <span v-if="store.safetyConditions.advice"> - {{ store.safetyConditions.advice }}</span>
         </p>
       </div>
     </div>

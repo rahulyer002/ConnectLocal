@@ -26,7 +26,7 @@
           <em>near you.</em>
         </h1>
         <p class="hero-sub" :style="{ fontSize: scaledPx(18) }">
-          Community spaces around you — libraries, civic buildings, visitor centres, and more.
+          Community spaces around you - libraries, civic buildings, visitor centres, and more.
           All open, free, and great places to drop in, rest, and connect.
         </p>
       </div>
@@ -44,7 +44,7 @@
         <div class="explainer-text">
           <p class="explainer-label">Click any pin to learn more</p>
           <p :style="{ fontSize: scaledPx(15) }">
-            Your location is the green pin. Each coloured pin is a community space — colour shows the type. The yellow star marks
+            Your location is the green pin. Each coloured pin is a community space - colour shows the type. The yellow star marks
             spaces officially designated by the City of Melbourne as Welcoming Spaces. Click a pin to see what to expect there
             and get directions.
           </p>
@@ -58,7 +58,7 @@
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
         </svg>
         <h3 :style="{ fontSize: scaledPx(24) }">Set your location to see community spaces</h3>
-        <p :style="{ fontSize: scaledPx(16) }">Use the location bar above — autocomplete will help you set a Melbourne suburb or postcode.</p>
+        <p :style="{ fontSize: scaledPx(16) }">Use the location bar above - autocomplete will help you set a Melbourne suburb or postcode.</p>
       </div>
     </section>
 
@@ -197,7 +197,7 @@
             </svg>
             <h3 :style="{ fontSize: scaledPx(26) }">No community spaces found within 2km</h3>
             <p :style="{ fontSize: scaledPx(15) }">
-              Try setting your location to a Melbourne suburb closer to the CBD —
+              Try setting your location to a Melbourne suburb closer to the CBD -
               <strong>Fitzroy</strong>, <strong>Carlton</strong>, <strong>Melbourne CBD</strong>, or <strong>Southbank</strong> usually have plenty.
             </p>
           </div>
@@ -223,7 +223,7 @@
                   </svg>
                 </div>
                 <h3 :style="{ fontSize: scaledPx(18) }">Go at your own pace</h3>
-                <p :style="{ fontSize: scaledPx(14) }">You don't need to join anything. Just arriving and sitting quietly is enough — these are judgment-free spaces.</p>
+                <p :style="{ fontSize: scaledPx(14) }">You don't need to join anything. Just arriving and sitting quietly is enough - these are judgment-free spaces.</p>
               </article>
               <article class="tip-card">
                 <div class="tip-icon yellow">
@@ -242,7 +242,7 @@
                   </svg>
                 </div>
                 <h3 :style="{ fontSize: scaledPx(18) }">Staff are there to help</h3>
-                <p :style="{ fontSize: scaledPx(14) }">You can always ask staff about free programs, events, or just for a chat — that's what these spaces are for.</p>
+                <p :style="{ fontSize: scaledPx(14) }">You can always ask staff about free programs, events, or just for a chat - that's what these spaces are for.</p>
               </article>
             </div>
           </div>
@@ -491,7 +491,7 @@ watch(selectedId, (newId, oldId) => {
 function getExpectText(subTheme, theme) {
   const s = (subTheme || theme || '').toLowerCase()
   if (s.includes('library'))
-    return 'A calm, quiet space with free Wi-Fi, books, newspapers, and friendly staff. No purchase needed — you can simply sit, read, or use the computers.'
+    return 'A calm, quiet space with free Wi-Fi, books, newspapers, and friendly staff. No purchase needed - you can simply sit, read, or use the computers.'
   if (s.includes('community centre'))
     return 'A hub for local programs, social groups, and activities. Drop in anytime or ask about upcoming free events.'
   if (s.includes('visitor'))
@@ -506,7 +506,7 @@ function getExpectText(subTheme, theme) {
     return 'A public court building. Public galleries are usually open during sessions for anyone to observe proceedings.'
   if (s.includes('health'))
     return 'A health and wellbeing service. Friendly staff can connect you with community programs and support services.'
-  return 'A welcoming community space — open to all, free to enter, with friendly staff on hand.'
+  return 'A welcoming community space - open to all, free to enter, with friendly staff on hand.'
 }
 
 // ── Actions ────────────────────────────────────────

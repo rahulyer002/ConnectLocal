@@ -11,11 +11,13 @@ import BestTimePage from '../pages/BestTimePage.vue'
 import BestTimeNowPage from '../pages/BestTimeNowPage.vue'
 import BestTimeWeekPage from '../pages/BestTimeWeekPage.vue'
 import WelcomingSpacesPage from '../pages/WelcomingSpacesPage.vue' 
+import LoginPage from '../pages/LoginPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/home' },
+    { path: '/', redirect: '/login' },
+  { path: '/login', component: LoginPage },
 
     { path: '/home', component: HomePage },
     { path: '/discover', component: DiscoverPage },
