@@ -362,11 +362,11 @@
             </span>
           </button>
 
-          <!-- Guest option -->
+          <!-- Guest option
           <div class="divider-row">
             <span class="divider-line"></span>
             <span class="divider-line"></span>
-          </div>
+          </div> -->
 <!-- 
           <button class="guest-btn" type="button" @click="goHome">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -378,11 +378,11 @@
             Continue as guest
           </button> -->
 
-          <!-- Footer note -->
+          <!-- Footer note
           <p class="form-footer">
             New here?
             <RouterLink to="/checkin" class="footer-link">Start your wellbeing check-in →</RouterLink>
-          </p>
+          </p> -->
 
         </div>
       </div>
