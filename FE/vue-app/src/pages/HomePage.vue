@@ -312,7 +312,7 @@
         <h2 class="ed-headline">Wellbeing is a<br><em>shared experience.</em></h2>
       </div>
       <div class="ed-right">
-        <p :style="{ fontSize: scaledPx(18) }">Around the country, people of every age experience periods of higher psychological distress. You are not alone — and small steps toward connection can change everything.</p>
+        <p :style="{ fontSize: scaledPx(18) }">Around the country, people of every age experience periods of higher psychological distress. You are not alone - and small steps toward connection can change everything.</p>
         <div class="ed-stats">
           <div class="ed-stat">
             <span class="ed-stat-num">1 in 5</span>

@@ -26,7 +26,7 @@
         </div>
         <div class="bw-text">
           <p class="bw-label">Best window this week</p>
-          <p class="bw-main"><strong>{{ quietestDay.day }} at {{ formatHour(quietestDay.hour) }}</strong> — your quietest moment.</p>
+          <p class="bw-main"><strong>{{ quietestDay.day }} at {{ formatHour(quietestDay.hour) }}</strong> - your quietest moment.</p>
         </div>
         <RouterLink to="/best-time/now" class="bw-btn">
           Find best spots
@@ -58,7 +58,7 @@
                 Crowd heatmap<br><em>this week.</em>
               </h2>
               <p class="section-sub" :style="{ fontSize: scaledPx(15) }">
-                Each cell is one hour, 8am – 8pm. Hover for details — tap a cell to pin it below.
+                Each cell is one hour, 8am - 8pm. Hover for details - tap a cell to pin it below.
               </p>
             </div>
 

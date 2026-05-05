@@ -20,7 +20,7 @@
             <em>near you, today.</em>
           </h1>
           <p class="hero-sub" :style="{ fontSize: scaledPx(18) }">
-            Top 3 spots ranked by crowd, comfort, and toilet access — refreshed for {{ store.locationReady ? store.locationLabel : 'your area' }} every 15 minutes.
+            Top 3 spots ranked by crowd, comfort, and toilet access - refreshed for {{ store.locationReady ? store.locationLabel : 'your area' }} every 15 minutes.
           </p>
         </div>
 
@@ -35,7 +35,7 @@
           </p>
           <div class="snapshot-row" v-if="store.safetyConditions.conditions">
             <div class="snap-stat">
-              <span class="snap-num">{{ store.safetyConditions.conditions.temperature_c ?? '—' }}°</span>
+              <span class="snap-num">{{ store.safetyConditions.conditions.temperature_c ?? '-' }}°</span>
               <span class="snap-lbl">Temp</span>
             </div>
             <div class="snap-divider"></div>
@@ -52,7 +52,7 @@
       <div class="empty-card">
         <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="#0a9b8a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
         <h3 :style="{ fontSize: scaledPx(24) }">Set your location to see the best spots</h3>
-        <p :style="{ fontSize: scaledPx(16) }">Use the location bar above — autocomplete will help you find the right Melbourne suburb.</p>
+        <p :style="{ fontSize: scaledPx(16) }">Use the location bar above - autocomplete will help you find the right Melbourne suburb.</p>
       </div>
     </section>
 
