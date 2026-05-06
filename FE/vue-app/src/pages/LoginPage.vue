@@ -690,7 +690,7 @@ onBeforeUnmount(() => {})
   margin-bottom: 20px;
 }
 
-/* Error slide transition */
+
 .err-slide-enter-active { transition: all 0.3s cubic-bezier(0.22,1,0.36,1); }
 .err-slide-leave-active { transition: all 0.2s ease; }
 .err-slide-enter-from { opacity: 0; transform: translateY(-8px); }
