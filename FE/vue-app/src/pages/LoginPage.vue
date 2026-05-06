@@ -696,7 +696,7 @@ onBeforeUnmount(() => {})
 .err-slide-enter-from { opacity: 0; transform: translateY(-8px); }
 .err-slide-leave-to  { opacity: 0; transform: translateY(-4px); }
 
-/* ── Form fields — underline style matching select in HomePage ── */
+
 .field { margin-bottom: 28px; position: relative; }
 
 .field-lbl {
