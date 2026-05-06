@@ -1,0 +1,71 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches: [development]
+    paths:
+      - "BE/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -e
+            echo "── Pulling latest from development ──"
+            cd ~/ConnectLocal
+            git fetch origin development
+            git checkout development
+            git pull origin development
+
+            echo "── Rebuilding backend container ──"
+            cd ~/ConnectLocal/BE
+            docker-compose down
+            docker-compose up -d --build
+
+            echo "── Waiting for container to be ready ──"
+            sleep 5
+            docker-compose ps
+
+            echo "── Cleaning up old images ──"
+            docker image prune -f
+
+      - name: Verify /health endpoint
+        run: |
+          echo "Waiting 10s for service to stabilise..."
+          sleep 10
+
+          for i in {1..6}; do
+            if curl -fsS https://connectlocal.duckdns.org/health > /tmp/health.json; then
+              echo "✅ /health responded on attempt $i"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+
+          echo "❌ /health did not respond after 6 attempts — deploy may have failed"
+          exit 1
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Backend deploy to EC2 failed. SSH in and check 'docker-compose logs api' on ${{ secrets.EC2_HOST }}"
