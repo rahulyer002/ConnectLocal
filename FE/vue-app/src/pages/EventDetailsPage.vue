@@ -1,35 +1,9 @@
 <template>
-  <div class="details-page">
+  <MainLayout>
+    <div class="details-page">
     <div class="noise" aria-hidden="true"></div>
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
-
-    <nav class="nav" :class="{ scrolled: scrollY > 60 }">
-      <div class="nav-brand">
-        <div class="nav-logo">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
-            <circle cx="12" cy="10" r="2.5"/>
-          </svg>
-        </div>
-        <span class="nav-wordmark"><em>Connect</em>Local</span>
-      </div>
-      <div class="nav-links" role="navigation" aria-label="Main navigation">
-        <RouterLink to="/home">Home</RouterLink>
-        <RouterLink to="/discover">Events</RouterLink>
-        <RouterLink to="/journey">Journey</RouterLink>
-
-        <RouterLink to="/best-time">Best Time</RouterLink>
-      </div>
-      <RouterLink to="/checkin" class="nav-cta" aria-label="Start your wellbeing check-in">
-        Start Check-in
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 12h14M13 5l7 7-7 7"/>
-        </svg>
-      </RouterLink>
-    </nav>
-
-
 
     <div v-if="isLoading" class="state-wrap">
       <div class="state-card" role="status" aria-live="polite">
@@ -142,12 +116,14 @@
       </main>
     </template>
 
-  </div>
+    </div>
+  </MainLayout>
 </template>
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import MainLayout from '../layouts/MainLayout.vue'
 import { resonanceStore } from '../stores/resonanceStore'
 import { searchSuburbs } from '../composables/useResonanceApi'
 
@@ -159,10 +135,8 @@ const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || 'https://connectloca
 const event = ref(null)
 const isLoading = ref(false)
 const loadError = ref('')
-const scrollY = ref(0)
 import { uiStore } from '../stores/uiStore'
 const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
-const handleScroll = () => { scrollY.value = window.scrollY }
 
 let observer = null
 function setupReveal() {
@@ -267,11 +241,9 @@ const goToJourney = (space) => {
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll, { passive: true })
   fetchEventDetail()
 })
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
   if (observer) observer.disconnect()
 })
 </script>
@@ -293,26 +265,6 @@ onBeforeUnmount(() => {
 .orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 5%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
-.nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 24px 52px; transition: background 0.4s, padding 0.4s, box-shadow 0.4s;
-}
-.nav.scrolled { background: rgba(242,250,240,0.9); backdrop-filter: blur(18px); padding: 16px 52px; box-shadow: 0 1px 0 rgba(29,113,105,0.12); }
-.nav-brand { display: flex; align-items: center; gap: 12px; }
-.nav-logo { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
-.nav-wordmark { font-family: Georgia,serif; font-size: 20px; color: #1a2e1e; }
-.nav-wordmark em { color: #0a9b8a; font-style: italic; }
-.nav-links { display: flex; gap: 32px; align-items: center; }
-.nav-links a { font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none; transition: color 0.2s; }
-.nav-links a:hover { color: #0a9b8a; }
-.nav-links .router-link-active { color: #0a9b8a; }
-.nav-links a:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; border-radius: 3px; }
-.nav-link-coming { color: #3a5a3e; font-size: 15px; font-weight: 600; cursor: default; font-family: system-ui,sans-serif; }
-.nav-cta { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
-.nav-cta:hover { background: #0a9b8a; color: white; }
-.nav-cta:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
-
 .state-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
 .state-card { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; background: white; border: 1px solid rgba(29,113,105,0.12); border-radius: 20px; padding: 60px 40px; max-width: 480px; width: 100%; color: #4a6a4e; font-size: 18px; font-weight: 500; }
 .state-error { border-color: rgba(180,50,50,0.2); color: #8b2020; }
@@ -320,9 +272,12 @@ onBeforeUnmount(() => {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .hero {
-  position: relative; overflow: hidden;
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(160deg, #e4f5e0 0%, #c8edc8 100%);
-  padding: 60px 52px 80px; border-bottom: 1px solid rgba(29,113,105,0.12); margin-top: 160px;
+  padding: 60px 52px 80px;
+  border-bottom: 1px solid rgba(29,113,105,0.12);
+  margin-top: 0;
 }
 .hero-bg-word { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-family: Georgia,serif; font-size: clamp(100px,16vw,200px); font-weight: 700; font-style: italic; color: rgba(10,155,138,0.055); white-space: nowrap; pointer-events: none; user-select: none; letter-spacing: -0.04em; }
 .hero-inner { position: relative; z-index: 2; max-width: 900px; }
@@ -371,10 +326,7 @@ onBeforeUnmount(() => {
 .btn-secondary:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
 
 @media (max-width: 900px) {
-  .nav { padding: 18px 20px; }
-  .nav.scrolled { padding: 14px 20px; }
-  .nav-links { display: none; }
-  .hero { padding: 40px 20px 60px; margin-top: 160px; }
+  .hero { padding: 40px 20px 60px; margin-top: 0; }
   .content { padding: 32px 20px 80px; }
   .info-card, .about-card { padding: 24px 20px; }
 }

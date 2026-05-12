@@ -1,161 +1,172 @@
 <template>
-  <div class="checkin-page">
-    <div class="noise" aria-hidden="true"></div>
-    <div class="orb orb-1" aria-hidden="true"></div>
-    <div class="orb orb-2" aria-hidden="true"></div>
+  <MainLayout>
+    <div class="checkin-page">
+      <div class="noise" aria-hidden="true"></div>
+      <div class="orb orb-1" aria-hidden="true"></div>
+      <div class="orb orb-2" aria-hidden="true"></div>
 
-    <nav class="nav" :class="{ scrolled: scrollY > 60 }">
-      <div class="nav-brand">
-        <div class="nav-logo">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
-            <circle cx="12" cy="10" r="2.5"/>
-          </svg>
-        </div>
-        <span class="nav-wordmark"><em>Connect</em>Local</span>
-      </div>
-      <div class="nav-links" role="navigation" aria-label="Main navigation">
-        <RouterLink to="/home">Home</RouterLink>
-        <RouterLink to="/discover">Events</RouterLink>
-        <RouterLink to="/best-time">Best Time</RouterLink>
-      </div>
-    </nav>
+      <header class="hero-band">
+        <div class="hero-bg-word" aria-hidden="true">WELLBEING</div>
+        <div class="hero-inner">
+          <p class="hero-eyebrow">
+            <span class="eyebrow-line" aria-hidden="true"></span>
+            Your weekly wellbeing check-in
+          </p>
 
+          <h1 class="hero-headline" :style="{ fontSize: scaledPx(72) }">
+            How are you feeling<br>
+            <em>about your connections?</em>
+          </h1>
 
+          <p class="hero-sub" :style="{ fontSize: scaledPx(18) }">
+            This gentle 5-minute check-in helps you understand how connected you feel
+            to the people around you, and points you toward warm, welcoming activities
+            in your neighbourhood.
+          </p>
 
-    <header class="hero-band">
-      <div class="hero-bg-word" aria-hidden="true">WELLBEING</div>
-      <div class="hero-inner">
-        <p class="hero-eyebrow">
-          <span class="eyebrow-line" aria-hidden="true"></span>
-          Your weekly wellbeing check-in
-        </p>
-        <h1 class="hero-headline" :style="{ fontSize: scaledPx(72) }">
-          How are you feeling<br>
-          <em>about your connections?</em>
-        </h1>
-        <p class="hero-sub" :style="{ fontSize: scaledPx(18) }">
-          This gentle 5-minute check-in helps you understand how connected you feel
-          to the people around you, and points you toward warm, welcoming activities
-          in your neighbourhood.
-        </p>
-        <div
-          class="progress-wrap"
-          role="progressbar"
-          :aria-valuenow="currentQuestionIndex + 1"
-          :aria-valuemin="1"
-          :aria-valuemax="questions.length"
-          :aria-label="`Question ${currentQuestionNumber} of ${questions.length}`"
-        >
-          <div class="progress-track">
-            <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
-          </div>
-          <span class="progress-label" :style="{ fontSize: scaledPx(14) }">
-            Question <strong>{{ currentQuestionNumber }}</strong> of {{ questions.length }}
-          </span>
-        </div>
-      </div>
-    </header>
-
-    <main class="main-wrap" id="main-content">
-      <div class="question-card" role="region" :aria-label="`Question ${currentQuestionNumber} of ${questions.length}`">
-        <p class="q-eyebrow" :style="{ fontSize: scaledPx(12) }">Statement {{ currentQuestion.id }}</p>
-        <h2 class="q-text" :style="{ fontSize: scaledPx(34) }">{{ currentQuestion.text }}</h2>
-
-        <div class="options" role="group" :aria-label="`Answer options for statement ${currentQuestion.id}`">
-          <button
-            v-for="option in options"
-            :key="option.value"
-            class="option-btn"
-            :class="{ selected: answers[currentQuestionIndex] === option.value }"
-            :aria-pressed="answers[currentQuestionIndex] === option.value"
-            @click="selectAnswer(option.value)"
-            :style="{ fontSize: scaledPx(17) }"
+          <div
+            class="progress-wrap"
+            role="progressbar"
+            :aria-valuenow="currentPage + 1"
+            :aria-valuemin="1"
+            :aria-valuemax="totalPages"
+            :aria-label="`Page ${currentPage + 1} of ${totalPages}`"
           >
-            <span class="option-indicator" aria-hidden="true">
-              <svg v-if="answers[currentQuestionIndex] === option.value" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 6L9 17l-5-5"/>
-              </svg>
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+            </div>
+
+            <span class="progress-label" :style="{ fontSize: scaledPx(14) }">
+              Page <strong>{{ currentPage + 1 }}</strong> of {{ totalPages }}
             </span>
-            <span class="option-label">{{ option.label }}</span>
-          </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="main-wrap" id="main-content">
+        <div
+          v-for="question in currentQuestions"
+          :key="question.id"
+          class="question-card"
+          role="region"
+          :aria-label="`Question ${question.id} of ${questions.length}`"
+        >
+          <p class="q-eyebrow" :style="{ fontSize: scaledPx(12) }">
+            Statement {{ question.id }}
+          </p>
+
+          <h2 class="q-text" :style="{ fontSize: scaledPx(34) }">
+            {{ question.text }}
+          </h2>
+
+          <div class="options" role="group" :aria-label="`Answer options for statement ${question.id}`">
+            <button
+              v-for="option in options"
+              :key="option.value"
+              class="option-btn"
+              :class="{ selected: answers[question.id - 1] === option.value }"
+              :aria-pressed="answers[question.id - 1] === option.value"
+              @click="selectAnswer(question.id - 1, option.value)"
+              :style="{ fontSize: scaledPx(17) }"
+            >
+              <span class="option-indicator" aria-hidden="true">
+                <svg
+                  v-if="answers[question.id - 1] === option.value"
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+              </span>
+
+              <span class="option-label">{{ option.label }}</span>
+            </button>
+          </div>
         </div>
 
-        <p v-if="showValidation" class="validation-msg" role="alert" aria-live="assertive" :style="{ fontSize: scaledPx(14) }">
+        <p
+          v-if="showValidation"
+          class="validation-msg"
+          role="alert"
+          aria-live="assertive"
+          :style="{ fontSize: scaledPx(14) }"
+        >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="10"/>
             <path d="M12 8v4M12 16h.01"/>
           </svg>
-          Please choose one answer before continuing.
+          Please answer all 4 questions before continuing.
         </p>
-      </div>
 
-      <div class="nav-actions">
-        <button
-          class="btn-secondary"
-          @click="goPrevious"
-          :disabled="currentQuestionIndex === 0"
-          aria-label="Go to previous question"
-          :style="{ fontSize: scaledPx(16) }"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M15 18l-6-6 6-6"/>
-          </svg>
-          Previous
-        </button>
+        <div class="nav-actions">
+          <button
+            class="btn-secondary"
+            @click="goPrevious"
+            :disabled="currentPage === 0"
+            aria-label="Go to previous page"
+            :style="{ fontSize: scaledPx(16) }"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+            Previous
+          </button>
 
-        <div class="dot-track" aria-hidden="true">
-          <span
-            v-for="(_, i) in questions"
-            :key="i"
-            class="dot"
-            :class="{ active: i === currentQuestionIndex, answered: answers[i] !== null }"
-          ></span>
+          <div class="dot-track" aria-hidden="true">
+            <span
+              v-for="(_, i) in totalPages"
+              :key="i"
+              class="dot"
+              :class="{ active: i === currentPage, answered: isPageAnswered(i) }"
+            ></span>
+          </div>
+
+          <button
+            v-if="!isLastPage"
+            class="btn-primary"
+            @click="goNext"
+            aria-label="Go to next page"
+            :style="{ fontSize: scaledPx(16) }"
+          >
+            Next
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
+
+          <button
+            v-else
+            class="btn-primary btn-finish"
+            @click="finishCheckIn"
+            aria-label="Finish check-in and see your results"
+            :style="{ fontSize: scaledPx(16) }"
+          >
+            See my results
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M13 5l7 7-7 7"/>
+            </svg>
+          </button>
         </div>
-
-        <button
-          v-if="!isLastQuestion"
-          class="btn-primary"
-          @click="goNext"
-          aria-label="Go to next question"
-          :style="{ fontSize: scaledPx(16) }"
-        >
-          Next
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-        </button>
-
-        <button
-          v-else
-          class="btn-primary btn-finish"
-          @click="finishCheckIn"
-          aria-label="Finish check-in and see your results"
-          :style="{ fontSize: scaledPx(16) }"
-        >
-          See my results
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M5 12h14M13 5l7 7-7 7"/>
-          </svg>
-        </button>
-      </div>
-    </main>
-  </div>
+      </main>
+    </div>
+  </MainLayout>
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import MainLayout from '../layouts/MainLayout.vue'
 import { wellbeingStore } from '../stores/wellbeingStore'
+import { uiStore } from '../stores/uiStore'
 
 const router = useRouter()
-const scrollY = ref(0)
-import { uiStore } from '../stores/uiStore'
 const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
-
-const handleScroll = () => { scrollY.value = window.scrollY }
-onMounted(() => window.addEventListener('scroll', handleScroll, { passive: true }))
-onBeforeUnmount(() => window.removeEventListener('scroll', handleScroll))
 
 const options = [
   { label: 'Never', value: 1 },
@@ -166,54 +177,73 @@ const options = [
 
 const questions = [
   { id: 1,  text: 'How often do you feel that you are "in tune" with the people around you?', reverse: true,  dimension: 'socialConnection' },
-  { id: 2,  text: 'How often do you feel that you lack companionship?',                        reverse: false, dimension: 'companionship' },
-  { id: 3,  text: 'How often do you feel that there is no one you can turn to?',               reverse: false, dimension: 'intimacy' },
-  { id: 4,  text: 'How often do you feel alone?',                                              reverse: false, dimension: 'companionship' },
-  { id: 5,  text: 'How often do you feel part of a group of friends?',                         reverse: true,  dimension: 'socialConnection' },
+  { id: 2,  text: 'How often do you feel that you lack companionship?', reverse: false, dimension: 'companionship' },
+  { id: 3,  text: 'How often do you feel that there is no one you can turn to?', reverse: false, dimension: 'intimacy' },
+  { id: 4,  text: 'How often do you feel alone?', reverse: false, dimension: 'companionship' },
+  { id: 5,  text: 'How often do you feel part of a group of friends?', reverse: true,  dimension: 'socialConnection' },
   { id: 6,  text: 'How often do you feel that you have a lot in common with the people around you?', reverse: true, dimension: 'socialConnection' },
-  { id: 7,  text: 'How often do you feel that you are no longer close to anyone?',             reverse: false, dimension: 'intimacy' },
+  { id: 7,  text: 'How often do you feel that you are no longer close to anyone?', reverse: false, dimension: 'intimacy' },
   { id: 8,  text: 'How often do you feel that your interests and ideas are not shared by those around you?', reverse: false, dimension: 'socialConnection' },
-  { id: 9,  text: 'How often do you feel outgoing and friendly?',                              reverse: true,  dimension: 'socialConnection' },
-  { id: 10, text: 'How often do you feel close to people?',                                    reverse: true,  dimension: 'intimacy' },
-  { id: 11, text: 'How often do you feel left out?',                                           reverse: false, dimension: 'socialConnection' },
+  { id: 9,  text: 'How often do you feel outgoing and friendly?', reverse: true,  dimension: 'socialConnection' },
+  { id: 10, text: 'How often do you feel close to people?', reverse: true,  dimension: 'intimacy' },
+  { id: 11, text: 'How often do you feel left out?', reverse: false, dimension: 'socialConnection' },
   { id: 12, text: 'How often do you feel that your relationships with others are not meaningful?', reverse: false, dimension: 'intimacy' },
-  { id: 13, text: 'How often do you feel that no one really knows you well?',                  reverse: false, dimension: 'intimacy' },
-  { id: 14, text: 'How often do you feel isolated from others?',                               reverse: false, dimension: 'companionship' },
-  { id: 15, text: 'How often do you feel you can find companionship when you want it?',        reverse: true,  dimension: 'companionship' },
-  { id: 16, text: 'How often do you feel that there are people who really understand you?',    reverse: true,  dimension: 'intimacy' },
-  { id: 17, text: 'How often do you feel shy?',                                                reverse: false, dimension: 'socialConnection' },
-  { id: 18, text: 'How often do you feel that people are around you but not with you?',        reverse: false, dimension: 'companionship' },
-  { id: 19, text: 'How often do you feel that there are people you can talk to?',              reverse: true,  dimension: 'intimacy' },
-  { id: 20, text: 'How often do you feel that there are people you can turn to?',              reverse: true,  dimension: 'intimacy' }
+  { id: 13, text: 'How often do you feel that no one really knows you well?', reverse: false, dimension: 'intimacy' },
+  { id: 14, text: 'How often do you feel isolated from others?', reverse: false, dimension: 'companionship' },
+  { id: 15, text: 'How often do you feel you can find companionship when you want it?', reverse: true,  dimension: 'companionship' },
+  { id: 16, text: 'How often do you feel that there are people who really understand you?', reverse: true,  dimension: 'intimacy' },
+  { id: 17, text: 'How often do you feel shy?', reverse: false, dimension: 'socialConnection' },
+  { id: 18, text: 'How often do you feel that people are around you but not with you?', reverse: false, dimension: 'companionship' },
+  { id: 19, text: 'How often do you feel that there are people you can talk to?', reverse: true,  dimension: 'intimacy' },
+  { id: 20, text: 'How often do you feel that there are people you can turn to?', reverse: true,  dimension: 'intimacy' }
 ]
 
-const currentQuestionIndex = ref(0)
+const questionsPerPage = 4
+const currentPage = ref(0)
 const answers = ref(Array(questions.length).fill(null))
 const showValidation = ref(false)
 
-const currentQuestion = computed(() => questions[currentQuestionIndex.value])
-const currentQuestionNumber = computed(() => currentQuestionIndex.value + 1)
-const isLastQuestion = computed(() => currentQuestionIndex.value === questions.length - 1)
-const progressPercent = computed(() => ((currentQuestionIndex.value + 1) / questions.length) * 100)
+const totalPages = computed(() => Math.ceil(questions.length / questionsPerPage))
+const isLastPage = computed(() => currentPage.value === totalPages.value - 1)
+const progressPercent = computed(() => ((currentPage.value + 1) / totalPages.value) * 100)
 
-function selectAnswer(value) {
-  answers.value[currentQuestionIndex.value] = value
+const currentQuestions = computed(() => {
+  const start = currentPage.value * questionsPerPage
+  return questions.slice(start, start + questionsPerPage)
+})
+
+function selectAnswer(index, value) {
+  answers.value[index] = value
   showValidation.value = false
+}
+
+function isCurrentPageAnswered() {
+  return currentQuestions.value.every(question => answers.value[question.id - 1] !== null)
+}
+
+function isPageAnswered(pageIndex) {
+  const start = pageIndex * questionsPerPage
+  const pageQuestions = questions.slice(start, start + questionsPerPage)
+
+  return pageQuestions.every(question => answers.value[question.id - 1] !== null)
 }
 
 function goNext() {
-  if (answers.value[currentQuestionIndex.value] === null) {
+  if (!isCurrentPageAnswered()) {
     showValidation.value = true
     return
   }
-  currentQuestionIndex.value += 1
+
+  currentPage.value += 1
   showValidation.value = false
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function goPrevious() {
-  if (currentQuestionIndex.value > 0) {
-    currentQuestionIndex.value -= 1
+  if (currentPage.value > 0) {
+    currentPage.value -= 1
     showValidation.value = false
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
@@ -236,7 +266,7 @@ function getResultExplanation(score) {
 }
 
 function finishCheckIn() {
-  if (answers.value[currentQuestionIndex.value] === null) {
+  if (!isCurrentPageAnswered()) {
     showValidation.value = true
     return
   }
@@ -247,6 +277,7 @@ function finishCheckIn() {
   questions.forEach((question, index) => {
     const answer = answers.value[index]
     const scored = answer !== null ? getScoredValue(question, answer) : 2
+
     score += scored
     dimensions[question.dimension] += scored
   })
@@ -280,28 +311,6 @@ function finishCheckIn() {
 .orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 5%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
-.nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 24px 52px;
-  transition: background 0.4s, padding 0.4s, box-shadow 0.4s;
-}
-.nav.scrolled { background: rgba(242,250,240,0.9); backdrop-filter: blur(18px); padding: 16px 52px; box-shadow: 0 1px 0 rgba(29,113,105,0.12); }
-.nav-brand { display: flex; align-items: center; gap: 12px; }
-.nav-logo { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
-.nav-wordmark { font-family: Georgia,serif; font-size: 20px; color: #1a2e1e; }
-.nav-wordmark em { color: #0a9b8a; font-style: italic; }
-.nav-links { display: flex; gap: 32px; align-items: center; }
-.nav-links a { font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none; transition: color 0.2s; }
-.nav-links a:hover { color: #0a9b8a; }
-.nav-links .router-link-active { color: #0a9b8a; }
-.nav-links a:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; border-radius: 3px; }
-.nav-link-coming { color: #3a5a3e; font-size: 15px; font-weight: 600; cursor: default; font-family: system-ui,sans-serif; }
-.nav-cta { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
-.nav-cta:hover { background: #0a9b8a; color: white; }
-.nav-cta:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
-
-
 .a-small { font-family: Georgia,serif; font-size: 13px; font-weight: 700; color: #0a9b8a; line-height: 1; }
 .a-large { font-family: Georgia,serif; font-size: 22px; font-weight: 700; color: #0a9b8a; line-height: 1; }
 .text-slider {
@@ -323,7 +332,7 @@ function finishCheckIn() {
   background: linear-gradient(160deg, #e4f5e0 0%, #c8edc8 100%);
   padding: 60px 52px 72px;
   border-bottom: 1px solid rgba(29,113,105,0.12);
-  margin-top: 160px;
+  margin-top: 0;
 }
 .hero-bg-word {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
@@ -411,10 +420,7 @@ function finishCheckIn() {
 .dot.active { background: #0a9b8a; transform: scale(1.5); }
 
 @media (max-width: 900px) {
-  .nav { padding: 18px 20px; }
-  .nav.scrolled { padding: 14px 20px; }
-  .nav-links { display: none; }
-  .hero-band { padding: 40px 20px 56px; margin-top: 140px; }
+  .hero-band { padding: 40px 20px 56px; margin-top: 0; }
   .main-wrap { padding: 32px 20px 80px; }
   .question-card { padding: 28px 20px; }
   .options { grid-template-columns: 1fr; }
