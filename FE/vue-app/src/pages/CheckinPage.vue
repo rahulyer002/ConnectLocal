@@ -74,7 +74,7 @@ import MainLayout from '../layouts/MainLayout.vue'
 const router = useRouter()
 
 function startCheckin() {
-  router.push('/checkin/form')
+  router.push('/checkin-form')
 }
 </script>
 
