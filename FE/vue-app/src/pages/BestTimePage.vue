@@ -207,7 +207,7 @@
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import { resonanceStore } from '../stores/resonanceStore'
 import { uiStore } from '../stores/uiStore'

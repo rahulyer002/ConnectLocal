@@ -454,6 +454,8 @@ const detailsTo = (id) => {
 const toggleFilter = async (k) => { activeFilters[k] = !activeFilters[k]; if (!hasLocationConfirmed.value) return; totalHint.value = null; await fetchActivities(1) }
 const goToPage = async (p) => { await fetchActivities(Math.min(totalPages.value, Math.max(1, p))) }
 const printList = () => window.print()
+const handleScroll = () => { scrollY.value = window.scrollY }
+
 
 // ─── Chatbot integration ─────────────────────────────────────────────────
 // When the chatbot navigates here with query params, apply them directly
