@@ -273,7 +273,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -582,8 +582,21 @@ function setupReveal() {
   document.querySelectorAll('[data-reveal]').forEach(el => revealObserver.observe(el))
 }
 
+// Chatbot integration — if the URL has lat/lon (e.g. from the chatbot pushing
+// us here), make sure the store reflects that even on direct URL access.
+const route = useRoute()
+function applyChatbotQuery() {
+  const q = route.query || {}
+  if (!q.lat || !q.lon) return
+  const lat = parseFloat(q.lat), lon = parseFloat(q.lon)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return
+  if (store.userLat === lat && store.userLon === lon) return
+  store.setLocation(lat, lon, q.suburb || store.locationLabel || null)
+}
+
 onMounted(() => {
   setupReveal()
+  applyChatbotQuery()
   if (store.locationReady) loadAll()
 })
 

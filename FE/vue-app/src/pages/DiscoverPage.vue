@@ -249,6 +249,7 @@
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import { useLocationState } from '../composables/useLocationState'
 
@@ -454,12 +455,47 @@ const toggleFilter = async (k) => { activeFilters[k] = !activeFilters[k]; if (!h
 const goToPage = async (p) => { await fetchActivities(Math.min(totalPages.value, Math.max(1, p))) }
 const printList = () => window.print()
 
-watch(activities, () => { if (currentPage.value > totalPages.value) currentPage.value = totalPages.value })
-onMounted(() => {
-  getLocation()
-})
+// ─── Chatbot integration ─────────────────────────────────────────────────
+// When the chatbot navigates here with query params, apply them directly
+// instead of asking the browser for geolocation. Returns true if we applied
+// chatbot params (so onMounted can skip getLocation()).
+const route = useRoute()
+async function applyChatbotQuery() {
+  const q = route.query || {}
+  if (!q.suburb && !q.is_free && !q.this_week && !q.category) return false
 
-onBeforeUnmount(() => {})
+  // Apply filter chips first (these are reactive — toggling them feels instant)
+  if (q.is_free === 'true') activeFilters.free = true
+  if (q.this_week === 'true') activeFilters.thisWeek = true
+
+  // If chatbot pre-resolved lat/lon, use them directly (no geocoding needed)
+  if (q.suburb) {
+    locationInput.value = String(q.suburb)
+    if (q.lat && q.lon) {
+      const lat = parseFloat(q.lat)
+      const lon = parseFloat(q.lon)
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        setLocation(String(q.suburb), String(q.suburb), lat, lon)
+        locationQueryMode.value = 'latlon'
+        await fetchActivities()
+        return true
+      }
+    }
+    // No pre-resolved coords — fall back to the existing geocoding path
+    await applyManualLocation()
+    return true
+  }
+
+  return false
+}
+
+watch(activities, () => { if (currentPage.value > totalPages.value) currentPage.value = totalPages.value })
+onMounted(async () => {
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  const applied = await applyChatbotQuery()
+  if (!applied) getLocation()
+})
+onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 </script>
 
 <style scoped>
