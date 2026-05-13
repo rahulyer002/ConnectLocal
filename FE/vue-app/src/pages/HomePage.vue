@@ -450,12 +450,13 @@
       </div>
     </section>
 
+   <ChatbotButton /> 
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-
+import ChatbotButton from '../components/ChatbotButton.vue'  
 const API_URL = 'https://connectlocal.duckdns.org/api/suburbs/psychological-distress'
 
 const selectedAgeGroup = ref('')
