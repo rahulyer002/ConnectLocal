@@ -1,6 +1,7 @@
 <template>
   <BestTimeNav v-if="isBestTimeRoute" />
   <TextSizeSlider v-if="showSlider" />
+  <ChatbotButton />   
   <RouterView />
 </template>
 
@@ -9,6 +10,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BestTimeNav from './components/BestTimeNav.vue'
 import TextSizeSlider from './components/TextSizeSlider.vue'
+import ChatbotButton from './components/ChatbotButton.vue'
 
 const route = useRoute()
 

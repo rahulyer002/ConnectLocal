@@ -205,7 +205,7 @@
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { resonanceStore } from '../stores/resonanceStore'
 import { uiStore } from '../stores/uiStore'
 import { useResonanceApi } from '../composables/useResonanceApi'
@@ -276,8 +276,21 @@ function setupReveal() {
   document.querySelectorAll('[data-reveal]').forEach(el => revealObserver.observe(el))
 }
 
+// Chatbot integration — if the URL has lat/lon (e.g. from the chatbot pushing
+// us here), make sure the store reflects that even on direct URL access.
+const route = useRoute()
+function applyChatbotQuery() {
+  const q = route.query || {}
+  if (!q.lat || !q.lon) return
+  const lat = parseFloat(q.lat), lon = parseFloat(q.lon)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return
+  if (store.userLat === lat && store.userLon === lon) return
+  store.setLocation(lat, lon, q.suburb || store.locationLabel || null)
+}
+
 onMounted(() => {
   setupReveal()
+  applyChatbotQuery()
   if (store.locationReady) loadAll()
 })
 
