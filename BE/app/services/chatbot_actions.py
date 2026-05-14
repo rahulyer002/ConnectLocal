@@ -19,7 +19,7 @@ ALLOWED_ROUTES = [
     "/discover",
     "/journey",
     "/checkin",
-    "/checkin/form",
+    "/checkin-form",
     "/results",
     "/best-time",
     "/best-time/now",

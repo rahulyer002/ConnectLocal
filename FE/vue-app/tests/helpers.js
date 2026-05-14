@@ -15,7 +15,7 @@ export function makeTestRouter(initialPath = '/', extraRoutes = []) {
       { path: '/home',            component: { template: '<div />' } },
       { path: '/discover',        component: { template: '<div />' } },
       { path: '/checkin',         component: { template: '<div />' } },
-      { path: '/checkin/form',    component: { template: '<div />' } },
+      { path: '/checkin-form',    component: { template: '<div />' } },
       { path: '/results',         component: { template: '<div />' } },
       { path: '/journey',         component: { template: '<div />' } },
       { path: '/best-time',       component: { template: '<div />' } },

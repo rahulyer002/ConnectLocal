@@ -480,7 +480,7 @@ function describeRoute(route) {
     '/discover': 'the events page',
     '/journey': 'the journey planner',
     '/checkin': 'the wellbeing check-in',
-    '/checkin/form': 'the check-in form',
+    '/checkin-form': 'the check-in form',
     '/results': 'your results page',
     '/best-time': 'the Best Time page',
     '/best-time/now': 'the live Best Time view',
