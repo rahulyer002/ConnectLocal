@@ -24,7 +24,7 @@ const router = createRouter({
     { path: '/journey', component: JourneySupportPage },
     { path: '/events/:id', component: EventDetailsPage },
     { path: '/checkin', component: CheckinPage },
-    { path: '/checkin/form', component: CheckinFormPage },
+    { path: '/checkin-form', component: CheckinFormPage },
     { path: '/results', component: ResultsPage },
 
    { path: '/best-time', component: BestTimePage },

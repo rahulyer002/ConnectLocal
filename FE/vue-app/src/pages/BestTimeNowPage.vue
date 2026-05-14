@@ -1,5 +1,6 @@
 <template>
-  <div class="now-page">
+  <MainLayout>
+    <div class="now-page">
     <div class="noise" aria-hidden="true"></div>
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
@@ -227,12 +228,14 @@
         </div>
       </section>
     </template>
-  </div>
+    </div>
+  </MainLayout>
 </template>
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
+import MainLayout from '../layouts/MainLayout.vue'
 import { resonanceStore } from '../stores/resonanceStore'
 import { uiStore } from '../stores/uiStore'
 import { useResonanceApi } from '../composables/useResonanceApi'
@@ -321,9 +324,10 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
 .hero {
-  position: relative; overflow: hidden;
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(160deg, #e4f5e0 0%, #c8edc8 100%);
-  padding: 220px 52px 80px;
+  padding: 80px 52px 80px;
   border-bottom: 1px solid rgba(29,113,105,0.12);
 }
 .hero-bg-word { position: absolute; right: -2%; top: 50%; transform: translateY(-50%); font-family: Georgia,serif; font-size: clamp(140px, 20vw, 280px); font-weight: 700; font-style: italic; color: rgba(10,155,138,0.085); white-space: nowrap; pointer-events: none; user-select: none; letter-spacing: -0.04em; }
@@ -498,7 +502,7 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect() })
   .featured-card { padding: 28px; }
 }
 @media (max-width: 980px) {
-  .hero { padding: 280px 20px 60px; }
+  .hero { padding: 70px 20px 60px; }
   .meta-strip { padding: 12px 20px; }
   .featured-band, .runners-band { padding: 50px 20px; }
   .empty-band, .loading-band { padding: 40px 20px 80px; }

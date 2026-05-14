@@ -1,5 +1,6 @@
 <template>
-  <div class="welcoming-page">
+  <MainLayout>
+    <div class="welcoming-page">
     <div class="noise" aria-hidden="true"></div>
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
@@ -266,12 +267,14 @@
         </section>
       </template>
     </template>
-  </div>
+    </div>
+  </MainLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
+import MainLayout from '../layouts/MainLayout.vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { resonanceStore } from '../stores/resonanceStore'
@@ -618,7 +621,13 @@ onBeforeUnmount(() => {
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
 /* ─── Hero ─── */
-.hero { position: relative; overflow: hidden; background: linear-gradient(160deg, #2a6a30 0%, #1e5226 100%); padding: 220px 52px 90px; color: white; }
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #2a6a30 0%, #1e5226 100%);
+  padding: 80px 52px 90px;
+  color: white;
+}
 .hero-bg-word { position: absolute; right: -2%; top: 50%; transform: translateY(-50%); font-family: Georgia,serif; font-size: clamp(140px, 20vw, 260px); font-weight: 700; font-style: italic; color: rgba(255,255,255,0.07); white-space: nowrap; pointer-events: none; user-select: none; letter-spacing: -0.04em; }
 .hero-leaves { position: absolute; inset: 0; pointer-events: none; opacity: 0.7; }
 .hero-inner { position: relative; z-index: 2; max-width: 1500px; margin: 0 auto; }
@@ -752,7 +761,7 @@ onBeforeUnmount(() => {
 .bnav-btn.primary:hover { color: white; transform: translateY(-2px); box-shadow: 0 16px 36px rgba(42,106,48,0.38); }
 
 @media (max-width: 980px) {
-  .hero { padding: 280px 20px 70px; }
+  .hero { padding: 70px 20px 70px; }
   .explainer-band, .map-band, .generic-empty-band, .tips-band { padding-left: 20px; padding-right: 20px; }
   .empty-band, .loading-band { padding: 60px 20px; }
   .map-band, .tips-band { padding-top: 60px; padding-bottom: 60px; }

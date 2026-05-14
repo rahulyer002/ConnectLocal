@@ -1,5 +1,6 @@
 <template>
-  <div class="week-page">
+  <MainLayout>
+    <div class="week-page">
     <div class="noise" aria-hidden="true"></div>
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
@@ -496,12 +497,14 @@
         </div>
       </section>
     </template>
-  </div>
+    </div>
+  </MainLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
+import MainLayout from '../layouts/MainLayout.vue'
 import { resonanceStore } from '../stores/resonanceStore'
 import { uiStore } from '../stores/uiStore'
 import { useResonanceApi } from '../composables/useResonanceApi'
@@ -763,7 +766,13 @@ onBeforeUnmount(() => {
 .orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 5%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
-.hero { position: relative; overflow: hidden; background: linear-gradient(160deg, #c8edc8 0%, #056b5e 100%); padding: 220px 52px 140px; color: white; }
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #c8edc8 0%, #056b5e 100%);
+  padding: 80px 52px 140px;
+  color: white;
+}
 .hero-bg-word { position: absolute; right: -2%; top: 50%; transform: translateY(-50%); font-family: Georgia,serif; font-size: clamp(140px, 20vw, 280px); font-weight: 700; font-style: italic; color: rgba(255,255,255,0.08); white-space: nowrap; pointer-events: none; user-select: none; letter-spacing: -0.04em; }
 .hero-inner { position: relative; z-index: 2; max-width: 1500px; margin: 0 auto; }
 .back-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; color: white; font-size: 13px; font-weight: 700; text-decoration: none; margin-bottom: 24px; transition: background 0.2s; }
@@ -1139,7 +1148,7 @@ onBeforeUnmount(() => {
   .park-animation { justify-self: center; max-width: 320px; }
 }
 @media (max-width: 980px) {
-  .hero { padding: 280px 20px 140px; }
+  .hero { padding: 70px 20px 140px; }
   .heatmap-band, .cream-band, .spaces-band { padding: 60px 20px; }
   .empty-band, .loading-band { padding: 80px 20px 60px; }
   .stats-strip { grid-template-columns: 1fr; }
