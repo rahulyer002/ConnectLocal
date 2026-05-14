@@ -18,3 +18,6 @@ class OpenSpace(Base):
     walkability_score = Column(Float)
     has_toilet_nearby = Column(Boolean)
     comfort_score = Column(Float)
+    # NEW — merged from processed/open_space_shade.csv
+    shade_score_100 = Column(Float)
+    nearby_tree_count = Column(Integer)
