@@ -10,6 +10,7 @@ from app.routers import journey_google
 from app.routers import accessibility
 from app.routers import trees as trees_router
 from app.routers import routes as routes_router
+from app.routers import chatbot                                                  # ← NEW
 
 settings = get_settings()
 
@@ -66,6 +67,8 @@ app.include_router(journey_google.router, prefix="/api/journey/google", tags=["J
 app.include_router(resonance.router,   prefix="/api/resonance",   tags=["Resonance (Epic 4)"])
 app.include_router(safety.router,      prefix="/api/safety",      tags=["Safety (Epic 4)"])
 app.include_router(greenspace.router,  prefix="/api/greenspace",  tags=["Green Space (Epic 4)"])
+# ─── Epic 5 — AI Chatbot ──────────────────────────────────────────────────────  ← NEW
+app.include_router(chatbot.router,     prefix="/api/chatbot",     tags=["Chatbot (Epic 5)"])
 
 # ─── NEW datasets — standalone point-based exposures ─────────────────────────
 app.include_router(accessibility.router, prefix="/api/accessibility", tags=["Accessibility (OSM)"])
@@ -90,6 +93,8 @@ async def root():
             "GTFS routes — /api/routes/*",
             "Per-suburb composition — /api/suburbs/{id}/*",
         ],
+            "epic_5": "AI chatbot — /api/chatbot",
+        }
     }
 
 

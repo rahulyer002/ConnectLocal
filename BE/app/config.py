@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     DATABASE_URL_SYNC: str = ""
     DATABASE_URL: str = ""
     GOOGLE_MAPS_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
 
     class Config:
         env_file = ".env"
