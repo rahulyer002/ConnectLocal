@@ -9,7 +9,8 @@ from app.models.psychological_distress import PsychologicalDistress
 from app.models import (
     Suburb, Landmark, OpenSpace, Category,
     PublicToilet, Tree, PedestrianSensor, PedestrianPattern,
-    MicroClimateSensor, GtfsStop, GtfsRoute, GtfsPattern, GtfsPathway
+    MicroClimateSensor, GtfsStop, GtfsRoute, GtfsPattern, GtfsPathway,
+    OsmBench, OsmAccessibleToilet, OsmWheelchairPlace,
 )
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -402,6 +403,191 @@ def load_psychological_distress():
         ]
         batch_insert(session, PsychologicalDistress, records)
     print(f"  Loaded {len(df)} records")
+# ─── NEW datasets — OSM accessibility + shade merge ──────────────────────────
+
+# Victoria bbox — strips international noise (~280 rows had lat 28°/lon -80°)
+VIC_BBOX = (-39.0, -34.0, 140.5, 150.0)  # lat_min, lat_max, lon_min, lon_max
+OSM_DIR = DATA_DIR / "osm_accessibility"
+
+
+def _filter_to_vic(df: pd.DataFrame) -> pd.DataFrame:
+    before = len(df)
+    df = df[
+        (df["latitude"].between(VIC_BBOX[0], VIC_BBOX[1]))
+        & (df["longitude"].between(VIC_BBOX[2], VIC_BBOX[3]))
+    ].copy()
+    print(f"  Filtered to Victoria bbox: {before:,} → {len(df):,}")
+    return df
+
+
+def _nearest_suburb(lat: float, lon: float, suburb_df: pd.DataFrame) -> tuple[int, str]:
+    """
+    Spatial join: pick nearest suburb by centroid using squared degree distance
+    (cheap and accurate enough at Melbourne scale).
+    """
+    dlat = suburb_df["centroid_lat"].values - lat
+    dlng = suburb_df["centroid_lng"].values - lon
+    dist2 = dlat * dlat + dlng * dlng
+    idx = int(dist2.argmin())
+    return (
+        int(suburb_df.iloc[idx]["suburb_id"]),
+        str(suburb_df.iloc[idx]["suburb_name"]),
+    )
+
+
+def _classify_amenity(raw) -> str:
+    """Bucket the raw OSM amenity tag into elderly-relevant categories."""
+    if raw is None or pd.isna(raw):
+        return "other"
+    v = str(raw).lower()
+    if v in ("pharmacy", "doctors", "dentist", "clinic", "hospital", "veterinary"):
+        return "healthcare"
+    if v in ("library", "post_office", "bank", "atm", "place_of_worship",
+             "community_centre", "townhall"):
+        return "essentials"
+    if v in ("restaurant", "cafe", "fast_food", "bar", "pub", "ice_cream",
+             "food_court", "biergarten"):
+        return "social"
+    if v in ("social_facility", "shelter"):
+        return "aged_care_social"
+    if v in ("bus_station", "ferry_terminal", "taxi"):
+        return "transit"
+    return "other"
+
+
+def _load_suburb_reference() -> pd.DataFrame:
+    return pd.read_csv(DATA_DIR / "suburb_profile.csv")[
+        ["suburb_id", "suburb_name", "centroid_lat", "centroid_lng"]
+    ]
+
+
+def load_osm_benches():
+    print("Loading OSM benches...")
+    df = pd.read_csv(OSM_DIR / "osm_benches_clean.csv")
+    df = _filter_to_vic(df).drop_duplicates(subset=["osm_id"])
+    suburbs = _load_suburb_reference()
+
+    with Session(engine) as session:
+        session.execute(text("DELETE FROM osm_bench"))
+        session.commit()
+        records = []
+        for r in df.itertuples():
+            sub_id, sub_name = _nearest_suburb(r.latitude, r.longitude, suburbs)
+            records.append(dict(
+                osm_id=str(r.osm_id),
+                name=str(r.name) if pd.notna(r.name) else "Bench",
+                lat=float(r.latitude),
+                lon=float(r.longitude),
+                suburb_id=sub_id,
+                suburb_name=sub_name,
+            ))
+        batch_insert(session, OsmBench, records)
+    print(f"  Loaded {len(records):,} benches")
+
+
+def load_osm_accessible_toilets():
+    print("Loading OSM accessible toilets...")
+    df = pd.read_csv(OSM_DIR / "osm_accessible_toilets_clean.csv")
+    df = _filter_to_vic(df).drop_duplicates(subset=["osm_id"])
+    suburbs = _load_suburb_reference()
+
+    with Session(engine) as session:
+        session.execute(text("DELETE FROM osm_accessible_toilet"))
+        session.commit()
+        records = []
+        for _, r in df.iterrows():
+            sub_id, sub_name = _nearest_suburb(r["latitude"], r["longitude"], suburbs)
+            records.append(dict(
+                osm_id=str(r["osm_id"]),
+                name=str(r["name"]) if pd.notna(r["name"]) else "Accessible Toilet",
+                wheelchair=str(r["wheelchair"]).lower() if pd.notna(r["wheelchair"]) else None,
+                toilets_wheelchair=(
+                    str(r["toilets:wheelchair"]).lower()
+                    if "toilets:wheelchair" in r and pd.notna(r["toilets:wheelchair"])
+                    else None
+                ),
+                opening_hours=str(r["opening_hours"]) if pd.notna(r["opening_hours"]) else None,
+                operator=str(r["operator"]) if pd.notna(r["operator"]) else None,
+                is_accessible=bool(r["is_accessible"]),
+                lat=float(r["latitude"]),
+                lon=float(r["longitude"]),
+                suburb_id=sub_id,
+                suburb_name=sub_name,
+            ))
+        batch_insert(session, OsmAccessibleToilet, records)
+    print(f"  Loaded {len(records):,} accessible toilets")
+
+
+def load_osm_wheelchair_places():
+    print("Loading OSM wheelchair-accessible places...")
+    df = pd.read_csv(OSM_DIR / "osm_wheelchair_accessible_places_clean.csv")
+    df = _filter_to_vic(df).drop_duplicates(subset=["osm_id"])
+    df["amenity_category"] = df["amenity"].apply(_classify_amenity)
+    suburbs = _load_suburb_reference()
+
+    with Session(engine) as session:
+        session.execute(text("DELETE FROM osm_wheelchair_place"))
+        session.commit()
+        records = []
+        for r in df.itertuples():
+            sub_id, sub_name = _nearest_suburb(r.latitude, r.longitude, suburbs)
+            records.append(dict(
+                osm_id=str(r.osm_id),
+                name=str(r.name) if pd.notna(r.name) else None,
+                amenity=str(r.amenity) if pd.notna(r.amenity) else None,
+                amenity_category=str(r.amenity_category),
+                wheelchair=str(r.wheelchair).lower() if pd.notna(r.wheelchair) else None,
+                operator=str(r.operator) if pd.notna(r.operator) else None,
+                opening_hours=str(r.opening_hours) if pd.notna(r.opening_hours) else None,
+                description=str(r.description) if pd.notna(r.description) else None,
+                is_accessible=bool(r.is_accessible),
+                lat=float(r.latitude),
+                lon=float(r.longitude),
+                suburb_id=sub_id,
+                suburb_name=sub_name,
+            ))
+        batch_insert(session, OsmWheelchairPlace, records)
+    print(f"  Loaded {len(records):,} wheelchair-accessible places")
+
+
+def load_open_space_shade():
+    """Merge open_space_shade.csv into open_space.shade_score_100 and nearby_tree_count.
+
+    Self-heals the schema first — Base.metadata.create_all only creates new tables;
+    it won't add new columns to existing ones, so we ALTER directly.
+    """
+    print("Merging open space shade data...")
+
+    # Idempotent column add (IF NOT EXISTS makes this safe to re-run)
+    with Session(engine) as session:
+        session.execute(text("""
+            ALTER TABLE open_space
+              ADD COLUMN IF NOT EXISTS shade_score_100   double precision,
+              ADD COLUMN IF NOT EXISTS nearby_tree_count integer
+        """))
+        session.commit()
+
+    df = pd.read_csv(DATA_DIR / "open_space_shade.csv")
+    updated = 0
+    with Session(engine) as session:
+        for r in df.itertuples():
+            res = session.execute(
+                text("""
+                    UPDATE open_space
+                       SET shade_score_100 = :ss,
+                           nearby_tree_count = :nc
+                     WHERE space_id = :sid
+                """),
+                {
+                    "ss": float(r.shade_score_100),
+                    "nc": int(r.nearby_tree_count),
+                    "sid": int(r.space_id),
+                },
+            )
+            updated += res.rowcount or 0
+        session.commit()
+    print(f"  Merged shade data into {updated} open_space rows (of {len(df)})")
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -413,6 +599,7 @@ def main():
     load_suburbs()
     load_landmarks()
     load_open_spaces()
+    load_open_space_shade()        # NEW — must run after load_open_spaces()
     load_categories()
     load_public_toilets()
     load_pedestrian_sensors()
@@ -423,6 +610,9 @@ def main():
     load_gtfs_patterns()
     load_gtfs_pathways()
     load_trees()
+    load_osm_benches()              # NEW
+    load_osm_accessible_toilets()   # NEW
+    load_osm_wheelchair_places()    # NEW
 
     print("\nAll data loaded successfully!")
     print("\nTables loaded:")
@@ -430,7 +620,8 @@ def main():
         "suburb", "landmark", "open_space", "category",
         "public_toilet", "pedestrian_sensor", "microclimate_sensor",
         "pedestrian_pattern", "gtfs_stop", "gtfs_route",
-        "gtfs_pattern", "gtfs_pathway", "tree"
+        "gtfs_pattern", "gtfs_pathway", "tree",
+        "osm_bench", "osm_accessible_toilet", "osm_wheelchair_place",
     ]
     for t in tables:
         print(f"  ✅ {t}")

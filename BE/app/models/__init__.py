@@ -12,3 +12,6 @@ from app.models.gtfs_route import GtfsRoute
 from app.models.gtfs_pattern import GtfsPattern
 from app.models.gtfs_pathway import GtfsPathway
 from app.models.psychological_distress import PsychologicalDistress
+from app.models.osm_bench import OsmBench
+from app.models.osm_accessible_toilet import OsmAccessibleToilet
+from app.models.osm_wheelchair_place import OsmWheelchairPlace
