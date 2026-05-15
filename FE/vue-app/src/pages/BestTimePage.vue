@@ -7,7 +7,7 @@
 
     <BestTimeLocationBar />
 
-    <section class="hero">
+    <section id="live-score" class="hero">
       <div class="hero-bg-word" aria-hidden="true">TIMING</div>
       <div class="hero-inner">
         <p class="hero-eyebrow">
@@ -162,7 +162,11 @@
 
     <section v-if="store.locationReady" class="cta-band" data-reveal>
       <div class="cta-inner">
-        <RouterLink to="/best-time/now" class="cta-card cta-primary">
+        <RouterLink
+          :to="{ path: '/best-time', hash: '#best-spots-now' }"
+          class="cta-card cta-primary"
+          @click="scrollToTarget('#best-spots-now')"
+        >
           <div class="cta-icon-wrap">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
@@ -175,7 +179,11 @@
           </div>
           <svg class="cta-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
         </RouterLink>
-        <RouterLink to="/best-time/week" class="cta-card cta-secondary">
+        <RouterLink
+          :to="{ path: '/best-time', hash: '#week-forecast' }"
+          class="cta-card cta-secondary"
+          @click="scrollToTarget('#week-forecast')"
+        >
           <div class="cta-icon-wrap yellow">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
@@ -187,7 +195,11 @@
           </div>
           <svg class="cta-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
         </RouterLink>
-        <RouterLink to="/welcoming-spaces" class="cta-card cta-secondary">
+        <RouterLink
+          :to="{ path: '/best-time', hash: '#welcoming-spaces' }"
+          class="cta-card cta-secondary"
+          @click="scrollToTarget('#welcoming-spaces')"
+        >
           <div class="cta-icon-wrap purple">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -199,6 +211,20 @@
           </div>
           <svg class="cta-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
         </RouterLink>
+      </div>
+    </section>
+
+    <section v-if="store.locationReady" class="combined-band">
+      <div class="combined-inner">
+        <div id="best-spots-now" class="combined-section">
+          <BestTimeNowPage embedded hide-location-bar />
+        </div>
+        <div id="week-forecast" class="combined-section">
+          <BestTimeWeekPage embedded hide-location-bar />
+        </div>
+        <div id="welcoming-spaces" class="combined-section">
+          <WelcomingSpacesPage embedded hide-location-bar />
+        </div>
       </div>
     </section>
     </div>
@@ -213,6 +239,9 @@ import { resonanceStore } from '../stores/resonanceStore'
 import { uiStore } from '../stores/uiStore'
 import { useResonanceApi } from '../composables/useResonanceApi'
 import BestTimeLocationBar from '../components/BestTimeLocationBar.vue'
+import BestTimeNowPage from './BestTimeNowPage.vue'
+import BestTimeWeekPage from './BestTimeWeekPage.vue'
+import WelcomingSpacesPage from './WelcomingSpacesPage.vue'
 
 const store = resonanceStore
 const { fetchScore, fetchSafety, fetchBestTimes } = useResonanceApi()
@@ -291,10 +320,23 @@ function applyChatbotQuery() {
   store.setLocation(lat, lon, q.suburb || store.locationLabel || null)
 }
 
+function scrollToHashTarget() {
+  if (!route.hash) return
+  scrollToTarget(route.hash)
+}
+
+watch(() => route.hash, () => { setTimeout(scrollToHashTarget, 0) })
+
+function scrollToTarget(selector) {
+  const el = document.querySelector(selector)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 onMounted(() => {
   setupReveal()
   applyChatbotQuery()
   if (store.locationReady) loadAll()
+  setTimeout(scrollToHashTarget, 0)
 })
 
 onBeforeUnmount(() => {

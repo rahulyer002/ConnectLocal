@@ -1,11 +1,11 @@
 <template>
-  <MainLayout>
+  <component :is="embedded ? 'div' : MainLayout" :class="{ 'embedded-layout': embedded }">
     <div class="welcoming-page">
     <div class="noise" aria-hidden="true"></div>
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
 
-    <BestTimeLocationBar />
+    <BestTimeLocationBar v-if="!hideLocationBar" />
 
     <section class="hero">
       <div class="hero-bg-word" aria-hidden="true">WELCOME</div>
@@ -251,15 +251,23 @@
 
         <section class="bottom-nav-band">
           <div class="bottom-nav-inner">
-            <RouterLink to="/best-time" class="bnav-btn">
+            <RouterLink
+              :to="{ path: '/best-time', hash: '#live-score' }"
+              class="bnav-btn"
+              @click.prevent="jumpToBestTimeSection('#live-score')"
+            >
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
               Live score
             </RouterLink>
-            <RouterLink to="/best-time/now" class="bnav-btn primary">
+            <RouterLink
+              :to="{ path: '/best-time', hash: '#best-spots-now' }"
+              class="bnav-btn primary"
+              @click.prevent="jumpToBestTimeSection('#best-spots-now')"
+            >
               Best spots now
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
             </RouterLink>
-            <RouterLink to="/discover" class="bnav-btn">
+            <RouterLink to="/discover" class="bnav-btn" @click.prevent="jumpToPath('/discover')">
               Browse events
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
             </RouterLink>
@@ -268,7 +276,7 @@
       </template>
     </template>
     </div>
-  </MainLayout>
+  </component>
 </template>
 
 <script setup>
@@ -282,6 +290,11 @@ import { uiStore } from '../stores/uiStore'
 import { useResonanceApi } from '../composables/useResonanceApi'
 import BestTimeLocationBar from '../components/BestTimeLocationBar.vue'
  
+defineProps({
+  embedded: { type: Boolean, default: false },
+  hideLocationBar: { type: Boolean, default: false },
+})
+
 const store = resonanceStore
 const router = useRouter()
 const { fetchWelcomingSpaces } = useResonanceApi()
@@ -592,6 +605,18 @@ function applyChatbotQuery() {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return
   if (store.userLat === lat && store.userLon === lon) return
   store.setLocation(lat, lon, q.suburb || store.locationLabel || null)
+}
+
+function jumpToBestTimeSection(hash) {
+  router.push({ path: '/best-time', hash })
+  setTimeout(() => {
+    const el = document.querySelector(hash)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 0)
+}
+
+function jumpToPath(path) {
+  router.push({ path })
 }
 
 onMounted(() => {
