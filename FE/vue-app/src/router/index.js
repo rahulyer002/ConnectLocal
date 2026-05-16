@@ -12,6 +12,7 @@ import BestTimeNowPage from '../pages/BestTimeNowPage.vue'
 import BestTimeWeekPage from '../pages/BestTimeWeekPage.vue'
 import WelcomingSpacesPage from '../pages/WelcomingSpacesPage.vue' 
 import LoginPage from '../pages/LoginPage.vue'
+import SuburbExplorerPage from "../pages/SuburbExplorerPage.vue"
 
 const router = createRouter({
   history: createWebHistory(),
@@ -31,7 +32,7 @@ const router = createRouter({
 { path: '/best-time/now', component: BestTimeNowPage },
 { path: '/best-time/week', component: BestTimeWeekPage },
 { path: '/welcoming-spaces', component: WelcomingSpacesPage },
-
+{ path: "/suburb-explorer", component: SuburbExplorerPage},
     { path: '/:pathMatch(.*)*', redirect: '/home' },
   ],
 })

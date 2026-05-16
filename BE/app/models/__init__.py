@@ -15,3 +15,4 @@ from app.models.psychological_distress import PsychologicalDistress
 from app.models.osm_bench import OsmBench
 from app.models.osm_accessible_toilet import OsmAccessibleToilet
 from app.models.osm_wheelchair_place import OsmWheelchairPlace
+from app.models.suburb_inference import SuburbInference 

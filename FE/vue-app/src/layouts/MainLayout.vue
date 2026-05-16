@@ -47,6 +47,7 @@
         <RouterLink to="/discover" @click="menuOpen = false">Events</RouterLink>
         <RouterLink to="/journey" @click="menuOpen = false">Journey</RouterLink>
         <RouterLink to="/best-time" @click="menuOpen = false">Best Time</RouterLink>
+        <RouterLink to="/suburb-explorer" class="item">Suburb Explorer</RouterLink>
       </div>
 
       <div class="nav-actions">

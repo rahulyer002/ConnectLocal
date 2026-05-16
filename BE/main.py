@@ -11,6 +11,7 @@ from app.routers import accessibility
 from app.routers import trees as trees_router
 from app.routers import routes as routes_router
 from app.routers import chatbot                                                  # ← NEW
+from app.routers import inference
 
 settings = get_settings()
 
@@ -74,6 +75,7 @@ app.include_router(chatbot.router,     prefix="/api/chatbot",     tags=["Chatbot
 app.include_router(accessibility.router, prefix="/api/accessibility", tags=["Accessibility (OSM)"])
 app.include_router(trees_router.router,  prefix="/api/trees",         tags=["Trees"])
 app.include_router(routes_router.router, prefix="/api/routes",        tags=["Transport Routes"])
+app.include_router(inference.router, prefix="/api/inference", tags=["Inference"])
 
 
 @app.get("/")

@@ -357,15 +357,24 @@ def load_gtfs_pathways():
     print(f"  Loaded {len(df)} pathways")
 
 
+
 def load_trees():
     print("Loading trees (82K rows — may take a moment)...")
     df = pd.read_csv(DATA_DIR / "trees.csv")
     df = df.drop_duplicates(subset=["tree_id"], keep="first")
+    # NOTE: trees.csv ships with every row's suburb_id set to the catch-all
+    # 297979799 (same NaN-argmin bug upstream). Recompute from lat/lon using
+    # the cleaned suburb reference so trees actually land on real suburbs.
+    suburbs = _load_suburb_reference()
     with Session(engine) as session:
         session.execute(text("DELETE FROM tree"))
         session.commit()
-        records = [
-            dict(
+        records = []
+        for r in df.itertuples():
+            if pd.isna(r.lat) or pd.isna(r.lon):
+                continue
+            sub_id, sub_name = _nearest_suburb(float(r.lat), float(r.lon), suburbs)
+            records.append(dict(
                 tree_id=int(r.tree_id),
                 common_name=r.common_name if pd.notna(r.common_name) else None,
                 genus=r.genus if pd.notna(r.genus) else None,
@@ -378,12 +387,10 @@ def load_trees():
                 lat=float(r.lat),
                 lon=float(r.lon),
                 shade_score=float(r.shade_score) if pd.notna(r.shade_score) else None,
-                suburb_id=int(r.suburb_id) if pd.notna(r.suburb_id) else None,
-            )
-            for r in df.itertuples()
-        ]
+                suburb_id=sub_id,
+            ))
         batch_insert(session, Tree, records)
-    print(f"  Loaded {len(df)} trees")
+    print(f"  Loaded {len(records)} trees")
 
 
 def load_psychological_distress():
@@ -456,9 +463,10 @@ def _classify_amenity(raw) -> str:
 
 
 def _load_suburb_reference() -> pd.DataFrame:
-    return pd.read_csv(DATA_DIR / "suburb_profile.csv")[
+    df = pd.read_csv(DATA_DIR / "suburb_profile.csv")[
         ["suburb_id", "suburb_name", "centroid_lat", "centroid_lng"]
     ]
+    return df.dropna(subset=["centroid_lat", "centroid_lng"]).reset_index(drop=True)
 
 
 def load_osm_benches():
@@ -484,6 +492,27 @@ def load_osm_benches():
         batch_insert(session, OsmBench, records)
     print(f"  Loaded {len(records):,} benches")
 
+
+def load_suburb_inference():
+    """Compute and persist precomputed inference rows for every suburb.
+
+    Idempotent — truncates the table before insert. Must run AFTER all the
+    underlying tables (osm_bench, tree, gtfs_stop, landmark, open_space) have
+    been populated, otherwise scores will be zero.
+    """
+    print("Computing suburb inference (scores, personas, peers)...")
+    from app.services import inference_service
+    from app.models.suburb_inference import SuburbInference
+
+    with Session(engine) as session:
+        rows = inference_service.compute_all(session)
+        if not rows:
+            print("  No suburbs found — skipping.")
+            return
+        session.execute(text("DELETE FROM suburb_inference"))
+        session.commit()
+        batch_insert(session, SuburbInference, rows)
+    print(f"  Computed {len(rows)} suburb inference rows.")
 
 def load_osm_accessible_toilets():
     print("Loading OSM accessible toilets...")
@@ -612,7 +641,8 @@ def main():
     load_trees()
     load_osm_benches()              # NEW
     load_osm_accessible_toilets()   # NEW
-    load_osm_wheelchair_places()    # NEW
+    load_osm_wheelchair_places() 
+    load_suburb_inference()   # NEW
 
     print("\nAll data loaded successfully!")
     print("\nTables loaded:")
