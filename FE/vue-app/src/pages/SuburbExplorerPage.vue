@@ -1,886 +1,720 @@
 <template>
   <MainLayout>
-    <main class="suburb-explorer-page">
-      <section class="map-card">
+    <div class="se-page">
+      <!-- Toolbar: just search -->
+      <div class="se-toolbar">
+        <div class="se-search" :class="{ open: searchOpen }">
+          <span class="se-search-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          </span>
+          <input
+            v-model="search.query.value"
+            class="se-search-input"
+            type="search"
+            placeholder="Find a suburb in Melbourne…"
+            aria-label="Search Melbourne suburbs"
+            @focus="searchOpen = true"
+            @blur="onSearchBlur"
+          />
+          <button
+            v-if="search.query.value"
+            class="se-search-clear"
+            type="button"
+            aria-label="Clear search"
+            @mousedown.prevent="search.clear()"
+          >×</button>
 
-        <section class="map-area">
-          <div class="legend">
-            <h4>Crowd Level</h4>
-            <p><span class="dot very-quiet"></span> Very Quiet</p>
-            <p><span class="dot quiet"></span> Quiet</p>
-            <p><span class="dot moderate"></span> Moderate</p>
-            <p><span class="dot busy"></span> Busy</p>
-          </div>
-
-          <div class="map-title-pill">📍 Melbourne Suburb Explorer</div>
-          <div class="epic-pill">EPIC 6.0</div>
-
-          <div v-if="loadingMap" class="map-message">
-            Loading suburbs...
-          </div>
-
-          <div v-else-if="mapError" class="map-message error">
-            {{ mapError }}
-          </div>
-
-          <div v-else class="suburb-map">
-            <button
-              v-for="(suburb, index) in visibleSuburbs"
-              :key="getSuburbId(suburb) || index"
-              class="suburb-hex"
-              :class="[
-                crowdClass(getCrowdLevel(suburb)),
-                { active: selectedSuburbId === getSuburbId(suburb) }
-              ]"
-              :style="getSuburbPosition(index)"
-              @click="selectSuburb(suburb)"
-            >
-              {{ shortName(getSuburbName(suburb)) }}
-            </button>
-          </div>
-
-          <div class="water-shape"></div>
-
-          <footer class="bottom-tabs">
-            <RouterLink to="/home">🏠 Home</RouterLink>
-            <RouterLink to="/discover">🎟 Events</RouterLink>
-            <RouterLink to="/journey">🚌 Journey</RouterLink>
-            <RouterLink to="/best-time">⏰ Best Time</RouterLink>
-            <RouterLink to="/checkin">✅ Check-in</RouterLink>
-            <span>🤖 AI Guide</span>
-            <strong>🌏 Suburbs</strong>
-          </footer>
-        </section>
-      </section>
-
-      <aside class="detail-panel">
-        <div v-if="!selectedSuburb" class="empty-state">
-          <div class="empty-icon">🗺️</div>
-          <h2>Select a suburb</h2>
-          <p>
-            Click any suburb on the map to see live crowd levels, weather,
-            pedestrian counts, and nearby events.
-          </p>
-
-          <div class="mini-legend">
-            <p><span class="dot very-quiet"></span> Very Quiet — Great time to visit</p>
-            <p><span class="dot quiet"></span> Quiet — Good conditions</p>
-            <p><span class="dot moderate"></span> Moderate — Fairly busy</p>
-            <p><span class="dot busy"></span> Busy — Consider visiting later</p>
-          </div>
-        </div>
-
-        <div v-else>
-          <button class="back-button" @click="clearSelection">
-            ← Back to map
-          </button>
-
-          <h2 class="suburb-title">{{ selectedSuburbName }}</h2>
-
-          <div v-if="loadingDetails" class="detail-message">
-            Loading suburb details...
-          </div>
-
-          <div v-if="detailError" class="detail-message error">
-            {{ detailError }}
-          </div>
-
-          <section class="info-card">
-            <h3>Live pedestrian data</h3>
-            <p class="big-number">{{ pedestrianPeopleText }}</p>
-            <p>{{ pedestrianLevelText }}</p>
-          </section>
-
-          <section class="info-card">
-            <h3>Weather right now</h3>
-            <p>{{ weatherText }}</p>
-          </section>
-
-          <section class="info-card">
-            <h3>Nearby events</h3>
-
-            <p v-if="events.length === 0">
-              No nearby events found.
-            </p>
-
-            <ul v-else class="event-list">
-              <li v-for="event in events.slice(0, 3)" :key="event.id || event.title || event.name">
-                <strong>{{ event.title || event.name || 'Untitled event' }}</strong>
-                <span>
-                  {{ event.date || event.start_time || event.time || event.venue || '' }}
-                </span>
+          <ul
+            v-if="searchOpen && search.query.value.trim().length >= 2"
+            class="se-search-results"
+            role="listbox"
+          >
+            <li v-if="search.isLoading.value" class="se-result-msg">Searching…</li>
+            <li v-else-if="search.error.value" class="se-result-msg err">{{ search.error.value }}</li>
+            <li v-else-if="!search.results.value.length" class="se-result-msg">
+              No matches for "{{ search.query.value }}".
+            </li>
+            <template v-else>
+              <li
+                v-for="r in search.results.value"
+                :key="r.suburb_id"
+                role="option"
+                tabindex="0"
+                class="se-result"
+                @mousedown.prevent="onPickResult(r)"
+                @keydown.enter="onPickResult(r)"
+              >
+                <span class="se-result-name">{{ r.suburb_name }}</span>
+                <span class="se-result-go" aria-hidden="true">↵</span>
               </li>
-            </ul>
-          </section>
-
-          <section class="info-card">
-            <h3>Accessibility</h3>
-            <p>{{ accessibilityText }}</p>
-          </section>
-
-          <section class="action-list">
-            <button @click="goToDiscover">
-              🎟 Find events in this suburb →
-            </button>
-            <button @click="goToJourney">
-              🚌 Plan a journey here →
-            </button>
-            <button @click="goToBestTime">
-              ⏰ Check best time to visit →
-            </button>
-          </section>
+            </template>
+          </ul>
         </div>
-      </aside>
-    </main>
+      </div>
+
+      <!-- Main split -->
+      <div class="se-body">
+        <div class="se-map-area">
+          <ChoroplethMap
+            v-if="viewMode === 'overview'"
+            :selected-metric="selectedMetric"
+            :selected-suburb-id="selectedSuburbId"
+            @select="onMapSelect"
+            @hover="onMapHover"
+            @geojson-loaded="onGeojsonLoaded"
+          />
+          <SuburbZoomMap
+            v-else
+            :suburb="selectedSuburbForZoom"
+            :suburb-feature="selectedFeature"
+            @back="exitZoom"
+          />
+
+          <!-- ── PROMINENT "Showing X" control (top-left) ── -->
+          <div
+            v-if="viewMode === 'overview'"
+            class="map-view-ctrl"
+            ref="fabRef"
+          >
+            <button
+              type="button"
+              class="mvc-btn"
+              :aria-expanded="fabOpen"
+              @click="fabOpen = !fabOpen"
+            >
+              <span class="mvc-swatch" :style="{ background: currentMetric.color }" aria-hidden="true"></span>
+              <span class="mvc-text">
+                <span class="mvc-prefix">Showing</span>
+                <span class="mvc-metric">{{ currentMetric.label }}</span>
+              </span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" :class="{ flipped: fabOpen }" class="mvc-chev" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+
+            <transition name="mvc-menu">
+              <div v-if="fabOpen" class="mvc-menu" role="menu">
+                <p class="mvc-menu-title">Map view</p>
+                <button
+                  v-for="m in METRICS"
+                  :key="m.key"
+                  type="button"
+                  role="menuitem"
+                  class="mvc-item"
+                  :class="{ active: selectedMetric === m.key }"
+                  @click="onMetricChange(m.key)"
+                >
+                  <span class="mvc-item-swatch" :style="{ background: m.color }"></span>
+                  <span class="mvc-item-label">{{ m.label }}</span>
+                  <svg v-if="selectedMetric === m.key" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                </button>
+              </div>
+            </transition>
+          </div>
+
+          <!-- Hover card -->
+          <transition name="hover-fade">
+            <div v-if="hoveredInfo && viewMode === 'overview'" class="hover-card">
+              <p class="hover-name">{{ hoveredInfo.suburb_name }}</p>
+              <p class="hover-stats">
+                <span v-if="hoveredInfo.elderly_pct != null" class="hover-stat">
+                  <span class="hover-stat-num">{{ hoveredInfo.elderly_pct.toFixed(1) }}%</span>
+                  aged 65+
+                </span>
+                <span v-if="hoveredInfo.value != null && hoveredInfo.elderly_pct != null" class="hover-divider" aria-hidden="true">·</span>
+                <span v-if="hoveredInfo.value != null" class="hover-stat">
+                  <span class="hover-stat-num">{{ formatHoverValue(hoveredInfo.value) }}</span>
+                  {{ currentMetric.hoverLabel }}
+                </span>
+                <span v-else-if="hoveredInfo.elderly_pct == null" class="hover-stat hover-nodata">no data available</span>
+              </p>
+              <p v-if="hoveredInfo.persona" class="hover-persona">{{ hoveredInfo.persona }}</p>
+            </div>
+          </transition>
+        </div>
+
+        <!-- Side panel -->
+        <aside class="se-panel-area">
+          <SuburbDetailPanel
+            :suburb-id="selectedSuburbId"
+            :display-name="selectedDisplayName"
+            :top-suburbs="topSuburbs"
+            @close="clearSelection"
+            @select-suburb="onPanelSelectPeer"
+            @find-events="goToEvents"
+            @plan-journey="goToJourney"
+            @view-on-map="zoomIntoSelected"
+          />
+        </aside>
+      </div>
+
+      <!-- Mobile bottom sheet -->
+      <transition name="mobile-sheet">
+        <div v-if="isMobile && selectedSuburbId && mobileSheetOpen" class="mobile-sheet">
+          <div class="mobile-sheet-grabber" aria-hidden="true"></div>
+          <SuburbDetailPanel
+            :suburb-id="selectedSuburbId"
+            :display-name="selectedDisplayName"
+            :top-suburbs="topSuburbs"
+            @close="mobileSheetOpen = false"
+            @select-suburb="onPanelSelectPeer"
+            @find-events="goToEvents"
+            @plan-journey="goToJourney"
+            @view-on-map="zoomIntoSelected"
+          />
+        </div>
+      </transition>
+
+      <transition name="hover-fade">
+        <div
+          v-if="isMobile && mobileSheetOpen"
+          class="mobile-backdrop"
+          @click="mobileSheetOpen = false"
+        ></div>
+      </transition>
+    </div>
   </MainLayout>
 </template>
 
 <script setup>
-import MainLayout from '../layouts/MainLayout.vue'
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import MainLayout         from '../layouts/MainLayout.vue'
+import ChoroplethMap      from '../components/ChoroplethMap.vue'
+import SuburbZoomMap      from '../components/SuburbZoomMap.vue'
+import SuburbDetailPanel  from '../components/SuburbDetailPanel.vue'
+import { useSuburbSearch }    from '../composables/useSuburbSearch'
+import { useSuburbRankings }  from '../composables/useSuburbInference'
 
-import {
-  fetchSuburbAccessibility,
-  fetchSuburbEvents,
-  fetchSuburbMap,
-  fetchSuburbPedestrian,
-  fetchSuburbSnapshot,
-  fetchSuburbWeather,
-} from '../composables/suburbExplorerApi'
-
-const router = useRouter()
-
-const suburbs = ref([])
-const selectedSuburb = ref(null)
-const selectedSuburbId = ref(null)
-
-const snapshot = ref(null)
-const pedestrian = ref(null)
-const weather = ref(null)
-const events = ref([])
-const accessibility = ref(null)
-
-const loadingMap = ref(false)
-const loadingDetails = ref(false)
-const mapError = ref('')
-const detailError = ref('')
-
-const preferredSuburbs = [
-  'Melbourne CBD - East',
-  'Melbourne CBD - West',
-  'Carlton',
-  'Docklands',
-  'Southbank',
-  'North Melbourne',
-  'East Melbourne',
-  'Richmond',
-  'Collingwood',
-  'Fitzroy',
-  'Parkville',
-  'St Kilda',
-  'Prahran',
-  'Hawthorn',
-  'Kew',
-  'Camberwell',
-  'Footscray',
-  'Preston',
-  'Coburg',
-  'Brunswick',
-  'Northcote',
-  'Toorak',
-  'Port Melbourne',
-  'South Yarra',
+const METRICS = [
+  { key: 'outing_score',    label: 'Connection',        hoverLabel: 'connection',    color: '#0F6E56' },
+  { key: 'score_amenities', label: 'Amenities',         hoverLabel: 'amenities',     color: '#1D9E75' },
+  { key: 'score_transit',   label: 'Transit',           hoverLabel: 'transit',       color: '#2D7BD4' },
+  { key: 'score_social',    label: 'Welcoming places',  hoverLabel: 'welcoming',     color: '#EE8B27' },
+  { key: 'elderly_pct',     label: 'Aged 65 and over',  hoverLabel: 'aged 65+',      color: '#7C3AED' },
 ]
 
-const visibleSuburbs = computed(() => {
-  const preferred = suburbs.value.filter((suburb) =>
-    preferredSuburbs.some((name) =>
-      getSuburbName(suburb).toLowerCase().includes(name.toLowerCase())
-    )
-  )
+const route  = useRoute()
+const router = useRouter()
 
-  if (preferred.length >= 10) {
-    return preferred.slice(0, 24)
-  }
+const selectedMetric      = ref('outing_score')
+const selectedSuburbId    = ref(null)
+const selectedDisplayName = ref('')
+const viewMode            = ref('overview')
+const hoveredInfo         = ref(null)
+const allFeatures         = ref([])
+const isMobile            = ref(false)
+const mobileSheetOpen     = ref(false)
+const searchOpen          = ref(false)
+const fabOpen             = ref(false)
+const fabRef              = ref(null)
 
-  return suburbs.value.slice(0, 24)
+const search = useSuburbSearch()
+
+const { data: rankingsData, run: runRankings } =
+  useSuburbRankings(() => ({ metric: 'outing_score', top: 10 }))
+
+const currentMetric = computed(() =>
+  METRICS.find(m => m.key === selectedMetric.value) || METRICS[0]
+)
+
+const topSuburbs = computed(() => (rankingsData.value?.suburbs || []).slice(0, 4))
+
+onMounted(async () => {
+  checkViewport()
+  window.addEventListener('resize', checkViewport)
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('click', onDocClick)
+
+  const id = route.query.id ? Number(route.query.id) : null
+  const m  = route.query.metric
+  if (m && METRICS.some(x => x.key === m)) selectedMetric.value = m
+  if (id) selectSuburb(id)
+
+  await runRankings()
 })
 
-const selectedSuburbName = computed(() => {
-  if (!selectedSuburb.value) return ''
-  return getSuburbName(selectedSuburb.value)
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', checkViewport)
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('click', onDocClick)
 })
 
-const pedestrianPeopleText = computed(() => {
-  const data = pedestrian.value
-
-  if (!data || data.available === false || data.people_per_hour == null) {
-    return 'No live count available'
-  }
-
-  return `${data.people_per_hour} people/hr`
-})
-
-const pedestrianLevelText = computed(() => {
-  const data = pedestrian.value
-
-  if (!data || data.available === false) {
-    return 'Crowd level not available'
-  }
-
-  const level = data.crowd_level || data.raw_crowd_label || 'Crowd level not available'
-  const trend = data.trend ? ` · ${data.trend}` : ''
-
-  return `${level}${trend}`
-})
-
-const weatherText = computed(() => {
-  const data = weather.value || snapshot.value
-
-  const temp =
-    data?.temperature_c ??
-    data?.temperature ??
-    data?.current?.temperature
-
-  const feelsLike =
-    data?.feels_like_c ??
-    data?.feels_like ??
-    data?.current?.feels_like
-
-  const humidity =
-    data?.humidity_pct ??
-    data?.humidity ??
-    data?.current?.humidity
-
-  const windSpeed =
-    data?.wind_speed_kmh ??
-    data?.wind_speed ??
-    data?.current?.wind_speed
-
-  const condition =
-    data?.summary ||
-    data?.condition ||
-    data?.weather_description ||
-    data?.current?.condition
-
-  if (
-    temp === undefined &&
-    feelsLike === undefined &&
-    humidity === undefined &&
-    windSpeed === undefined &&
-    !condition
-  ) {
-    return 'Weather information not available.'
-  }
-
-  const parts = []
-
-  if (temp !== undefined && temp !== null) {
-    parts.push(`${temp}°C`)
-  }
-
-  if (feelsLike !== undefined && feelsLike !== null) {
-    parts.push(`Feels like ${feelsLike}°C`)
-  }
-
-  if (humidity !== undefined && humidity !== null) {
-    parts.push(`Humidity ${humidity}%`)
-  }
-
-  if (windSpeed !== undefined && windSpeed !== null) {
-    parts.push(`Wind ${windSpeed} km/h`)
-  }
-
-  if (condition) {
-    parts.push(condition)
-  }
-
-  return parts.join(' - ')
-})
-
-const accessibilityText = computed(() => {
-  const data = accessibility.value
-
-  if (!data) return 'Accessibility information not available.'
-
-  const benches = data.benches
-  const toilets = data.accessible_toilets
-  const wheelchairPlaces = data.wheelchair_places
-  const placesByCategory = data.places_by_category
-
-  const parts = []
-
-  if (benches !== undefined) parts.push(`${benches} benches`)
-  if (toilets !== undefined) parts.push(`${toilets} accessible toilets`)
-  if (wheelchairPlaces !== undefined) parts.push(`${wheelchairPlaces} wheelchair-friendly places`)
-
-  if (parts.length > 0) {
-    return parts.join(', ')
-  }
-
-  if (placesByCategory) {
-    return 'Accessibility places are available for this suburb.'
-  }
-
-  return 'No accessibility summary available for this suburb.'
-})
-
-function getSuburbId(suburb) {
-  return (
-    suburb.suburb_id ||
-    suburb.id ||
-    suburb.sa2_code ||
-    suburb.SA2_CODE21 ||
-    suburb.properties?.suburb_id ||
-    suburb.properties?.id ||
-    suburb.properties?.SA2_CODE21
-  )
+function checkViewport() {
+  isMobile.value = window.innerWidth < 900
 }
 
-function getSuburbName(suburb) {
-  return (
-    suburb.suburb_name ||
-    suburb.name ||
-    suburb.suburb ||
-    suburb.SA2_NAME21 ||
-    suburb.properties?.suburb_name ||
-    suburb.properties?.name ||
-    suburb.properties?.SA2_NAME21 ||
-    'Unknown suburb'
-  )
-}
-
-function getCrowdLevel(suburb) {
-  return (
-    suburb.crowd_level ||
-    suburb.crowd?.level ||
-    suburb.pedestrian?.crowd_level ||
-    suburb.properties?.crowd_level ||
-    'Quiet'
-  )
-}
-
-function crowdClass(level) {
-  const value = String(level || '').toLowerCase()
-
-  if (value.includes('very')) return 'very-quiet'
-  if (value.includes('busy') || value.includes('high')) return 'busy'
-  if (value.includes('moderate')) return 'moderate'
-  return 'quiet'
-}
-
-function shortName(name) {
-  return name
-    .replace('Melbourne CBD - ', 'CBD ')
-    .replace(' - ', '\n')
-}
-
-function getSuburbPosition(index) {
-  const positions = [
-    [48, 16], [58, 20], [40, 22], [52, 28], [62, 30],
-    [34, 32], [45, 36], [56, 38], [68, 39], [28, 46],
-    [39, 48], [50, 50], [61, 52], [72, 54], [34, 61],
-    [46, 62], [57, 64], [67, 66], [42, 75], [53, 76],
-    [63, 78], [31, 72], [74, 71], [22, 58],
-  ]
-
-  const [left, top] = positions[index % positions.length]
-
-  return {
-    left: `${left}%`,
-    top: `${top}%`,
+function onKeydown(e) {
+  if (e.key === 'Escape') {
+    if (fabOpen.value) fabOpen.value = false
+    else if (mobileSheetOpen.value) mobileSheetOpen.value = false
+    else if (selectedSuburbId.value) clearSelection()
   }
 }
 
-async function loadSuburbs() {
-  loadingMap.value = true
-  mapError.value = ''
-
-  try {
-    const data = await fetchSuburbMap()
-
-    suburbs.value =
-      data.suburbs ||
-      data.features ||
-      data.items ||
-      data.results ||
-      data ||
-      []
-  } catch (error) {
-    console.error(error)
-    mapError.value = 'Could not load suburb map data.'
-  } finally {
-    loadingMap.value = false
+function onDocClick(e) {
+  if (fabOpen.value && fabRef.value && !fabRef.value.contains(e.target)) {
+    fabOpen.value = false
   }
 }
 
-async function selectSuburb(suburb) {
-  selectedSuburb.value = suburb
-  selectedSuburbId.value = getSuburbId(suburb)
-
-  if (!selectedSuburbId.value) {
-    detailError.value = 'This suburb does not have a valid suburb ID.'
-    return
-  }
-
-  await loadSuburbDetails(selectedSuburbId.value)
+function onMetricChange(key) {
+  selectedMetric.value = key
+  fabOpen.value = false
+  syncUrl()
 }
 
-async function loadSuburbDetails(suburbId) {
-  loadingDetails.value = true
-  detailError.value = ''
-
-  snapshot.value = null
-  pedestrian.value = null
-  weather.value = null
-  events.value = []
-  accessibility.value = null
-
-  try {
-    const [
-      snapshotResult,
-      pedestrianResult,
-      weatherResult,
-      eventsResult,
-      accessibilityResult,
-    ] = await Promise.allSettled([
-      fetchSuburbSnapshot(suburbId),
-      fetchSuburbPedestrian(suburbId),
-      fetchSuburbWeather(suburbId),
-      fetchSuburbEvents(suburbId, 10),
-      fetchSuburbAccessibility(suburbId, 10),
-    ])
-
-    if (snapshotResult.status === 'fulfilled') {
-      snapshot.value = snapshotResult.value
-    }
-
-    if (pedestrianResult.status === 'fulfilled') {
-      pedestrian.value = pedestrianResult.value
-    }
-
-    if (weatherResult.status === 'fulfilled') {
-      weather.value = weatherResult.value
-    }
-
-    if (eventsResult.status === 'fulfilled') {
-      const eventData = eventsResult.value
-
-      events.value =
-        eventData.events ||
-        eventData.items ||
-        eventData.results ||
-        eventData ||
-        []
-    }
-
-    if (accessibilityResult.status === 'fulfilled') {
-      accessibility.value = accessibilityResult.value
-    }
-
-    console.log('Snapshot:', snapshot.value)
-    console.log('Pedestrian:', pedestrian.value)
-    console.log('Weather:', weather.value)
-    console.log('Events:', events.value)
-    console.log('Accessibility:', accessibility.value)
-  } catch (error) {
-    console.error(error)
-    detailError.value = 'Could not load suburb details.'
-  } finally {
-    loadingDetails.value = false
-  }
+function selectSuburb(id, name = '') {
+  selectedSuburbId.value = id
+  if (name) selectedDisplayName.value = name
+  if (isMobile.value) mobileSheetOpen.value = true
+  syncUrl()
 }
 
 function clearSelection() {
-  selectedSuburb.value = null
   selectedSuburbId.value = null
+  selectedDisplayName.value = ''
+  viewMode.value = 'overview'
+  mobileSheetOpen.value = false
+  syncUrl()
 }
 
-function goToDiscover() {
-  router.push({
-    path: '/discover',
-    query: {
-      suburb: selectedSuburbName.value,
-    },
-  })
+function syncUrl() {
+  const next = { ...route.query }
+  if (selectedSuburbId.value) next.id = String(selectedSuburbId.value)
+  else delete next.id
+  next.metric = selectedMetric.value
+  router.replace({ query: next }).catch(() => {})
+}
+
+function onMapSelect(payload) {
+  if (!payload) return
+  selectSuburb(payload.suburb_id, payload.suburb_name)
+}
+
+function onMapHover(info) {
+  if (isMobile.value) return
+  hoveredInfo.value = info
+}
+
+function onGeojsonLoaded(geo) {
+  allFeatures.value = geo?.features || []
+}
+
+const selectedFeature = computed(() => {
+  if (!selectedSuburbId.value) return null
+  return allFeatures.value.find(
+    f => Number(f.properties?.suburb_id) === selectedSuburbId.value,
+  ) || null
+})
+
+const selectedSuburbForZoom = computed(() => ({
+  suburb_id:   selectedSuburbId.value,
+  suburb_name: selectedFeature.value?.properties?.suburb_name || selectedDisplayName.value,
+}))
+
+function zoomIntoSelected() {
+  if (!selectedSuburbId.value || !selectedFeature.value) return
+  viewMode.value = 'detail'
+  if (isMobile.value) mobileSheetOpen.value = false
+}
+
+function exitZoom() {
+  viewMode.value = 'overview'
+}
+
+function onPanelSelectPeer(id) {
+  if (!id) return
+  const feat = allFeatures.value.find(f => Number(f.properties?.suburb_id) === Number(id))
+  selectSuburb(Number(id), feat?.properties?.suburb_name || '')
+}
+
+function onSearchBlur() {
+  setTimeout(() => { searchOpen.value = false }, 120)
+}
+
+function onPickResult(r) {
+  selectSuburb(Number(r.suburb_id), r.suburb_name)
+  search.clear()
+  searchOpen.value = false
+}
+
+function formatHoverValue(v) {
+  if (v == null || isNaN(v)) return '—'
+  if (selectedMetric.value === 'elderly_pct') return `${Number(v).toFixed(1)}%`
+  return `${Math.round(v)}/100`
+}
+
+function goToEvents() {
+  if (!selectedSuburbId.value) return
+  router.push({ path: '/discover', query: { suburb_id: String(selectedSuburbId.value) } })
 }
 
 function goToJourney() {
-  router.push({
-    path: '/journey',
-    query: {
-      suburb: selectedSuburbName.value,
-    },
-  })
+  const feat = selectedFeature.value
+  if (!feat) { router.push('/journey'); return }
+  let lat = null, lon = null
+  try {
+    const coords = feat.geometry?.coordinates
+    if (feat.geometry?.type === 'MultiPolygon') {
+      const ring = coords[0][0]
+      lat = ring.reduce((a, c) => a + c[1], 0) / ring.length
+      lon = ring.reduce((a, c) => a + c[0], 0) / ring.length
+    } else if (feat.geometry?.type === 'Polygon') {
+      const ring = coords[0]
+      lat = ring.reduce((a, c) => a + c[1], 0) / ring.length
+      lon = ring.reduce((a, c) => a + c[0], 0) / ring.length
+    }
+  } catch {}
+  if (lat != null && lon != null) {
+    router.push({ path: '/journey', query: { from_lat: lat.toFixed(5), from_lon: lon.toFixed(5) } })
+  } else {
+    router.push('/journey')
+  }
 }
-
-function goToBestTime() {
-  router.push({
-    path: '/best-time',
-    query: {
-      suburb: selectedSuburbName.value,
-    },
-  })
-}
-
-onMounted(() => {
-  loadSuburbs()
-})
 </script>
 
 <style scoped>
-.suburb-explorer-page {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(680px, 1.5fr) minmax(320px, 0.7fr);
-  gap: 28px;
-  padding: 32px;
-  background: #f2f5f1;
-  color: #17213d;
+.se-page {
+  --teal:        #0F6E56;
+  --teal-deep:   #04342C;
+  --teal-soft:   #E1F5EE;
+  --mint:        #F2FAF0;
+  --ink:         #0f1e12;
+  --muted:       #6a7e6d;
+  --line:        #ECF3EC;
+
+  min-height: calc(100vh - 80px);
+  background: linear-gradient(180deg, #f8fcf6 0%, #ebf6e8 100%);
+  padding: 20px 24px 24px;
 }
 
-.map-card,
-.detail-panel {
-  background: #ffffff;
-  border-radius: 24px;
-  border: 1px solid #dce9df;
-  box-shadow: 0 20px 60px rgba(0, 60, 40, 0.08);
-  overflow: hidden;
+/* Toolbar */
+.se-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
 }
-
-.map-area {
+.se-search {
   position: relative;
-  min-height: 700px;
-  overflow: hidden;
-  border-radius: 24px;
-  background:
-    linear-gradient(rgba(224, 238, 222, 0.85), rgba(224, 238, 222, 0.85)),
-    radial-gradient(circle at 40% 40%, #d7ead6, #cbdccf);
-}
-
-.legend {
-  position: absolute;
-  z-index: 4;
-  top: 38px;
-  left: 70px;
-  width: 150px;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 8px 20px rgba(0, 50, 30, 0.08);
-}
-
-.legend h4 {
-  margin: 0 0 8px;
-  font-size: 11px;
-  text-transform: uppercase;
-  color: #6c7a73;
-}
-
-.legend p,
-.mini-legend p {
-  margin: 6px 0;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  margin-right: 6px;
-}
-
-.dot.very-quiet,
-.suburb-hex.very-quiet {
-  background: #48b86b;
-}
-
-.dot.quiet,
-.suburb-hex.quiet {
-  background: #72c77d;
-}
-
-.dot.moderate,
-.suburb-hex.moderate {
-  background: #f2c94c;
-}
-
-.dot.busy,
-.suburb-hex.busy {
-  background: #f9734d;
-}
-
-.map-title-pill {
-  position: absolute;
-  top: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 4;
-  background: #ffffff;
-  color: #24413a;
-  border-radius: 999px;
-  padding: 9px 18px;
-  font-size: 13px;
-  font-weight: 800;
-  box-shadow: 0 8px 20px rgba(0, 50, 30, 0.08);
-}
-
-.epic-pill {
-  position: absolute;
-  top: 40px;
-  right: 34px;
-  z-index: 4;
-  background: #0f8a72;
-  color: #ffffff;
-  border-radius: 999px;
-  padding: 9px 16px;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.suburb-map {
-  position: absolute;
-  inset: 75px 40px 110px 40px;
-  z-index: 3;
-}
-
-.suburb-hex {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 108px;
-  min-height: 58px;
-  border: none;
-  color: #ffffff;
-  font-size: 12px;
-  line-height: 1.15;
-  font-weight: 900;
-  white-space: pre-line;
-  cursor: pointer;
-  clip-path: polygon(18% 0%, 82% 0%, 100% 50%, 82% 100%, 18% 100%, 0% 50%);
-  box-shadow: 0 7px 14px rgba(0, 55, 35, 0.12);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-}
-
-.suburb-hex:hover,
-.suburb-hex.active {
-  transform: translate(-50%, -50%) scale(1.08);
-  box-shadow: 0 12px 24px rgba(0, 80, 50, 0.22);
-  filter: brightness(1.03);
-  outline: 4px solid rgba(255, 255, 255, 0.85);
-}
-
-.water-shape {
-  position: absolute;
-  z-index: 1;
-  left: 10%;
-  right: 10%;
-  bottom: -52px;
-  height: 165px;
-  background: #b9ddea;
-  opacity: 0.85;
-  border-radius: 50% 50% 0 0;
-  transform: rotate(2deg);
-}
-
-.bottom-tabs {
-  position: absolute;
-  z-index: 5;
-  left: 50%;
-  bottom: 30px;
-  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 14px 24px;
-  border-radius: 999px;
   background: #ffffff;
-  box-shadow: 0 18px 40px rgba(0, 50, 35, 0.15);
-  white-space: nowrap;
-}
-
-.bottom-tabs a,
-.bottom-tabs span {
-  color: #1e3d36;
-  text-decoration: none;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.bottom-tabs strong {
-  background: #0f8a72;
-  color: #ffffff;
+  border: 1.5px solid var(--line);
   border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 12px;
+  padding: 6px 14px;
+  flex: 1;
+  min-width: 220px;
+  max-width: 480px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-
-.map-message {
+.se-search.open {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(15, 110, 86, 0.12);
+}
+.se-search-ic { color: var(--muted); display: inline-flex; margin-right: 6px; }
+.se-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: calc(15px * var(--font-scale));
+  color: var(--ink);
+  font-family: inherit;
+  outline: none;
+  padding: 6px 0;
+}
+.se-search-input::placeholder { color: var(--muted); }
+.se-search-clear {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.se-search-results {
   position: absolute;
-  z-index: 6;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
   background: #ffffff;
-  border-radius: 16px;
-  padding: 18px 24px;
-  font-weight: 800;
-}
-
-.detail-panel {
-  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 6px;
+  list-style: none;
+  margin: 0;
+  max-height: 320px;
   overflow-y: auto;
+  z-index: 30;
+  box-shadow: 0 8px 24px rgba(15, 110, 86, 0.12);
 }
-
-.empty-state {
-  min-height: 620px;
+.se-result {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: calc(14px * var(--font-scale));
+  transition: background 0.1s;
+}
+.se-result:hover, .se-result:focus { background: var(--teal-soft); outline: none; }
+.se-result-name { color: var(--ink); font-weight: 500; }
+.se-result-go { color: var(--muted); font-size: 12px; opacity: 0; transition: opacity 0.15s; }
+.se-result:hover .se-result-go, .se-result:focus .se-result-go { opacity: 1; }
+.se-result-msg {
+  padding: 12px 14px;
+  font-size: calc(13px * var(--font-scale));
+  color: var(--muted);
   text-align: center;
 }
+.se-result-msg.err { color: #B07919; }
 
-.empty-icon {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 16px;
-  border-radius: 999px;
+/* Main split */
+.se-body {
   display: grid;
-  place-items: center;
-  background: #eaf7ef;
-  font-size: 28px;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  gap: 20px;
+  height: calc(100vh - 200px);
+  min-height: 540px;
+}
+.se-map-area {
+  height: 100%;
+  min-height: 480px;
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 110, 86, 0.08);
+}
+.se-panel-area {
+  height: 100%;
+  min-height: 480px;
 }
 
-.empty-state h2,
-.suburb-title {
-  margin: 0 0 12px;
-  font-size: 30px;
-  color: #252948;
+/* ──────────────────────────────────────────────────────────────── */
+/*  "Showing X" map view control — top-left, prominent              */
+/* ──────────────────────────────────────────────────────────────── */
+.map-view-ctrl {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 800;
 }
-
-.empty-state p {
-  max-width: 330px;
-  margin: 0 auto 24px;
-  color: #53635d;
-  line-height: 1.5;
-}
-
-.mini-legend {
-  border-top: 1px solid #e4eee8;
-  padding-top: 18px;
-  text-align: left;
-}
-
-.back-button {
-  border: none;
-  background: #0f8a72;
-  color: #ffffff;
-  border-radius: 16px;
-  padding: 13px 20px;
-  font-size: 15px;
-  font-weight: 800;
-  cursor: pointer;
-  margin-bottom: 26px;
-}
-
-.info-card {
-  margin-top: 18px;
-  padding: 22px;
-  border: 1px solid #dce9df;
-  border-radius: 20px;
-  background: #f8fcf9;
-}
-
-.info-card h3 {
-  margin: 0 0 16px;
-  font-size: 21px;
-  color: #252948;
-}
-
-.big-number {
-  margin: 0 0 12px;
-  color: #0f8a72;
-  font-size: 34px;
-  font-weight: 900;
-}
-
-.event-list {
-  padding-left: 18px;
-  margin: 0;
-}
-
-.event-list li {
-  margin-bottom: 12px;
-}
-
-.event-list span {
-  display: block;
-  margin-top: 3px;
-  color: #62706a;
-  font-size: 13px;
-}
-
-.action-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.action-list button {
-  border: none;
+.mvc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 10px 12px;
+  background: #ffffff;
+  border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 15px 18px;
-  background: #0f8a72;
-  color: #ffffff;
-  font-weight: 900;
-  text-align: left;
   cursor: pointer;
+  font-family: inherit;
+  font-size: calc(13px * var(--font-scale));
+  font-weight: 600;
+  color: var(--ink);
+  box-shadow: 0 4px 14px rgba(15, 110, 86, 0.14);
+  transition: all 0.15s;
+}
+.mvc-btn:hover { border-color: #5DCAA5; transform: translateY(-1px); }
+.mvc-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+.mvc-text { display: inline-flex; align-items: baseline; gap: 6px; }
+.mvc-prefix {
+  font-size: calc(11px * var(--font-scale));
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.mvc-metric { color: var(--ink); }
+.mvc-chev { color: var(--muted); transition: transform 0.2s; }
+.mvc-chev.flipped { transform: rotate(180deg); }
+
+.mvc-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 6px;
+  min-width: 240px;
+  box-shadow: 0 8px 28px rgba(15, 110, 86, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+.mvc-menu-title {
+  margin: 0;
+  padding: 8px 12px 6px;
+  font-size: calc(11px * var(--font-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.mvc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: calc(13px * var(--font-scale));
+  color: var(--ink);
+  text-align: left;
+  width: 100%;
+  transition: background 0.1s;
+}
+.mvc-item:hover { background: var(--mint); }
+.mvc-item.active { background: var(--teal-soft); }
+.mvc-item.active .mvc-item-label { color: var(--teal-deep); font-weight: 600; }
+.mvc-item svg { color: var(--teal); margin-left: auto; }
+.mvc-item-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.mvc-item-label { flex: 1; }
+
+.mvc-menu-enter-active, .mvc-menu-leave-active {
+  transition: opacity 0.18s, transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top left;
+}
+.mvc-menu-enter-from, .mvc-menu-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
 }
 
-.detail-message {
-  margin: 12px 0;
-  color: #53635d;
+/* ──────────────────────────────────────────────────────────────── */
+/*  Hover card — z-index above Leaflet panes (max 700)              */
+/* ──────────────────────────────────────────────────────────────── */
+.hover-card {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  background: rgba(15, 30, 18, 0.96);
+  color: #ffffff;
+  border-radius: 14px;
+  z-index: 999;
+  pointer-events: none;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  max-width: 360px;
+}
+.hover-name {
+  margin: 0 0 4px;
+  font-family: Georgia, serif;
+  font-size: calc(15px * var(--font-scale));
   font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.hover-stats {
+  margin: 0;
+  font-size: calc(12px * var(--font-scale));
+  opacity: 0.92;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.hover-stat-num {
+  font-family: Georgia, serif;
+  font-weight: 700;
+  color: #9FE1CB;
+  margin-right: 4px;
+}
+.hover-divider { opacity: 0.5; }
+.hover-nodata { opacity: 0.7; font-style: italic; }
+.hover-persona {
+  display: inline-block;
+  margin: 4px 0 0;
+  padding: 2px 10px;
+  background: rgba(93, 202, 165, 0.18);
+  border-radius: 999px;
+  font-size: calc(11px * var(--font-scale));
+  color: #9FE1CB;
+  font-weight: 600;
 }
 
-.error {
-  color: #b3261e;
+.hover-fade-enter-active, .hover-fade-leave-active {
+  transition: opacity 0.18s, transform 0.18s;
+}
+.hover-fade-enter-from, .hover-fade-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mvc-menu-enter-active, .mvc-menu-leave-active,
+  .hover-fade-enter-active, .hover-fade-leave-active { transition: none; }
 }
 
-@media (max-width: 1100px) {
-  .suburb-explorer-page {
+/* Mobile */
+@media (max-width: 900px) {
+  .se-page { padding: 14px 16px 16px; }
+  .se-body {
     grid-template-columns: 1fr;
+    height: calc(100vh - 160px);
   }
-
-  .map-card {
-    min-height: 650px;
+  .se-panel-area { display: none; }
+  .hover-card {
+    top: 76px;
+    max-width: 280px;
+    padding: 10px 16px;
   }
+  .map-view-ctrl {
+    top: 14px;
+    left: 14px;
+    right: 14px;
+  }
+  .mvc-btn { width: 100%; justify-content: space-between; }
+  .mvc-menu { left: 0; right: 0; min-width: 0; }
 }
 
-@media (max-width: 700px) {
-  .suburb-explorer-page {
-    padding: 16px;
-  }
-
-  .map-area {
-    min-height: 560px;
-  }
-
-  .legend {
-    left: 20px;
-  }
-
-  .suburb-hex {
-    width: 86px;
-    min-height: 48px;
-    font-size: 10px;
-  }
-
-  .bottom-tabs {
-    max-width: 90%;
-    overflow-x: auto;
-  }
+/* Mobile bottom sheet */
+.mobile-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 90vh;
+  background: #ffffff;
+  border-radius: 24px 24px 0 0;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -4px 24px rgba(15, 110, 86, 0.18);
+  overflow: hidden;
 }
+.mobile-sheet-grabber {
+  width: 40px;
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+  margin: 10px auto 0;
+  flex-shrink: 0;
+}
+.mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 30, 18, 0.4);
+  z-index: 1099;
+}
+
+.mobile-sheet-enter-active, .mobile-sheet-leave-active {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mobile-sheet-enter-from, .mobile-sheet-leave-to { transform: translateY(100%); }
 </style>
