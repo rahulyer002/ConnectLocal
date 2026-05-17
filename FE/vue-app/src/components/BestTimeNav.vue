@@ -30,40 +30,40 @@
         </RouterLink>
 
         <div v-show="submenuOpen" class="bt-nav-submenu" @mouseenter="cancelClose" @mouseleave="scheduleClose">
-          <RouterLink to="/best-time" class="bt-nav-sub" @click="closeSubmenu">
+          <RouterLink :to="{ path: '/best-time', hash: '#step-now' }" class="bt-nav-sub" @click="closeSubmenu">
             <span class="bt-nav-sub-icon mint">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </span>
             <span class="bt-nav-sub-text">
-              <span class="bt-nav-sub-label">Live score</span>
-              <span class="bt-nav-sub-desc">Right now in your area</span>
+              <span class="bt-nav-sub-label">Right now</span>
+              <span class="bt-nav-sub-desc">Live score for your area</span>
             </span>
           </RouterLink>
-          <RouterLink to="/best-time/now" class="bt-nav-sub" @click="closeSubmenu">
+          <RouterLink :to="{ path: '/best-time', hash: '#step-where' }" class="bt-nav-sub" @click="closeSubmenu">
             <span class="bt-nav-sub-icon green">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
             </span>
             <span class="bt-nav-sub-text">
-              <span class="bt-nav-sub-label">Best spots now</span>
-              <span class="bt-nav-sub-desc">Top 3 places nearby</span>
+              <span class="bt-nav-sub-label">Where to go</span>
+              <span class="bt-nav-sub-desc">Top outdoor spots ranked</span>
             </span>
           </RouterLink>
-          <RouterLink to="/best-time/week" class="bt-nav-sub" @click="closeSubmenu">
+          <RouterLink :to="{ path: '/best-time', hash: '#step-when' }" class="bt-nav-sub" @click="closeSubmenu">
             <span class="bt-nav-sub-icon yellow">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
             </span>
             <span class="bt-nav-sub-text">
-              <span class="bt-nav-sub-label">Week forecast</span>
-              <span class="bt-nav-sub-desc">7-day crowd heatmap</span>
+              <span class="bt-nav-sub-label">When you go</span>
+              <span class="bt-nav-sub-desc">Heatmap &amp; quiet windows</span>
             </span>
           </RouterLink>
-          <RouterLink to="/welcoming-spaces" class="bt-nav-sub" @click="closeSubmenu">
+          <RouterLink :to="{ path: '/best-time', hash: '#step-community' }" class="bt-nav-sub" @click="closeSubmenu">
             <span class="bt-nav-sub-icon purple">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </span>
             <span class="bt-nav-sub-text">
-              <span class="bt-nav-sub-label">Welcoming spaces</span>
-              <span class="bt-nav-sub-desc">Libraries &amp; community centres</span>
+              <span class="bt-nav-sub-label">Stay connected</span>
+              <span class="bt-nav-sub-desc">Welcoming community spaces</span>
             </span>
           </RouterLink>
         </div>
@@ -87,9 +87,7 @@ const submenuOpen = ref(false)
 const route = useRoute()
 let closeTimer = null
 
-const isBestTimeRoute = computed(() =>
-  ['/best-time', '/best-time/now', '/best-time/week', '/welcoming-spaces'].includes(route.path)
-)
+const isBestTimeRoute = computed(() => route.path === '/best-time')
 
 function openSubmenu() { cancelClose(); submenuOpen.value = true }
 function scheduleClose() { cancelClose(); closeTimer = setTimeout(() => { submenuOpen.value = false }, 200) }

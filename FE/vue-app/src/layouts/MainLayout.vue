@@ -286,7 +286,7 @@ onBeforeUnmount(() => {
 
 .layout-main {
   min-height: 100vh;
-  padding-top: 78px;
+  padding-top: 64px;
 }
 
 @media (max-width: 1100px) {
@@ -332,7 +332,7 @@ onBeforeUnmount(() => {
   }
 
   .layout-main {
-    padding-top: 76px;
+    padding-top: 64px;
   }
 }
 
