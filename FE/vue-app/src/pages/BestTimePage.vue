@@ -860,13 +860,23 @@ async function loadAll() {
   store.loadingSpaces = true
   store.loadingWelcoming = true
 
+  // Resilience: in tests the composable may be partially mocked (e.g. only
+  // fetchGoNow + fetchSafety), so any other method on `api` is `undefined`.
+  // safeCall treats a missing or throwing method as null instead of crashing
+  // mount with "Cannot read properties of undefined (reading 'then')".
+  const safeCall = async (fn, ...args) => {
+    if (typeof fn !== 'function') return null
+    try { return await fn(...args) }
+    catch (err) { console.error('[BestTimePage] API call failed:', err); return null }
+  }
+
   const tasks = [
-    api.fetchScore(lat, lon).then(r => { store.scoreResult = r; if (!r) scoreError.value = true }).finally(() => { store.loadingScore = false }),
-    api.fetchSafety(lat, lon).then(r => { store.safetyConditions = r }),
-    api.fetchGoNow(lat, lon, 2).then(r => { store.goNowResult = r }).finally(() => { store.loadingGoNow = false }),
-    api.fetchBestTimes(lat, lon, 6).then(r => { store.bestTimesResult = r }),
-    api.fetchForecast(lat, lon, 2).then(r => { store.forecastResult = r }).finally(() => { store.loadingForecast = false; forecastFetched.value = true }),
-    api.fetchGreenSpaces(lat, lon, 2, null, 15).then(r => {
+    safeCall(api.fetchScore, lat, lon).then(r => { store.scoreResult = r; if (!r) scoreError.value = true }).finally(() => { store.loadingScore = false }),
+    safeCall(api.fetchSafety, lat, lon).then(r => { store.safetyConditions = r }),
+    safeCall(api.fetchGoNow, lat, lon, 2).then(r => { store.goNowResult = r }).finally(() => { store.loadingGoNow = false }),
+    safeCall(api.fetchBestTimes, lat, lon, 6).then(r => { store.bestTimesResult = r }),
+    safeCall(api.fetchForecast, lat, lon, 2).then(r => { store.forecastResult = r }).finally(() => { store.loadingForecast = false; forecastFetched.value = true }),
+    safeCall(api.fetchGreenSpaces, lat, lon, 2, null, 15).then(r => {
       // BE returns { green_spaces: [...] }; older shapes used `spaces` or `results`,
       // or a bare array. Check all known shapes for robustness.
       store.greenSpaces =
@@ -876,7 +886,7 @@ async function loadAll() {
         (Array.isArray(r) ? r : []) ||
         []
     }).finally(() => { store.loadingSpaces = false }),
-    api.fetchWelcomingSpaces(lat, lon, 2, 30).then(r => { store.welcomingSpaces = r?.landmarks || r?.results || (Array.isArray(r) ? r : []) }).finally(() => { store.loadingWelcoming = false }),
+    safeCall(api.fetchWelcomingSpaces, lat, lon, 2, 30).then(r => { store.welcomingSpaces = r?.landmarks || r?.results || (Array.isArray(r) ? r : []) }).finally(() => { store.loadingWelcoming = false }),
   ]
   await Promise.allSettled(tasks)
   setTimeout(() => setupSectionObserver(), 80)

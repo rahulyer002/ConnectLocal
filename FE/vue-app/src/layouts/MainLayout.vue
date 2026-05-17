@@ -151,7 +151,7 @@ onBeforeUnmount(() => {
 }
 
 .nav.hidden {
-  transform: translateY(-100%);
+  /* transform: translateY(-100%); */
 }
 
 .nav-brand {
