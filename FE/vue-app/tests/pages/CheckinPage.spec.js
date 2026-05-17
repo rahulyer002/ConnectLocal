@@ -20,7 +20,7 @@ describe('CheckinPage', () => {
     )
     if (btn) {
       await btn.trigger('click')
-      expect(pushSpy).toHaveBeenCalledWith('/checkin/form')
+      expect(pushSpy).toHaveBeenCalledWith('/checkin-form')
     } else {
       // If the page changes its UI to use RouterLink instead, the link
       // attribute should still point at /checkin/form.

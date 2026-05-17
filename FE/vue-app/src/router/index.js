@@ -8,10 +8,8 @@ import ResultsPage from '../pages/ResultsPage.vue'
 import EventDetailsPage from '../pages/EventDetailsPage.vue'
 import JourneySupportPage from '../pages/JourneySupportPage.vue'
 import BestTimePage from '../pages/BestTimePage.vue'
-import BestTimeNowPage from '../pages/BestTimeNowPage.vue'
-import BestTimeWeekPage from '../pages/BestTimeWeekPage.vue'
-import WelcomingSpacesPage from '../pages/WelcomingSpacesPage.vue' 
 import LoginPage from '../pages/LoginPage.vue'
+import SuburbExplorerPage from "../pages/SuburbExplorerPage.vue"
 
 const router = createRouter({
   history: createWebHistory(),
@@ -24,14 +22,15 @@ const router = createRouter({
     { path: '/journey', component: JourneySupportPage },
     { path: '/events/:id', component: EventDetailsPage },
     { path: '/checkin', component: CheckinPage },
-    { path: '/checkin/form', component: CheckinFormPage },
+    { path: '/checkin-form', component: CheckinFormPage },
     { path: '/results', component: ResultsPage },
 
-   { path: '/best-time', component: BestTimePage },
-{ path: '/best-time/now', component: BestTimeNowPage },
-{ path: '/best-time/week', component: BestTimeWeekPage },
-{ path: '/welcoming-spaces', component: WelcomingSpacesPage },
-
+    { path: '/best-time', component: BestTimePage },
+    // Legacy sub-routes redirect to the unified Best Time page anchors.
+    { path: '/best-time/now',   redirect: { path: '/best-time', hash: '#step-where' } },
+    { path: '/best-time/week',  redirect: { path: '/best-time', hash: '#step-when' } },
+    { path: '/welcoming-spaces', redirect: { path: '/best-time', hash: '#step-community' } },
+    { path: '/suburb-explorer', component: SuburbExplorerPage },
     { path: '/:pathMatch(.*)*', redirect: '/home' },
   ],
 })

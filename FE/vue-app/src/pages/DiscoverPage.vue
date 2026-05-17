@@ -1,5 +1,6 @@
 <template>
-  <div class="discover-page">
+  <MainLayout>
+    <div class="discover-page">
 
     <!-- Noise overlay -->
     <div class="noise" aria-hidden="true"></div>
@@ -7,32 +8,6 @@
     <!-- Ambient orbs -->
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
-
-    <!-- ═══ NAV ═══ -->
-    <nav class="nav" :class="{ scrolled: scrollY > 60 }">
-      <div class="nav-brand">
-        <div class="nav-logo">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
-            <circle cx="12" cy="10" r="2.5"/>
-          </svg>
-        </div>
-        <span class="nav-wordmark"><em>Connect</em>Local</span>
-      </div>
-      <div class="nav-links">
-        <RouterLink to="/home">Home</RouterLink>
-        <RouterLink to="/discover" >Events</RouterLink>
-        <RouterLink to="/journey">Journey</RouterLink>
-
-        <RouterLink to="/best-time">Best Time</RouterLink>
-      </div>
-      <RouterLink to="/checkin" class="nav-cta">
-        Start Check-in
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 12h14M13 5l7 7-7 7"/>
-        </svg>
-      </RouterLink>
-    </nav>
 
     <!-- ═══ HERO ═══ -->
     <section class="hero">
@@ -268,11 +243,14 @@
         </nav>
       </template>
     </main>
-  </div>
+    </div>
+  </MainLayout>
 </template>
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import MainLayout from '../layouts/MainLayout.vue'
 import { useLocationState } from '../composables/useLocationState'
 
 const { setDetectedLocation, setDetectedUnavailable } = useLocationState()
@@ -296,7 +274,6 @@ const locationLat = ref(null)
 const locationLon = ref(null)
 const locationQueryMode = ref('suburb')
 const totalHint = ref(null)
-const scrollY = ref(0)
 import { uiStore } from '../stores/uiStore'
 const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
@@ -479,8 +456,47 @@ const goToPage = async (p) => { await fetchActivities(Math.min(totalPages.value,
 const printList = () => window.print()
 const handleScroll = () => { scrollY.value = window.scrollY }
 
+
+// ─── Chatbot integration ─────────────────────────────────────────────────
+// When the chatbot navigates here with query params, apply them directly
+// instead of asking the browser for geolocation. Returns true if we applied
+// chatbot params (so onMounted can skip getLocation()).
+const route = useRoute()
+async function applyChatbotQuery() {
+  const q = route.query || {}
+  if (!q.suburb && !q.is_free && !q.this_week && !q.category) return false
+
+  // Apply filter chips first (these are reactive — toggling them feels instant)
+  if (q.is_free === 'true') activeFilters.free = true
+  if (q.this_week === 'true') activeFilters.thisWeek = true
+
+  // If chatbot pre-resolved lat/lon, use them directly (no geocoding needed)
+  if (q.suburb) {
+    locationInput.value = String(q.suburb)
+    if (q.lat && q.lon) {
+      const lat = parseFloat(q.lat)
+      const lon = parseFloat(q.lon)
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        setLocation(String(q.suburb), String(q.suburb), lat, lon)
+        locationQueryMode.value = 'latlon'
+        await fetchActivities()
+        return true
+      }
+    }
+    // No pre-resolved coords — fall back to the existing geocoding path
+    await applyManualLocation()
+    return true
+  }
+
+  return false
+}
+
 watch(activities, () => { if (currentPage.value > totalPages.value) currentPage.value = totalPages.value })
-onMounted(() => { getLocation(); window.addEventListener('scroll', handleScroll, { passive: true }) })
+onMounted(async () => {
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  const applied = await applyChatbotQuery()
+  if (!applied) getLocation()
+})
 onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 </script>
 
@@ -509,35 +525,9 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 .orb-2 { width: 380px; height: 380px; background: rgba(255,180,140,0.12); bottom: 5%; right: -60px; animation: orb-drift 28s ease-in-out infinite alternate-reverse; }
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,50px) scale(1.1)} }
 
-/* Nav */
-.nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 24px 52px;
-  transition: background 0.4s, padding 0.4s, box-shadow 0.4s;
-}
-.nav.scrolled { background: rgba(242,250,240,0.9); backdrop-filter: blur(18px); padding: 16px 52px; box-shadow: 0 1px 0 rgba(29,113,105,0.12); }
-.nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-.nav-logo { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
-.nav-wordmark { font-family: Georgia,serif; font-size: 20px; color: #1a2e1e; }
-.nav-wordmark em { color: #0a9b8a; font-style: italic; }
-.nav-links { display: flex; gap: 32px; }
-.nav-links a { font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none; transition: color 0.2s; }
-.nav-links a:hover, .nav-links .router-link-active ,.nav-links a.is-active{ color: #0a9b8a; }
-.nav-links a.is-active::after {
-  content: ''; position: absolute;     left: 38rem;
-    right: 45.5rem; bottom: 27px; height: 2px;
-  background: #0a9b8a; border-radius: 2px;
-}
-.nav-cta { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
-.nav-cta:hover { background: #0a9b8a; color: white; }
-
 /* Hero */
 .hero {
-  position: relative; overflow: hidden;
-  background: linear-gradient(160deg, #e4f5e0 0%, #c8edc8 100%);
-  padding: 140px 52px 80px;
-  border-bottom: 1px solid rgba(29,113,105,0.12);
+  padding: 80px 52px 80px;
 }
 .hero-bg-word {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
@@ -708,10 +698,7 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 
 /* Responsive */
 @media (max-width: 900px) {
-  .nav { padding: 18px 20px; }
-  .nav.scrolled { padding: 14px 20px; }
-  .nav-links { display: none; }
-  .hero { padding: 120px 20px 60px; }
+  .hero { padding: 70px 20px 60px; }
   .activity-list { padding: 28px 20px 60px; }
   .event-card { padding: 20px; }
   .card-foot { flex-direction: column; align-items: flex-start; }

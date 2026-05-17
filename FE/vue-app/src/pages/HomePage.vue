@@ -1,35 +1,10 @@
 <template>
-  <div class="page" @mousemove="handleMouse">
+  <MainLayout>
+    <div class="page" @mousemove="handleMouse">
 
-    <div class="noise" aria-hidden="true"></div>
-    <div class="orb orb-1" aria-hidden="true"></div>
-    <div class="orb orb-2" aria-hidden="true"></div>
-
-    <nav class="nav" :class="{ scrolled: scrollY > 60 }">
-      <div class="nav-brand">
-        <div class="nav-logo">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
-            <circle cx="12" cy="10" r="2.5"/>
-          </svg>
-        </div>
-        <span class="nav-wordmark"><em>Connect</em>Local</span>
-      </div>
-      <div class="nav-links">
-        <RouterLink to="/home">Home</RouterLink>
-        <RouterLink to="/discover">Events</RouterLink>
-        <RouterLink to="/journey">Journey</RouterLink>
-        <RouterLink to="/best-time">Best Time</RouterLink>
-      </div>
-      <RouterLink to="/checkin" class="nav-cta">
-        Start Check-in
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 12h14M13 5l7 7-7 7"/>
-        </svg>
-      </RouterLink>
-    </nav>
-
-   
+      <div class="noise" aria-hidden="true"></div>
+      <div class="orb orb-1" aria-hidden="true"></div>
+      <div class="orb orb-2" aria-hidden="true"></div>
 
     <section class="hero">
       <div
@@ -450,11 +425,13 @@
       </div>
     </section>
 
-  </div>
+    </div>
+  </MainLayout>
 </template>
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import MainLayout from '../layouts/MainLayout.vue'
 
 const API_URL = 'https://connectlocal.duckdns.org/api/suburbs/psychological-distress'
 
@@ -544,35 +521,12 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect(); window.
 .orb-2 { width: 400px; height: 400px; background: rgba(255,180,140,0.14); bottom: 10%; right: -80px; animation: orb-drift 26s ease-in-out infinite alternate-reverse; }
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(50px,60px) scale(1.12)} }
 
-.nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 28px 52px; transition: background 0.5s, padding 0.4s, box-shadow 0.4s;
-}
-.nav.scrolled { background: rgba(242,250,240,0.88); backdrop-filter: blur(18px); padding: 18px 52px; box-shadow: 0 1px 0 rgba(29,113,105,0.12); }
-.nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-.nav-logo { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
-.nav-wordmark { font-family: Georgia,serif; font-size: 22px; color: #1a2e1e; }
-.nav-wordmark em { color: #0a9b8a; font-style: italic; }
-.nav-links { display: flex; gap: 36px; align-items: center; }
-.nav-links a { font-family: system-ui,sans-serif; font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none; transition: color 0.2s; }
-
-
-.nav-links a:hover, .nav-links .router-link-active ,.nav-links a.is-active{ color: #0a9b8a; }
-.nav-links a.is-active::after {
-  content: ''; position: absolute;     left: 33.5rem;
-    right: 50rem; bottom: 34px; height: 2px;
-  background: #0a9b8a; border-radius: 2px;
-}
-.nav-link-coming { font-family: system-ui,sans-serif; font-size: 15px; font-weight: 600; color: #3a5a3e; cursor: default; }
-.nav-cta { display: inline-flex; align-items: center; gap: 8px; font-family: system-ui,sans-serif; font-size: 14px; font-weight: 700; color: #0a9b8a; text-decoration: none; padding: 10px 22px; border: 1.5px solid #0a9b8a; border-radius: 999px; transition: all 0.3s; }
-.nav-cta:hover { background: #0a9b8a; color: white; }
-
 .hero {
-  position: relative; min-height: 100vh;
+  position: relative;
+   /* min-height: 100vh; */
   display: grid; grid-template-columns: 1fr 1fr;
   align-items: center; overflow: hidden;
-  padding: 180px 52px 80px; gap: 40px;
+  padding: 100px 52px 80px; gap: 40px;
 }
 
 .hero-bg-text {
@@ -760,11 +714,7 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect(); window.
 .fade-up-leave-to    { opacity:0; transform:translateY(-10px); }
 
 @media (max-width: 1000px) {
-  .nav { padding: 20px 24px; }
-  .nav.scrolled { padding: 14px 24px; }
-  .nav-links { display: none; }
-
-  .hero { grid-template-columns: 1fr; padding: 180px 24px 60px; }
+  .hero { grid-template-columns: 1fr; padding: 100px 24px 60px; }
   .hero-scene { height: 420px; }
   .hero-tag { display: none; }
   .hero-bg-text { font-size: 80px; }

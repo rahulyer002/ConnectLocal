@@ -1,31 +1,9 @@
 <template>
-  <div class="journey-page" :class="['phase-' + phase]">
+  <MainLayout>
+    <div class="journey-page" :class="['phase-' + phase]">
     <div class="noise" aria-hidden="true"></div>
     <div class="orb orb-1" aria-hidden="true"></div>
     <div class="orb orb-2" aria-hidden="true"></div>
-
-    <!-- ─── NAV ─── -->
-    <nav class="cl-nav" :class="{ scrolled: scrollY > 60 }">
-      <div class="nav-brand">
-        <div class="nav-logo">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11z"/>
-            <circle cx="12" cy="10" r="2.5"/>
-          </svg>
-        </div>
-        <span class="nav-wordmark"><em>Connect</em>Local</span>
-      </div>
-      <div class="cl-nav-links" role="navigation" aria-label="Main navigation">
-        <RouterLink to="/home">Home</RouterLink>
-        <RouterLink to="/discover">Events</RouterLink>
-        <RouterLink to="/journey" class="is-active">Journey</RouterLink>
-        <RouterLink to="/best-time">Best Time</RouterLink>
-      </div>
-      <RouterLink to="/checkin" class="cl-nav-cta">
-        Start Check-in
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </RouterLink>
-    </nav>
 
     <!-- ─── MAIN CANVAS: full-bleed map + floating panels ─── -->
     <main class="journey-canvas">
@@ -56,7 +34,7 @@
               <div class="error-help-body">
                 <p>Add to your <code>.env</code> in the project root:</p>
                 <pre>VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
-VITE_GOOGLE_MAPS_MAP_ID=your_map_id_here</pre>
+                  VITE_GOOGLE_MAPS_MAP_ID=your_map_id_here</pre>
                 <p>The Map ID is optional but unlocks <strong>3D buildings + tilt</strong>. Get one in the Google Cloud Console under <em>Maps Management → Map Styles</em>.</p>
                 <p>Restart <code>npm run dev</code> after editing.</p>
               </div>
@@ -65,7 +43,7 @@ VITE_GOOGLE_MAPS_MAP_ID=your_map_id_here</pre>
         </div>
       </transition>
 
-      <!-- ─── TOP TOOLBAR: layer toggles (visible in all phases) ─── -->
+      <!-- ─── TOP TOOLBAR: layer toggles (visible in all phases) ───
       <transition name="toolbar-slide">
         <div v-show="mapReady" class="float-toolbar">
           <button
@@ -82,7 +60,7 @@ VITE_GOOGLE_MAPS_MAP_ID=your_map_id_here</pre>
             <span v-else-if="layerState[l.id] && layerData[l.id].length" class="pill-count">{{ layerData[l.id].length }}</span>
           </button>
         </div>
-      </transition>
+      </transition> -->
 
       <!-- Right-side floating controls -->
       <div v-show="mapReady" class="float-controls">
@@ -394,12 +372,14 @@ VITE_GOOGLE_MAPS_MAP_ID=your_map_id_here</pre>
         </div>
       </transition>
     </main>
-  </div>
+    </div>
+  </MainLayout>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import MainLayout from '../layouts/MainLayout.vue'
 import { uiStore } from '../stores/uiStore'
 import { resonanceStore } from '../stores/resonanceStore'
 import { useJourneyApi, searchSuburbs, decodePolyline, extractPath } from '../composables/useJourneyApi'
@@ -415,7 +395,6 @@ const RECENT_KEY = 'connectlocal-journey-recent'
 const MELBOURNE_FALLBACK = { lat: -37.8136, lng: 144.9631 }
 
 // ─── Page state ───
-const scrollY = ref(0)
 const phase = ref('plan') // 'plan' | 'routes' | 'navigate'
 const panelCollapsed = ref(false)
 
@@ -1463,16 +1442,12 @@ async function applyQueryState() {
 }
 
 // ═════════ LIFECYCLE ═════════
-const handleScroll = () => { scrollY.value = window.scrollY }
-
 onMounted(async () => {
-  window.addEventListener('scroll', handleScroll, { passive: true })
   await nextTick()
   await initMap()
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
   if (userMarker) userMarker.map = null
   if (destMarker) destMarker.map = null
   if (stepHighlightMarker) stepHighlightMarker.map = null
@@ -1521,72 +1496,25 @@ watch(() => [toLat.value, toLon.value], async () => {
 .orb-1 { width: 480px; height: 480px; background: #b8e8c8; top: -180px; right: -120px; }
 .orb-2 { width: 400px; height: 400px; background: #c5e4d4; bottom: -160px; left: -120px; }
 
-/* ─── Nav ─── */
-.cl-nav {
-  position: fixed; top: 0; left: 0; right: 0; height: 70px;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 28px 52px; z-index: 100;
-  background: rgba(242, 250, 240, 0.7);
-  backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
-  transition: background 0.5s,padding 0.4s, box-shadow 0.4s, border-color 0.3s;
-  border-bottom: 1px solid transparent;
-}
-
-.nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-.nav-logo { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg,#0a9b8a,#056b5e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(7,141,127,0.3); }
-.nav-wordmark { font-family: Georgia,serif; font-size: 22px; color: #1a2e1e; }
-.nav-wordmark em { color: #0a9b8a; font-style: italic; }
-
-.cl-nav.scrolled {
-  background: rgba(242, 250, 240, 0.92);
-  border-bottom-color: rgba(29, 113, 105, 0.12);
-  box-shadow: 0 2px 18px rgba(0,0,0,0.04);
-}
-.cl-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #0f1e12; }
-.cl-logo-mark {
-  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #0a9b8a, #066258);
-  color: white; border-radius: 9px; font-weight: 800; font-size: 13px; letter-spacing: 0.5px;
-  box-shadow: 0 4px 14px rgba(10, 155, 138, 0.3);
-}
-.cl-logo-text { font-family: Georgia, serif; font-style: italic; font-size: 19px; font-weight: 700; }
-
-.cl-nav-links { display: flex; gap: 30px; align-items: center; }
-.cl-nav-links a {
-  font-size: 15px; font-weight: 600; color: #3a5a3e; text-decoration: none;
-  position: relative; padding: 6px 0; transition: color 0.2s;
-}
-.cl-nav-links a:hover, .cl-nav-links a.router-link-active, .cl-nav-links a.is-active { color: #0a9b8a; }
-.cl-nav-links a.is-active::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
-  background: #0a9b8a; border-radius: 2px;
-}
-
-.cl-nav-cta {
-  display: flex; align-items: center; gap: 8px;
-  padding: 11px 22px; border-radius: 999px;
-  background: #0a9b8a; color: white; text-decoration: none;
-  font-size: 14px; font-weight: 700;
-  box-shadow: 0 6px 18px rgba(10, 155, 138, 0.32);
-  transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
-}
-.cl-nav-cta:hover { background: #088478; transform: translateY(-1px); box-shadow: 0 9px 22px rgba(10, 155, 138, 0.4); }
-
 /* ─── Main canvas ─── */
 .journey-canvas {
-  position: relative; width: 100%; height: 100vh;
-  padding-top: 70px;
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 78px);
 }
 
 .map-canvas {
-  position: absolute; inset: 70px 0 0 0;
+  position: absolute;
+  inset: 0;
   background: #eef5e8;
   z-index: 2;
 }
 
 /* ─── Map overlays (loading / error) ─── */
 .map-overlay {
-  position: absolute; inset: 70px 0 0 0; z-index: 30;
+  position: absolute;
+  inset: 0;
+  z-index: 30;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: linear-gradient(135deg, #f2faf0 0%, #e8f5e3 100%);
   text-align: center; padding: 40px;
@@ -1681,7 +1609,7 @@ watch(() => [toLat.value, toLon.value], async () => {
 
 /* ─── Floating map controls (right side) ─── */
 .float-controls {
-  position: absolute; top: 92px; right: 24px; z-index: 20;
+  position: absolute; top: 32px; right: 24px; z-index: 20;
   display: flex; flex-direction: column; gap: 6px;
   background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   padding: 6px; border-radius: 14px;
@@ -1702,9 +1630,9 @@ watch(() => [toLat.value, toLon.value], async () => {
 
 /* ─── Floating side panel (left) ─── */
 .float-panel {
-  position: absolute; top: 92px; left: 24px;
+  position: absolute; top: 25px; left: 24px;
   width: 420px; max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 130px);
+  max-height: calc(100vh - 108px);
   z-index: 25;
   background: rgba(255,255,255,0.85); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-radius: 22px; padding: 24px;
@@ -2218,9 +2146,6 @@ watch(() => [toLat.value, toLon.value], async () => {
 }
 
 @media (max-width: 760px) {
-  .cl-nav { padding: 0 16px; }
-  .cl-nav-links { display: none; }
-  .cl-logo-text { display: none; }
   .float-panel {
     width: calc(100vw - 24px);
     left: 12px; right: 12px;
@@ -2239,7 +2164,7 @@ watch(() => [toLat.value, toLon.value], async () => {
   }
   .panel-collapse svg { transform: rotate(90deg); }
   .float-toolbar {
-    top: 84px; left: 12px; right: 12px; transform: none;
+    top: 32px; left: 12px; right: 12px; transform: none;
     max-width: none; justify-content: flex-start;
   }
   .toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translateY(-28px); opacity: 0; }
