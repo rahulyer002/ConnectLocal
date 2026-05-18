@@ -1,15 +1,12 @@
 <!--
-  ChatbotButton.vue — v3
+  ChatbotButton.vue — v4.4
   ─────────────────────────────────────────────────────────────────────────────
-  Changes from v2:
-    • Bot-face icon replaces the sparkle (friendlier, more "assistant" feeling)
-    • Bigger FAB (76px) and bigger radial items (60px) — easier to tap
-    • Bigger panel (520px wide on desktop)
-    • Bigger fonts throughout (default 100% instead of 95%)
-    • Conversation resets on close (handled by chatbotStore.close())
-    • Hides itself on certain routes (login, etc) via shouldShow() check
-
-  Mount once in App.vue and it appears on every page. No per-page integration.
+  Fix in this version:
+    • Radial menu no longer flickers when moving from the main chatbot button
+      to the small radial icons.
+    • Mouse leave now uses a short grace delay instead of closing instantly.
+    • Radial items also keep the menu open when hovered.
+    • Pending close timers are cleared on click and unmount.
 -->
 <template>
   <!-- Hide on routes that shouldn't have the chatbot (login, etc) -->
@@ -32,6 +29,8 @@
         :style="getRadialStyle(idx, radialItems.length)"
         :aria-label="item.label"
         :title="item.label"
+        @mouseenter="onFabHover(true)"
+        @mouseleave="onFabHover(false)"
         @click="onRadialClick(item)"
       >
         <span class="cl-radial-icon" v-html="item.svg"></span>
@@ -51,23 +50,29 @@
 
         <!-- Inner gradient circle with bot face -->
         <span class="cl-fab-inner">
-          <!--
-            Bot face icon — friendly, distinctive, not a generic chat bubble.
-            Antenna + rounded head + eyes + smile.
-          -->
-          <svg viewBox="0 0 32 32" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg
+            viewBox="0 0 32 32"
+            width="34"
+            height="34"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
             <!-- Antenna -->
-            <path d="M16 5v3"/>
-            <circle cx="16" cy="4" r="1.2" fill="currentColor" stroke="none"/>
+            <path d="M16 5v3" />
+            <circle cx="16" cy="4" r="1.2" fill="currentColor" stroke="none" />
             <!-- Head -->
-            <rect x="6.5" y="9" width="19" height="16" rx="4.5"/>
+            <rect x="6.5" y="9" width="19" height="16" rx="4.5" />
             <!-- Eyes -->
-            <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
-            <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
+            <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+            <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
             <!-- Smile -->
-            <path d="M13 20.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5"/>
+            <path d="M13 20.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5" />
             <!-- Side ears -->
-            <path d="M6.5 14.5h-1.5M27 14.5h-1.5"/>
+            <path d="M6.5 14.5h-1.5M27 14.5h-1.5" />
           </svg>
         </span>
 
@@ -98,16 +103,26 @@
         <header class="cl-header">
           <div class="cl-header-left">
             <div class="cl-header-avatar">
-              <svg viewBox="0 0 32 32" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M16 5v3"/>
-                <circle cx="16" cy="4" r="1.2" fill="currentColor" stroke="none"/>
-                <rect x="6.5" y="9" width="19" height="16" rx="4.5"/>
-                <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
-                <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
-                <path d="M13 20.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5"/>
+              <svg
+                viewBox="0 0 32 32"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M16 5v3" />
+                <circle cx="16" cy="4" r="1.2" fill="currentColor" stroke="none" />
+                <rect x="6.5" y="9" width="19" height="16" rx="4.5" />
+                <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+                <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+                <path d="M13 20.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5" />
               </svg>
               <span class="cl-online-dot" aria-hidden="true"></span>
             </div>
+
             <div class="cl-header-text">
               <span class="cl-header-title"><em>Connect</em>Local Guide</span>
               <span class="cl-header-status">
@@ -120,11 +135,11 @@
             <div class="cl-font-slider" role="group" aria-label="Text size">
               <span class="cl-font-label cl-font-small">A</span>
               <input
+                v-model.number="fontScalePct"
                 type="range"
                 :min="90"
                 :max="140"
                 :step="5"
-                v-model.number="fontScalePct"
                 class="cl-slider"
                 aria-label="Text size"
               />
@@ -133,8 +148,17 @@
             </div>
 
             <button class="cl-header-close" @click="chatbotStore.close()" aria-label="Close and reset">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 6 6 18M6 6l12 12"/>
+              <svg
+                viewBox="0 0 24 24"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -144,19 +168,25 @@
         <div ref="threadEl" class="cl-thread">
           <transition-group name="cl-msg" tag="div" class="cl-msg-list">
             <!-- Welcome message — always first when no other messages yet -->
-            <div
-              v-if="!chatbotStore.messages.length"
-              key="welcome"
-              class="cl-msg assistant"
-            >
+            <div v-if="!chatbotStore.messages.length" key="welcome" class="cl-msg assistant">
               <div class="cl-msg-avatar">
-                <svg viewBox="0 0 32 32" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="6.5" y="9" width="19" height="16" rx="4.5"/>
-                  <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
-                  <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
-                  <path d="M13 20.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5"/>
+                <svg
+                  viewBox="0 0 32 32"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="6.5" y="9" width="19" height="16" rx="4.5" />
+                  <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+                  <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+                  <path d="M13 20.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5" />
                 </svg>
               </div>
+
               <div class="cl-msg-bubble">
                 <p>👋 Hi! I'm your <em>ConnectLocal</em> guide.</p>
                 <p>I can help you find activities, plan a journey, or explain anything on the site.</p>
@@ -171,25 +201,45 @@
               :class="msg.role"
             >
               <div v-if="msg.role === 'assistant'" class="cl-msg-avatar">
-                <svg viewBox="0 0 32 32" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="6.5" y="9" width="19" height="16" rx="4.5"/>
-                  <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
-                  <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
-                  <path d="M13 20.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5"/>
+                <svg
+                  viewBox="0 0 32 32"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="6.5" y="9" width="19" height="16" rx="4.5" />
+                  <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+                  <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+                  <path d="M13 20.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5" />
                 </svg>
               </div>
+
               <div class="cl-msg-bubble">{{ msg.content }}</div>
             </div>
 
             <!-- Typing indicator -->
             <div v-if="chatbotStore.isLoading" key="loading" class="cl-msg assistant">
               <div class="cl-msg-avatar">
-                <svg viewBox="0 0 32 32" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="6.5" y="9" width="19" height="16" rx="4.5"/>
-                  <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
-                  <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none"/>
+                <svg
+                  viewBox="0 0 32 32"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="6.5" y="9" width="19" height="16" rx="4.5" />
+                  <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+                  <circle cx="20" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
                 </svg>
               </div>
+
               <div class="cl-msg-bubble cl-typing">
                 <span class="cl-typing-dot"></span>
                 <span class="cl-typing-dot"></span>
@@ -200,11 +250,22 @@
             <!-- Action confirmation card -->
             <div v-if="chatbotStore.pendingAction" key="pending" class="cl-action-card">
               <div class="cl-action-icon">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                 </svg>
               </div>
+
               <p class="cl-action-text">{{ describePendingAction(chatbotStore.pendingAction) }}</p>
+
               <div class="cl-action-buttons">
                 <button class="cl-btn-secondary" @click="cancelAction()">Cancel</button>
                 <button class="cl-btn-primary" @click="approveAction()">Allow</button>
@@ -214,10 +275,7 @@
         </div>
 
         <!-- ─── Suggested prompts (only when empty) ─────────────────── -->
-        <div
-          v-if="!chatbotStore.messages.length && !chatbotStore.isLoading"
-          class="cl-suggestions"
-        >
+        <div v-if="!chatbotStore.messages.length && !chatbotStore.isLoading" class="cl-suggestions">
           <button
             v-for="prompt in displayedSuggestions"
             :key="prompt"
@@ -239,23 +297,42 @@
             aria-label="Message"
             autocomplete="off"
           />
+
           <button
             type="submit"
             class="cl-send-btn"
             :disabled="!inputText.trim() || chatbotStore.isLoading"
             aria-label="Send"
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 12h14M13 5l7 7-7 7"/>
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M5 12h14M13 5l7 7-7 7" />
             </svg>
           </button>
         </form>
 
         <!-- Privacy footer -->
         <div class="cl-privacy-note">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="11" x="3" y="11" rx="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          <svg
+            viewBox="0 0 24 24"
+            width="12"
+            height="12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect width="18" height="11" x="3" y="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
           Your conversation is private and resets when you close this window
         </div>
@@ -282,9 +359,19 @@ const showHint = ref(false)
 const fontScalePct = ref(100)
 const fontScale = computed(() => fontScalePct.value / 100)
 
+// ─── Radial hover close delay ───────────────────────────────────────────────
+// Prevent flicker when moving the cursor from the main FAB to the radial icons.
+const RADIAL_CLOSE_DELAY = 180
+let radialCloseTimer = null
+
+function clearRadialCloseTimer() {
+  if (!radialCloseTimer) return
+  clearTimeout(radialCloseTimer)
+  radialCloseTimer = null
+}
+
 // ─── Per-route visibility ───────────────────────────────────────────────────
 // Hide the chatbot on routes where it doesn't make sense (login, etc).
-// Customise this list to taste.
 const HIDDEN_ROUTES = ['/login']
 
 const shouldShow = computed(() => {
@@ -294,6 +381,12 @@ const shouldShow = computed(() => {
 
 // ─── Radial quick-action items ──────────────────────────────────────────────
 const radialItems = [
+  {
+    id: 'suburb',
+    label: 'Suburb Explorer',
+    prompt: 'Take me to the suburb explorer',
+    svg: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  },
   {
     id: 'events',
     label: 'Find events',
@@ -327,14 +420,15 @@ const displayedSuggestions = computed(() => {
 
 // ─── Radial positioning math ────────────────────────────────────────────────
 function getRadialStyle(index, total) {
-  const radius = 108                  // bigger radius for bigger items
-  const startDeg = -175
-  const endDeg   = -95
+  const radius = 128
+  const startDeg = -185
+  const endDeg = -85
   const step = total > 1 ? (endDeg - startDeg) / (total - 1) : 0
   const deg = startDeg + step * index
   const rad = (deg * Math.PI) / 180
   const x = Math.cos(rad) * radius
   const y = Math.sin(rad) * radius
+
   return {
     '--cl-radial-x': `${x}px`,
     '--cl-radial-y': `${y}px`,
@@ -343,37 +437,42 @@ function getRadialStyle(index, total) {
 }
 
 // ─── Behaviour ──────────────────────────────────────────────────────────────
-// v4.2:
-//   • Radial closes INSTANTLY on mouseleave (no grace period)
-//   • Clicking the FAB also collapses the radial — fixes the bug where
-//     the menu stayed "open" in state and reappeared when the panel closed
 function onFabHover(isHovering) {
   if (isHovering) {
+    clearRadialCloseTimer()
     radialOpen.value = true
     showHint.value = false
-  } else {
-    radialOpen.value = false
+    return
   }
+
+  clearRadialCloseTimer()
+
+  radialCloseTimer = setTimeout(() => {
+    radialOpen.value = false
+    radialCloseTimer = null
+  }, RADIAL_CLOSE_DELAY)
 }
 
 function onFabClick() {
-  // Always collapse the radial when the FAB is clicked — whether we're
-  // opening or closing the chat panel. Without this, the radialOpen state
-  // sticks around and re-renders the items next time the FAB shows.
+  clearRadialCloseTimer()
   radialOpen.value = false
   chatbotStore.toggle()
 }
 
 function onRadialClick(item) {
+  clearRadialCloseTimer()
   radialOpen.value = false
   chatbotStore.open()
+
   nextTick(() => {
     sendMessage(item.prompt)
   })
 }
 
 async function handleSubmit() {
-  const text = inputText.value
+  const text = inputText.value.trim()
+  if (!text) return
+
   inputText.value = ''
   await sendMessage(text)
 }
@@ -398,19 +497,16 @@ watch(
 // Focus input on open
 watch(() => chatbotStore.isOpen, (open) => {
   radialOpen.value = false
+  clearRadialCloseTimer()
+
   if (open) {
-    // v4.3: refresh suggestions to match the page the user is on RIGHT NOW.
-    // This is what makes the welcome state show /discover prompts on /discover,
-    // /best-time prompts on /best-time/now, etc.
     chatbotStore.setSuggestionsForRoute(route.path)
     nextTick(() => inputEl.value?.focus())
     inputText.value = ''
   }
 })
 
-// v4.3: also refresh suggestions if the user navigates while the panel is open
-// (e.g. they ask a question, allow an action, panel auto-closes, panel reopens).
-// Without this, the suggestions could still match a previous page.
+// Refresh suggestions if the user navigates while the panel is open.
 watch(() => route.path, (newPath) => {
   if (chatbotStore.isOpen) {
     chatbotStore.setSuggestionsForRoute(newPath)
@@ -425,11 +521,11 @@ function onKey(e) {
 // Show hint after 1.2s, dismiss after 8s
 let hintTimeout1 = null
 let hintTimeout2 = null
+
 onMounted(() => {
   window.addEventListener('keydown', onKey)
   hintTimeout1 = setTimeout(() => { showHint.value = true }, 1200)
   hintTimeout2 = setTimeout(() => { showHint.value = false }, 8000)
-  // v4.3: prime suggestions for the current route on first mount
   chatbotStore.setSuggestionsForRoute(route.path)
 })
 
@@ -437,15 +533,19 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
   clearTimeout(hintTimeout1)
   clearTimeout(hintTimeout2)
+  clearRadialCloseTimer()
 })
 
 // ─── Pending-action description ─────────────────────────────────────────────
 function describePendingAction(action) {
   if (!action) return ''
+
   const { name, args = {} } = action
+
   switch (name) {
     case 'navigate_to':
       return `I'd like to take you to ${describeRoute(args.route)}. Allow?`
+
     case 'search_events': {
       const parts = []
       if (args.is_free) parts.push('free')
@@ -455,20 +555,26 @@ function describePendingAction(action) {
       if (args.this_week_only) parts.push('this week')
       return `I'd like to search for ${parts.join(' ')}. Allow?`
     }
+
     case 'plan_journey': {
       const to = args.to_place || 'your destination'
       const from = args.from_place ? ` from ${args.from_place}` : ''
       const at = args.arrive_by ? ` arriving by ${args.arrive_by}` : ''
       return `I'd like to plan a journey${from} to ${to}${at}. Allow?`
     }
+
     case 'start_checkin':
       return `I'd like to take you to the wellbeing check-in. Allow?`
+
     case 'check_best_time':
       return `I'd like to show you the ${args.scope === 'week' ? 'weekly' : 'live'} best-time view. Allow?`
+
     case 'find_welcoming_places':
       return `I'd like to show you welcoming places${args.suburb ? ` near ${args.suburb}` : ''}. Allow?`
+
     case 'find_open_spaces':
       return `I'd like to show you outdoor spaces${args.with_toilets ? ' with toilets' : ''}${args.suburb ? ` near ${args.suburb}` : ''}. Allow?`
+
     default:
       return "I'd like to take an action for you. Allow?"
   }
@@ -489,21 +595,22 @@ function describeRoute(route) {
     '/resources': 'support resources',
     '/about': 'the about page',
   }
+
   return labels[route] || `the ${route} page`
 }
 </script>
 
 <style scoped>
 /* ════════════════════════════════════════════════════════════════════════════
-   FAB CLUSTER (FAB + radial items + hint) — bigger in v3
+   FAB CLUSTER (FAB + radial items + hint)
    ════════════════════════════════════════════════════════════════════════ */
 .cl-fab-cluster {
   position: fixed;
   bottom: 32px;
   right: 32px;
   z-index: 9998;
-  width: 230px;
-  height: 230px;
+  width: 280px;
+  height: 280px;
   pointer-events: none;
   display: flex;
   align-items: flex-end;
@@ -516,7 +623,7 @@ function describeRoute(route) {
   position: absolute;
   bottom: 22px;
   right: 22px;
-  width: 60px;                       /* bigger in v3 */
+  width: 60px;
   height: 60px;
   border-radius: 50%;
   border: none;
@@ -529,19 +636,23 @@ function describeRoute(route) {
   justify-content: center;
   transform: translate(0, 0) scale(0);
   opacity: 0;
+  will-change: transform, opacity, box-shadow;
+  backface-visibility: hidden;
   transition:
     transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 0.28s ease-out,
-    background 0.2s,
-    color 0.2s,
-    box-shadow 0.2s;
+    background 0.28s ease,
+    color 0.28s ease,
+    box-shadow 0.28s ease;
   transition-delay: 0ms;
 }
+
 .cl-radial-item.is-open {
   transform: translate(var(--cl-radial-x), var(--cl-radial-y)) scale(1);
   opacity: 1;
   transition-delay: var(--cl-radial-delay);
 }
+
 .cl-radial-item:hover {
   background: linear-gradient(135deg, #0a9b8a, #056b5e);
   color: white;
@@ -566,13 +677,16 @@ function describeRoute(route) {
   pointer-events: none;
   transition: opacity 0.18s 0.05s;
 }
-.cl-radial-item:hover .cl-radial-tooltip { opacity: 1; }
 
-/* ─── Main FAB — bigger in v3 ───────────────────────────────────────────── */
+.cl-radial-item:hover .cl-radial-tooltip {
+  opacity: 1;
+}
+
+/* ─── Main FAB ──────────────────────────────────────────────────────────── */
 .cl-fab {
   pointer-events: auto;
   position: relative;
-  width: 76px;                       /* up from 64px */
+  width: 76px;
   height: 76px;
   border-radius: 50%;
   border: none;
@@ -585,9 +699,16 @@ function describeRoute(route) {
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   filter: drop-shadow(0 18px 36px rgba(7, 141, 127, 0.42));
 }
+
 .cl-fab:hover,
-.cl-fab.is-hovered { transform: translateY(-5px); }
-.cl-fab:active     { transform: translateY(-1px); }
+.cl-fab.is-hovered {
+  transform: translateY(-5px);
+}
+
+.cl-fab:active {
+  transform: translateY(-1px);
+}
+
 .cl-fab:focus-visible {
   outline: 3px solid rgba(10, 155, 138, 0.5);
   outline-offset: 4px;
@@ -619,11 +740,26 @@ function describeRoute(route) {
   animation: cl-pulse 2.6s ease-out infinite;
   z-index: 1;
 }
-.cl-fab-pulse-delay { animation-delay: 1.3s; }
+
+.cl-fab-pulse-delay {
+  animation-delay: 1.3s;
+}
+
 @keyframes cl-pulse {
-  0%   { transform: scale(1);   opacity: 0.55; }
-  80%  { transform: scale(1.65); opacity: 0; }
-  100% { transform: scale(1.65); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+
+  80% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
 }
 
 .cl-unread-dot {
@@ -638,9 +774,18 @@ function describeRoute(route) {
   z-index: 3;
   animation: cl-blink 1.6s ease-in-out infinite;
 }
+
 @keyframes cl-blink {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.6; transform: scale(0.85); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
 }
 
 /* ─── Hint ──────────────────────────────────────────────────────────────── */
@@ -658,7 +803,11 @@ function describeRoute(route) {
   box-shadow: 0 8px 26px rgba(7, 141, 127, 0.18);
   white-space: nowrap;
 }
-.cl-fab-hint strong { color: #0a9b8a; }
+
+.cl-fab-hint strong {
+  color: #0a9b8a;
+}
+
 .cl-fab-hint::after {
   content: '';
   position: absolute;
@@ -670,20 +819,27 @@ function describeRoute(route) {
   transform: rotate(45deg);
   box-shadow: 4px 4px 8px rgba(7, 141, 127, 0.08);
 }
+
 .cl-hint-enter-active,
-.cl-hint-leave-active { transition: opacity 0.4s, transform 0.4s; }
+.cl-hint-leave-active {
+  transition: opacity 0.4s, transform 0.4s;
+}
+
 .cl-hint-enter-from,
-.cl-hint-leave-to { opacity: 0; transform: translateY(8px); }
+.cl-hint-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
-   CHAT PANEL — bigger in v3 (520px wide)
+   CHAT PANEL
    ════════════════════════════════════════════════════════════════════════ */
 .cl-panel {
   position: fixed;
   top: 24px;
   bottom: 24px;
   right: 24px;
-  width: 520px;                      /* up from 480px */
+  width: 520px;
   max-width: calc(100vw - 48px);
   z-index: 9999;
   background: rgba(255, 255, 255, 0.96);
@@ -703,8 +859,14 @@ function describeRoute(route) {
   font-size: calc(15px * var(--cl-font-scale));
 }
 
-.cl-panel-enter-active { transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s; }
-.cl-panel-leave-active { transition: transform 0.28s ease-in, opacity 0.22s; }
+.cl-panel-enter-active {
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s;
+}
+
+.cl-panel-leave-active {
+  transition: transform 0.28s ease-in, opacity 0.22s;
+}
+
 .cl-panel-enter-from,
 .cl-panel-leave-to {
   opacity: 0;
@@ -721,12 +883,14 @@ function describeRoute(route) {
   border-bottom: 1px solid rgba(29, 113, 105, 0.08);
   background: linear-gradient(180deg, rgba(242, 250, 240, 0.6) 0%, transparent 100%);
 }
+
 .cl-header-left {
   display: flex;
   align-items: center;
   gap: 14px;
   min-width: 0;
 }
+
 .cl-header-avatar {
   position: relative;
   width: 46px;
@@ -740,6 +904,7 @@ function describeRoute(route) {
   box-shadow: 0 6px 14px rgba(7, 141, 127, 0.32);
   flex-shrink: 0;
 }
+
 .cl-online-dot {
   position: absolute;
   bottom: -1px;
@@ -750,14 +915,25 @@ function describeRoute(route) {
   background: #22c55e;
   box-shadow: 0 0 0 2px white;
 }
-.cl-header-text { display: flex; flex-direction: column; min-width: 0; }
+
+.cl-header-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .cl-header-title {
   font-family: Georgia, serif;
   font-size: calc(18px * var(--cl-font-scale));
   color: #1a2e1e;
   line-height: 1.2;
 }
-.cl-header-title em { color: #0a9b8a; font-style: italic; }
+
+.cl-header-title em {
+  color: #0a9b8a;
+  font-style: italic;
+}
+
 .cl-header-status {
   font-size: calc(12px * var(--cl-font-scale));
   color: #4a6a4e;
@@ -766,6 +942,7 @@ function describeRoute(route) {
   align-items: center;
   gap: 5px;
 }
+
 .cl-status-dot {
   width: 6px;
   height: 6px;
@@ -774,7 +951,12 @@ function describeRoute(route) {
   display: inline-block;
 }
 
-.cl-header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.cl-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
 
 .cl-font-slider {
   display: flex;
@@ -784,9 +966,21 @@ function describeRoute(route) {
   background: rgba(10, 155, 138, 0.08);
   border-radius: 999px;
 }
-.cl-font-label { font-family: Georgia, serif; color: #4a6a4e; line-height: 1; }
-.cl-font-small { font-size: 11px; }
-.cl-font-big   { font-size: 15px; }
+
+.cl-font-label {
+  font-family: Georgia, serif;
+  color: #4a6a4e;
+  line-height: 1;
+}
+
+.cl-font-small {
+  font-size: 11px;
+}
+
+.cl-font-big {
+  font-size: 15px;
+}
+
 .cl-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -797,6 +991,7 @@ function describeRoute(route) {
   outline: none;
   cursor: pointer;
 }
+
 .cl-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 15px;
@@ -806,6 +1001,7 @@ function describeRoute(route) {
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(7, 141, 127, 0.4);
 }
+
 .cl-slider::-moz-range-thumb {
   width: 15px;
   height: 15px;
@@ -815,6 +1011,7 @@ function describeRoute(route) {
   border: none;
   box-shadow: 0 2px 4px rgba(7, 141, 127, 0.4);
 }
+
 .cl-font-value {
   font-size: 11px;
   font-weight: 700;
@@ -834,7 +1031,11 @@ function describeRoute(route) {
   justify-content: center;
   transition: background 0.2s, color 0.2s;
 }
-.cl-header-close:hover { background: rgba(10, 155, 138, 0.1); color: #0a9b8a; }
+
+.cl-header-close:hover {
+  background: rgba(10, 155, 138, 0.1);
+  color: #0a9b8a;
+}
 
 /* ─── Thread ────────────────────────────────────────────────────────────── */
 .cl-thread {
@@ -843,21 +1044,50 @@ function describeRoute(route) {
   padding: 22px;
   scroll-behavior: smooth;
 }
-.cl-thread::-webkit-scrollbar { width: 6px; }
+
+.cl-thread::-webkit-scrollbar {
+  width: 6px;
+}
+
 .cl-thread::-webkit-scrollbar-thumb {
   background: rgba(10, 155, 138, 0.25);
   border-radius: 6px;
 }
 
-.cl-msg-list { display: flex; flex-direction: column; gap: 16px; }
+.cl-msg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-.cl-msg-enter-active { transition: opacity 0.32s, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
-.cl-msg-leave-active { transition: opacity 0.22s, transform 0.22s; }
-.cl-msg-enter-from { opacity: 0; transform: translateY(8px); }
-.cl-msg-leave-to   { opacity: 0; transform: translateY(-4px); }
+.cl-msg-enter-active {
+  transition: opacity 0.32s, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
 
-.cl-msg { display: flex; gap: 12px; align-items: flex-start; }
-.cl-msg.user { flex-direction: row-reverse; }
+.cl-msg-leave-active {
+  transition: opacity 0.22s, transform 0.22s;
+}
+
+.cl-msg-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.cl-msg-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.cl-msg {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.cl-msg.user {
+  flex-direction: row-reverse;
+}
+
 .cl-msg-avatar {
   width: 34px;
   height: 34px;
@@ -870,6 +1100,7 @@ function describeRoute(route) {
   flex-shrink: 0;
   box-shadow: 0 3px 8px rgba(7, 141, 127, 0.25);
 }
+
 .cl-msg-bubble {
   max-width: 78%;
   padding: 14px 18px;
@@ -878,10 +1109,26 @@ function describeRoute(route) {
   line-height: 1.55;
   word-wrap: break-word;
 }
-.cl-msg-bubble p { margin: 0 0 7px; }
-.cl-msg-bubble p:last-child { margin-bottom: 0; }
-.cl-msg-bubble em { font-style: italic; color: #0a9b8a; font-weight: 600; }
-.cl-msg-prompt { font-weight: 600; color: #1a2e1e; margin-top: 10px !important; }
+
+.cl-msg-bubble p {
+  margin: 0 0 7px;
+}
+
+.cl-msg-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.cl-msg-bubble em {
+  font-style: italic;
+  color: #0a9b8a;
+  font-weight: 600;
+}
+
+.cl-msg-prompt {
+  font-weight: 600;
+  color: #1a2e1e;
+  margin-top: 10px !important;
+}
 
 .cl-msg.assistant .cl-msg-bubble {
   background: linear-gradient(180deg, #f0faed 0%, #e6f5e2 100%);
@@ -889,6 +1136,7 @@ function describeRoute(route) {
   border: 1px solid rgba(29, 113, 105, 0.1);
   border-bottom-left-radius: 6px;
 }
+
 .cl-msg.user .cl-msg-bubble {
   background: linear-gradient(135deg, #0a9b8a, #056b5e);
   color: white;
@@ -896,7 +1144,12 @@ function describeRoute(route) {
   box-shadow: 0 4px 12px rgba(7, 141, 127, 0.22);
 }
 
-.cl-typing { display: flex; gap: 5px; padding: 16px 20px; }
+.cl-typing {
+  display: flex;
+  gap: 5px;
+  padding: 16px 20px;
+}
+
 .cl-typing-dot {
   width: 9px;
   height: 9px;
@@ -905,11 +1158,27 @@ function describeRoute(route) {
   opacity: 0.5;
   animation: cl-typing 1.3s infinite ease-in-out;
 }
-.cl-typing-dot:nth-child(2) { animation-delay: 0.16s; }
-.cl-typing-dot:nth-child(3) { animation-delay: 0.32s; }
+
+.cl-typing-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.cl-typing-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
 @keyframes cl-typing {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40%           { transform: scale(1);   opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* ─── Action card ──────────────────────────────────────────────────────── */
@@ -924,6 +1193,7 @@ function describeRoute(route) {
   gap: 14px;
   box-shadow: 0 4px 14px rgba(255, 180, 140, 0.18);
 }
+
 .cl-action-icon {
   display: flex;
   align-items: center;
@@ -934,18 +1204,24 @@ function describeRoute(route) {
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
-.cl-action-icon::after { content: 'Confirm action'; }
+
+.cl-action-icon::after {
+  content: 'Confirm action';
+}
+
 .cl-action-text {
   font-size: calc(15px * var(--cl-font-scale));
   color: #5b3a1c;
   line-height: 1.5;
   margin: 0;
 }
+
 .cl-action-buttons {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
 }
+
 .cl-btn-primary,
 .cl-btn-secondary {
   font-family: system-ui, sans-serif;
@@ -956,18 +1232,24 @@ function describeRoute(route) {
   cursor: pointer;
   transition: all 0.2s;
 }
+
 .cl-btn-secondary {
   background: white;
   border: 1.5px solid #cbb5a2;
   color: #6a4f33;
 }
-.cl-btn-secondary:hover { background: #faf3eb; }
+
+.cl-btn-secondary:hover {
+  background: #faf3eb;
+}
+
 .cl-btn-primary {
   background: linear-gradient(135deg, #0a9b8a, #056b5e);
   border: none;
   color: white;
   box-shadow: 0 4px 12px rgba(7, 141, 127, 0.3);
 }
+
 .cl-btn-primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(7, 141, 127, 0.42);
@@ -980,6 +1262,7 @@ function describeRoute(route) {
   gap: 9px;
   padding: 8px 22px 12px;
 }
+
 .cl-suggestion-chip {
   font-family: system-ui, sans-serif;
   font-size: calc(14px * var(--cl-font-scale));
@@ -993,6 +1276,7 @@ function describeRoute(route) {
   text-align: left;
   transition: all 0.2s;
 }
+
 .cl-suggestion-chip:hover {
   background: rgba(10, 155, 138, 0.06);
   border-color: #0a9b8a;
@@ -1007,6 +1291,7 @@ function describeRoute(route) {
   padding: 16px 20px;
   border-top: 1px solid rgba(29, 113, 105, 0.08);
 }
+
 .cl-input-bar input {
   flex: 1;
   font-family: system-ui, sans-serif;
@@ -1019,12 +1304,19 @@ function describeRoute(route) {
   background: white;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+
 .cl-input-bar input:focus {
   border-color: #0a9b8a;
   box-shadow: 0 0 0 3px rgba(10, 155, 138, 0.18);
 }
-.cl-input-bar input:disabled { opacity: 0.6; }
-.cl-input-bar input::placeholder { color: #94a8a4; }
+
+.cl-input-bar input:disabled {
+  opacity: 0.6;
+}
+
+.cl-input-bar input::placeholder {
+  color: #94a8a4;
+}
 
 .cl-send-btn {
   width: 46px;
@@ -1041,11 +1333,16 @@ function describeRoute(route) {
   box-shadow: 0 4px 12px rgba(7, 141, 127, 0.32);
   transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
 }
+
 .cl-send-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(7, 141, 127, 0.42);
 }
-.cl-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cl-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 /* ─── Privacy ──────────────────────────────────────────────────────────── */
 .cl-privacy-note {
@@ -1065,11 +1362,20 @@ function describeRoute(route) {
   .cl-fab-cluster {
     bottom: 18px;
     right: 18px;
-    width: 200px;
-    height: 200px;
+    width: 240px;
+    height: 240px;
   }
-  .cl-fab { width: 64px; height: 64px; }
-  .cl-radial-item { width: 52px; height: 52px; }
+
+  .cl-fab {
+    width: 64px;
+    height: 64px;
+  }
+
+  .cl-radial-item {
+    width: 52px;
+    height: 52px;
+  }
+
   .cl-panel {
     top: 0;
     right: 0;
@@ -1079,6 +1385,9 @@ function describeRoute(route) {
     max-width: 100%;
     border-radius: 0;
   }
-  .cl-font-slider { display: none; }
+
+  .cl-font-slider {
+    display: none;
+  }
 }
 </style>
