@@ -153,13 +153,28 @@
             </div>
 
             <!-- Time row -->
-            <div class="form-row form-row-time">
-              <div class="form-pin pin-time">🕐</div>
-              <div class="form-input-wrap">
-                <label class="form-label">Arrive by</label>
-                <input v-model="arriveBy" type="datetime-local" class="form-input" />
+            <div class="time-block">
+              <div class="form-row form-row-time">
+                <div class="form-pin pin-time">🕐</div>
+                <div class="form-input-wrap">
+                  <label class="form-label">Arrive by</label>
+                  <input
+                    ref="arriveByInputEl"
+                    v-model="arriveBy"
+                    type="datetime-local"
+                    class="form-input"
+                  />
+                </div>
+                <button class="time-picker-btn" type="button" @click="openTimePicker" aria-label="Open date and time picker" title="Pick date and time">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                </button>
               </div>
-              <button class="time-pill" :class="{ active: !arriveBy }" @click="arriveBy = ''">Leave now</button>
+              <button class="time-pill time-pill-below" :class="{ active: !arriveBy }" @click="arriveBy = ''">Leave now</button>
             </div>
 
             <button class="form-submit" :disabled="!canSearch || isSearching" @click="findRoute">
@@ -410,6 +425,7 @@ const toInputEl = ref(null)
 const toFocused = ref(false)
 const toSuggestions = ref([])
 let toDebounce = null
+const arriveByInputEl = ref(null)
 
 const arriveBy = ref('')
 const isLocating = ref(false)
@@ -760,6 +776,17 @@ function zoomIn() {
 function zoomOut() {
   if (!map.value) return
   map.value.setZoom((map.value.getZoom() || 13) - 1)
+}
+
+function openTimePicker() {
+  const el = arriveByInputEl.value
+  if (!el) return
+  el.focus()
+  if (typeof el.showPicker === 'function') {
+    el.showPicker()
+  } else {
+    el.click()
+  }
 }
 
 // ═════════ FORM / AUTOCOMPLETE ═════════
@@ -1497,7 +1524,8 @@ watch(selectedRouteIdx, () => {
   box-shadow: 0 0 0 4px rgba(10, 155, 138, 0.1);
 }
 .form-row + .form-row { margin-top: 0; }
-.form-row-time { margin-top: 12px; }
+.time-block { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.form-row-time { margin-top: 0; }
 
 .form-pin {
   flex-shrink: 0; width: 24px; display: flex; align-items: center; justify-content: center;
@@ -1520,7 +1548,37 @@ watch(selectedRouteIdx, () => {
   font-family: inherit; outline: none; line-height: 1.3;
 }
 .form-input::placeholder { color: #9eaba0; font-weight: 400; }
-.form-input[type="datetime-local"] { font-size: 14px; }
+.form-input[type="datetime-local"] {
+  font-size: 14px;
+  padding-right: 8px;
+}
+.form-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  pointer-events: none;
+}
+.time-picker-btn {
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid rgba(29, 113, 105, 0.15);
+  background: #f3f7f4;
+  color: #0f1e12;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+.time-picker-btn:hover {
+  border-color: #0a9b8a;
+  background: rgba(10, 155, 138, 0.1);
+  color: #0a9b8a;
+}
+.time-picker-btn:focus-visible {
+  outline: 3px solid rgba(10, 155, 138, 0.35);
+  outline-offset: 2px;
+}
 
 .form-locate {
   width: 38px; height: 38px;
@@ -1589,6 +1647,7 @@ watch(selectedRouteIdx, () => {
   font-size: 13px; font-weight: 700; cursor: pointer;
   transition: all 0.18s;
 }
+.time-pill-below { align-self: flex-end; }
 .time-pill:hover { border-color: #0a9b8a; color: #0a9b8a; }
 .time-pill.active {
   background: #0a9b8a; border-color: #0a9b8a; color: white;
