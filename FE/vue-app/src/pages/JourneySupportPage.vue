@@ -43,25 +43,6 @@
         </div>
       </transition>
 
-      <!-- ─── TOP TOOLBAR: layer toggles (visible in all phases) ─── -->
-      <transition name="toolbar-slide">
-        <div v-show="mapReady" class="float-toolbar">
-          <button
-            v-for="l in layerDefs"
-            :key="l.id"
-            class="toolbar-pill"
-            :class="{ active: layerState[l.id] }"
-            @click="toggleLayer(l.id)"
-            :aria-pressed="layerState[l.id]"
-          >
-            <span class="pill-icon" :style="{ background: l.color, color: l.fg }">{{ l.icon }}</span>
-            <span class="pill-label">{{ l.label }}</span>
-            <span v-if="layerLoading[l.id]" class="pill-spinner"></span>
-            <span v-else-if="layerState[l.id] && layerData[l.id].length" class="pill-count">{{ layerData[l.id].length }}</span>
-          </button>
-        </div>
-      </transition>
-
       <!-- Right-side floating controls -->
       <div v-show="mapReady" class="float-controls">
         <button class="ctrl-btn" @click="recenter" title="Recenter">
@@ -410,7 +391,6 @@ const canUse3D = computed(() => !!GOOGLE_MAPS_MAP_ID && GOOGLE_MAPS_MAP_ID !== '
 let userMarker = null
 let destMarker = null
 let routePolylines = []
-let layerMarkers = { toilets: [], landmarks: [], greenspaces: [], stops: [] }
 let stepHighlightMarker = null
 let infoWindow = null
 
@@ -458,17 +438,6 @@ const totalWalkText = computed(() => {
   if (r.walk_minutes != null) return `${r.walk_minutes} min`
   return '—'
 })
-
-// ─── Layer overlay state ───
-const layerDefs = [
-  { id: 'toilets',     icon: '🚻', label: 'Toilets',     color: '#fde2c4', fg: '#a85a1f' },
-  { id: 'greenspaces', icon: '🌳', label: 'Green spaces', color: '#dff3dc', fg: '#286c2a' },
-  { id: 'landmarks',   icon: '🏛️', label: 'Landmarks',   color: '#dceafd', fg: '#1d4ed8' },
-  { id: 'stops',       icon: '🚏', label: 'Transit',     color: '#f3e6fb', fg: '#6b21a8' }
-]
-const layerState = reactive({ toilets: false, greenspaces: false, landmarks: false, stops: false })
-const layerLoading = reactive({ toilets: false, greenspaces: false, landmarks: false, stops: false })
-const layerData = reactive({ toilets: [], greenspaces: [], landmarks: [], stops: [] })
 
 // ─── Computed gates ───
 const canSwap = computed(() => fromLat.value != null && toLat.value != null)
@@ -753,114 +722,6 @@ function legColor(kind) {
     case 'train': return '#ef4444'
     default:      return '#0a9b8a'
   }
-}
-
-// ═════════ LAYER OVERLAYS ═════════
-function clearLayer(id) {
-  for (const m of (layerMarkers[id] || [])) m.map = null
-  layerMarkers[id] = []
-}
-
-async function loadLayer(id) {
-  if (!map.value) return
-  if (layerData[id].length) return
-  layerLoading[id] = true
-  try {
-    const center = getMapCenter()
-    let items = []
-    if (id === 'toilets') {
-      const res = await api.fetchToilets({ lat: center.lat, lon: center.lng, radius_m: 1500, limit: 30 })
-      items = res?.toilets || res?.items || res || []
-    } else if (id === 'greenspaces') {
-      const res = await api.fetchGreenSpaces({ lat: center.lat, lon: center.lng, radius_km: 2, limit: 30 })
-      items = res?.greenspaces || res?.spaces || res?.items || res || []
-    } else if (id === 'landmarks') {
-      const res = await api.fetchLandmarks({ lat: center.lat, lon: center.lng, radius_km: 2, limit: 40 })
-      items = res?.landmarks || res?.items || res || []
-    } else if (id === 'stops') {
-      const res = await api.fetchNearbyStops({ lat: center.lat, lon: center.lng, radius_m: 1200, limit: 40 })
-      items = res?.stops || res?.items || res || []
-    }
-    layerData[id] = Array.isArray(items) ? items : []
-  } catch (e) {
-    console.warn(`[Journey] Failed to load layer ${id}:`, e)
-    layerData[id] = []
-  } finally {
-    layerLoading[id] = false
-  }
-}
-
-async function renderLayer(id) {
-  if (!map.value) return
-  clearLayer(id)
-  if (!layerState[id] || !layerData[id].length) return
-  const { AdvancedMarkerElement } = await getMarkerLib()
-  const def = layerDefs.find(l => l.id === id)
-  const color = def?.color || '#fff'
-
-  for (const item of layerData[id]) {
-    const lat = item.lat ?? item.latitude ?? item.centroid_lat
-    const lng = item.lng ?? item.lon ?? item.longitude ?? item.centroid_lng
-    if (lat == null || lng == null) continue
-
-    const content = makePinHTML({ icon: def.icon, color, size: 'sm' })
-    const m = new AdvancedMarkerElement({
-      position: { lat, lng },
-      map: map.value,
-      content,
-      zIndex: 50
-    })
-    m.addListener('click', () => openLayerInfo(item, id, m))
-    layerMarkers[id].push(m)
-  }
-}
-
-function openLayerInfo(item, kind, marker) {
-  if (!infoWindow) return
-  const name = item.name || item.stop_name || item.title || 'Place'
-  const sub = item.suburb_name || item.suburb || item.address || item.theme || ''
-  const distance = item.distance_km != null ? `${(+item.distance_km).toFixed(2)} km` : ''
-  const access = item.is_accessible || item.accessibility ? '♿ Accessible' : ''
-
-  const content = `
-    <div class="cl-info">
-      <div class="cl-info-icon" style="background:${(layerDefs.find(l => l.id === kind)?.color) || '#eee'}">
-        ${(layerDefs.find(l => l.id === kind)?.icon) || '📍'}
-      </div>
-      <div class="cl-info-body">
-        <strong>${escapeHtml(name)}</strong>
-        ${sub ? `<small>${escapeHtml(sub)}</small>` : ''}
-        ${distance ? `<small>${distance} away</small>` : ''}
-        ${access ? `<small class="cl-info-tag">${access}</small>` : ''}
-      </div>
-    </div>
-  `
-  infoWindow.setContent(content)
-  infoWindow.open({ map: map.value, anchor: marker })
-}
-
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]))
-}
-
-async function toggleLayer(id) {
-  layerState[id] = !layerState[id]
-  if (layerState[id]) {
-    await loadLayer(id)
-    await renderLayer(id)
-  } else {
-    clearLayer(id)
-  }
-}
-
-function getMapCenter() {
-  if (toLat.value != null && toLon.value != null) return { lat: toLat.value, lng: toLon.value }
-  if (resonanceStore.userLat && resonanceStore.userLon) return { lat: resonanceStore.userLat, lng: resonanceStore.userLon }
-  if (map.value) {
-    const c = map.value.getCenter()
-    return { lat: c.lat(), lng: c.lng() }
-  }
-  return MELBOURNE_FALLBACK
 }
 
 // ═════════ MAP CONTROLS ═════════
@@ -1451,7 +1312,6 @@ onBeforeUnmount(() => {
   if (userMarker) userMarker.map = null
   if (destMarker) destMarker.map = null
   if (stepHighlightMarker) stepHighlightMarker.map = null
-  for (const id of Object.keys(layerMarkers)) clearLayer(id)
   clearRoutePolylines()
   clearCurrentStepHighlight()
   if (infoWindow) infoWindow.close()
@@ -1461,16 +1321,6 @@ onBeforeUnmount(() => {
 
 watch(selectedRouteIdx, () => {
   if (phase.value !== 'plan') renderRoutesOnMap()
-})
-
-watch(() => [toLat.value, toLon.value], async () => {
-  for (const id of Object.keys(layerData)) {
-    layerData[id] = []
-    if (layerState[id]) {
-      await loadLayer(id)
-      await renderLayer(id)
-    }
-  }
 })
 </script>
 
@@ -1559,53 +1409,6 @@ watch(() => [toLat.value, toLon.value], async () => {
 
 .overlay-fade-enter-active, .overlay-fade-leave-active { transition: opacity 0.4s; }
 .overlay-fade-enter-from, .overlay-fade-leave-to { opacity: 0; }
-
-/* ─── Floating toolbar (top of map) ─── */
-.float-toolbar {
-  position: absolute; top: 92px; left: 50%; transform: translateX(calc(-50% + 220px));
-  z-index: 20;
-  display: flex; gap: 8px;
-  background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  padding: 8px; border-radius: 999px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.08), 0 0 0 1px rgba(29,113,105,0.08);
-  max-width: calc(100vw - 540px);
-  overflow-x: auto;
-}
-.toolbar-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 8px 14px 8px 8px; border: none; background: transparent;
-  border-radius: 999px; cursor: pointer;
-  font-size: 13.5px; font-weight: 600; color: #3a5a3e;
-  transition: background 0.2s, color 0.2s, transform 0.15s;
-  white-space: nowrap;
-}
-.toolbar-pill:hover { background: rgba(10, 155, 138, 0.08); }
-.toolbar-pill.active {
-  background: linear-gradient(135deg, #0a9b8a, #088478); color: white;
-  box-shadow: 0 4px 12px rgba(10, 155, 138, 0.32);
-}
-.toolbar-pill.active .pill-icon { background: rgba(255,255,255,0.25) !important; color: white !important; }
-.pill-icon {
-  width: 26px; height: 26px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 14px; transition: background 0.2s;
-}
-.pill-label { font-size: 13.5px; }
-.pill-count {
-  font-size: 11px; font-weight: 800; padding: 2px 7px;
-  background: rgba(255,255,255,0.3); border-radius: 999px;
-  min-width: 22px; text-align: center;
-}
-.toolbar-pill:not(.active) .pill-count {
-  background: rgba(10, 155, 138, 0.12); color: #0a9b8a;
-}
-.pill-spinner {
-  width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent;
-  border-radius: 50%; animation: spin 0.8s linear infinite;
-}
-
-.toolbar-slide-enter-active, .toolbar-slide-leave-active { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s; }
-.toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translate(calc(-50% + 220px), -28px); opacity: 0; }
 
 /* ─── Floating map controls (right side) ─── */
 .float-controls {
@@ -2139,9 +1942,7 @@ watch(() => [toLat.value, toLon.value], async () => {
 /* ─── Responsive ─── */
 @media (max-width: 1024px) {
   .float-panel { width: 380px; left: 16px; top: 86px; }
-  .float-toolbar { transform: translateX(calc(-50% + 198px)); max-width: calc(100vw - 470px); }
   .float-bottom { transform: translateX(calc(-50% + 198px)); }
-  .toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translate(calc(-50% + 198px), -28px); opacity: 0; }
   .slide-up-enter-from, .slide-up-leave-to { transform: translate(calc(-50% + 198px), 28px); opacity: 0; }
 }
 
@@ -2163,11 +1964,6 @@ watch(() => [toLat.value, toLon.value], async () => {
     box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
   }
   .panel-collapse svg { transform: rotate(90deg); }
-  .float-toolbar {
-    top: 84px; left: 12px; right: 12px; transform: none;
-    max-width: none; justify-content: flex-start;
-  }
-  .toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translateY(-28px); opacity: 0; }
   .float-controls { top: 138px; right: 12px; }
   .float-bottom { left: 12px; right: 12px; transform: none; bottom: 12px; }
   .slide-up-enter-from, .slide-up-leave-to { transform: translateY(28px); opacity: 0; }
