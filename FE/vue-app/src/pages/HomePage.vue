@@ -522,7 +522,8 @@ onBeforeUnmount(() => { if (revealObserver) revealObserver.disconnect(); window.
 @keyframes orb-drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(50px,60px) scale(1.12)} }
 
 .hero {
-  position: relative; min-height: 100vh;
+  position: relative;
+   /* min-height: 100vh; */
   display: grid; grid-template-columns: 1fr 1fr;
   align-items: center; overflow: hidden;
   padding: 100px 52px 80px; gap: 40px;

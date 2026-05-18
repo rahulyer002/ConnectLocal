@@ -43,6 +43,28 @@
         </div>
       </transition>
 
+<<<<<<< HEAD
+=======
+      <!-- ─── TOP TOOLBAR: layer toggles (visible in all phases) ───
+      <transition name="toolbar-slide">
+        <div v-show="mapReady" class="float-toolbar">
+          <button
+            v-for="l in layerDefs"
+            :key="l.id"
+            class="toolbar-pill"
+            :class="{ active: layerState[l.id] }"
+            @click="toggleLayer(l.id)"
+            :aria-pressed="layerState[l.id]"
+          >
+            <span class="pill-icon" :style="{ background: l.color, color: l.fg }">{{ l.icon }}</span>
+            <span class="pill-label">{{ l.label }}</span>
+            <span v-if="layerLoading[l.id]" class="pill-spinner"></span>
+            <span v-else-if="layerState[l.id] && layerData[l.id].length" class="pill-count">{{ layerData[l.id].length }}</span>
+          </button>
+        </div>
+      </transition> -->
+
+>>>>>>> origin/release/iteration-3
       <!-- Right-side floating controls -->
       <div v-show="mapReady" class="float-controls">
         <button class="ctrl-btn" @click="recenter" title="Recenter">
@@ -1439,7 +1461,7 @@ watch(selectedRouteIdx, () => {
 
 /* ─── Floating map controls (right side) ─── */
 .float-controls {
-  position: absolute; top: 92px; right: 24px; z-index: 20;
+  position: absolute; top: 32px; right: 24px; z-index: 20;
   display: flex; flex-direction: column; gap: 6px;
   background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   padding: 6px; border-radius: 14px;
@@ -1460,9 +1482,9 @@ watch(selectedRouteIdx, () => {
 
 /* ─── Floating side panel (left) ─── */
 .float-panel {
-  position: absolute; top: 92px; left: 24px;
+  position: absolute; top: 25px; left: 24px;
   width: 420px; max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 130px);
+  max-height: calc(100vh - 108px);
   z-index: 25;
   background: rgba(255,255,255,0.85); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-radius: 22px; padding: 24px;
@@ -2023,6 +2045,11 @@ watch(selectedRouteIdx, () => {
     box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
   }
   .panel-collapse svg { transform: rotate(90deg); }
+  .float-toolbar {
+    top: 32px; left: 12px; right: 12px; transform: none;
+    max-width: none; justify-content: flex-start;
+  }
+  .toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translateY(-28px); opacity: 0; }
   .float-controls { top: 138px; right: 12px; }
   .float-bottom { left: 12px; right: 12px; transform: none; bottom: 12px; }
   .slide-up-enter-from, .slide-up-leave-to { transform: translateY(28px); opacity: 0; }

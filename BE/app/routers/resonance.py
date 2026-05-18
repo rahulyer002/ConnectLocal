@@ -111,12 +111,32 @@ def get_best_times_endpoint(
     top_n: int = Query(default=5),
     db: Session = Depends(get_db),
 ):
+    """
+    Top N quietest historical time-windows near a location.
+
+    Returns 200 with `has_data: false` and an informative `message` when the
+    location is outside the City of Melbourne pedestrian sensor coverage area
+    rather than 404 — the frontend treats this as a friendly "outside coverage"
+    state, not an error.
+    """
     best = get_best_times(db, lat, lon, radius_km, top_n)
     if not best:
-        raise HTTPException(status_code=404, detail="No sensor data found near this location.")
+        return {
+            "location": {"lat": lat, "lon": lon},
+            "best_times": [],
+            "has_data": False,
+            "coverage_area": "City of Melbourne CBD and inner suburbs",
+            "message": (
+                "Historical foot-traffic patterns aren't available for this location. "
+                "Our crowd data uses the City of Melbourne pedestrian sensor network, "
+                "which covers the CBD and inner suburbs. Try a CBD postcode (e.g. 3000) "
+                "to see this section."
+            ),
+        }
     return {
         "location": {"lat": lat, "lon": lon},
         "best_times": best,
+        "has_data": True,
         "tip": "These are historically the quietest times near this location.",
     }
 
@@ -128,9 +148,27 @@ def get_forecast(
     radius_km: float = Query(default=2.0),
     db: Session = Depends(get_db),
 ):
+    """
+    7-day hourly crowd forecast grouped by day, derived from 2 years of City of
+    Melbourne pedestrian sensor data.
+
+    Returns 200 with `has_data: false` and an informative `message` when the
+    location is outside the sensor coverage area rather than 404.
+    """
     forecast = get_crowd_forecast(db, lat, lon, radius_km)
     if not forecast:
-        raise HTTPException(status_code=404, detail="No pedestrian sensors found within the search radius.")
+        return {
+            "location": {"lat": lat, "lon": lon},
+            "forecast_days": [],
+            "forecast": {},
+            "has_data": False,
+            "coverage_area": "City of Melbourne CBD and inner suburbs",
+            "message": (
+                "We don't have hourly crowd patterns for this location. "
+                "Coverage is the City of Melbourne CBD and inner suburbs only. "
+                "Try a CBD postcode (e.g. 3000) to see this section."
+            ),
+        }
     by_day: dict[str, list] = {}
     for f in forecast:
         day = f["day_name"]
@@ -147,6 +185,7 @@ def get_forecast(
         "location": {"lat": lat, "lon": lon},
         "forecast_days": list(by_day.keys()),
         "forecast": by_day,
+        "has_data": True,
         "data_note": "Based on 2 years of City of Melbourne pedestrian sensor data (2024-2026)",
     }
 
