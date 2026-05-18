@@ -190,6 +190,7 @@
               class="details-link"
               :style="{ fontSize: scaledPx(15) }"
               :aria-label="`View details for ${activity.title}`"
+              @click="saveDiscoverState"
             >
               View details
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -260,6 +261,7 @@ const CLOSE_KM = 5
 const UI_PAGE_SIZE = 3
 const FETCH_LIMIT = UI_PAGE_SIZE
 const MELBOURNE_NOT_FOUND = 'The location you specified was not found in Melbourne.'
+const DISCOVER_STATE_KEY = 'connectlocal-discover-state'
 
 const locationInput = ref('')
 const nearbyLabel = ref('your area')
@@ -274,6 +276,7 @@ const locationLat = ref(null)
 const locationLon = ref(null)
 const locationQueryMode = ref('suburb')
 const totalHint = ref(null)
+const scrollY = ref(0)
 import { uiStore } from '../stores/uiStore'
 const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
@@ -365,6 +368,7 @@ const fetchActivities = async (page = currentPage.value) => {
     totalHint.value = total(p) ?? totalHint.value
     activities.value = arr(p).map(normalize)
     currentPage.value = page
+    saveDiscoverState()
   } catch {
     loadError.value = 'Unable to load activities right now. Please try again later.'
     activities.value = []
@@ -380,10 +384,65 @@ const setLocation = (text, suburb = '', lat = null, lon = null) => {
   locationLon.value = lon
   hasLocationConfirmed.value = true
   setDetectedLocation(text)
+  saveDiscoverState()
 }
+
 const handleLocationInputFocus = () => { if (locationInput.value === MELBOURNE_NOT_FOUND) locationInput.value = '' }
 const parseAddress = (a = {}) => ({ suburb: a.suburb || a.neighbourhood || a.city_district || a.town || a.village || a.city || '', postcode: a.postcode || '' })
 const formatSuburbPostcode = ({ suburb, postcode }) => [suburb, postcode].filter(Boolean).join(' , ').trim()
+
+const saveDiscoverState = () => {
+  try {
+    const state = {
+      locationInput: locationInput.value,
+      nearbyLabel: nearbyLabel.value,
+      locationLat: locationLat.value,
+      locationLon: locationLon.value,
+      locationQueryMode: locationQueryMode.value,
+      hasLocationConfirmed: hasLocationConfirmed.value,
+      currentPage: currentPage.value,
+      totalHint: totalHint.value,
+      activeFilters: {
+        free: activeFilters.free,
+        thisWeek: activeFilters.thisWeek,
+        closeHome: activeFilters.closeHome
+      }
+    }
+
+    sessionStorage.setItem(DISCOVER_STATE_KEY, JSON.stringify(state))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+const restoreDiscoverState = () => {
+  try {
+    const raw = sessionStorage.getItem(DISCOVER_STATE_KEY)
+    if (!raw) return false
+
+    const state = JSON.parse(raw)
+    if (!state) return false
+
+    locationInput.value = state.locationInput || ''
+    nearbyLabel.value = state.nearbyLabel || 'your area'
+    locationLat.value = state.locationLat ?? null
+    locationLon.value = state.locationLon ?? null
+    locationQueryMode.value = state.locationQueryMode || 'suburb'
+    hasLocationConfirmed.value = !!state.hasLocationConfirmed
+    currentPage.value = state.currentPage || 1
+    totalHint.value = state.totalHint ?? null
+
+    if (state.activeFilters) {
+      activeFilters.free = !!state.activeFilters.free
+      activeFilters.thisWeek = !!state.activeFilters.thisWeek
+      activeFilters.closeHome = !!state.activeFilters.closeHome
+    }
+
+    return true
+  } catch {
+    return false
+  }
+}
 
 const getLocation = () => {
   if (!navigator.geolocation) { locationInput.value = MELBOURNE_NOT_FOUND; setDetectedUnavailable(); return }
@@ -494,9 +553,22 @@ async function applyChatbotQuery() {
 watch(activities, () => { if (currentPage.value > totalPages.value) currentPage.value = totalPages.value })
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll, { passive: true })
+
   const applied = await applyChatbotQuery()
-  if (!applied) getLocation()
+  if (applied) {
+    saveDiscoverState()
+    return
+  }
+
+  const restored = restoreDiscoverState()
+  if (restored && hasLocationConfirmed.value) {
+    await fetchActivities(currentPage.value)
+    return
+  }
+
+  getLocation()
 })
+
 onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 </script>
 
@@ -527,6 +599,7 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 
 /* Hero */
 .hero {
+  position: relative;
   padding: 80px 52px 80px;
 }
 .hero-bg-word {
@@ -536,8 +609,13 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
   color: rgba(10,155,138,0.055);
   white-space: nowrap; pointer-events: none; user-select: none; letter-spacing: -0.04em;
 }
-.hero-inner { position: relative; z-index: 2; max-width: 900px; }
-
+.hero-inner {
+  position: relative;
+  z-index: 2;
+  width: min(980px, 100%);
+  max-width: 980px;
+  margin: 0 auto;
+}
 .hero-eyebrow {
   display: inline-flex; align-items: center; gap: 12px;
   font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
