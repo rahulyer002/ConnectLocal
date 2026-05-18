@@ -176,7 +176,7 @@ def test_rankings_400_on_unknown_persona(iclient):
 
 
 def test_rankings_400_on_out_of_range_top(iclient):
-    r = iclient.get("/api/inference/rankings?top=999")
+    r = iclient.get("/api/inference/rankings?top=1001")
     assert r.status_code == 422
 
 

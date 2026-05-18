@@ -58,11 +58,17 @@ def test_gonow_returns_top_3_recommendations(client, monkeypatch):
         assert "why_recommended" in body["recommendations"][0]
 
 
-def test_besttimes_404_when_no_sensors(client, monkeypatch):
+def test_besttimes_returns_soft_state_when_no_sensors(client, monkeypatch):
+    """Outside CoM sensor coverage, /besttimes returns 200 with has_data: false
+    (was 404 previously — changed to keep the FE network panel clean and let
+    the page render a friendly 'outside coverage' state)."""
     monkeypatch.setattr(resonance_router, "get_best_times", lambda *a, **k: [])
     r = client.get("/api/resonance/besttimes?lat=-37.8&lon=144.97")
-    assert r.status_code == 404
-    assert "No sensor data" in r.json()["detail"]
+    assert r.status_code == 200
+    body = r.json()
+    assert body["has_data"] is False
+    assert body["best_times"] == []
+    assert "City of Melbourne" in body["message"]
 
 
 def test_forecast_groups_by_day(client, monkeypatch):

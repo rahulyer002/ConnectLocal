@@ -236,7 +236,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .bt-loc-bar {
   position: relative;
-  z-index: 20;
+  z-index: 60; /* must sit above .bt-step-nav (z-index 40) so suggestions dropdown isn't clipped */
   background: transparent;
   padding: 12px 0 0;
 }
