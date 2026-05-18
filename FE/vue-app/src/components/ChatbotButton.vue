@@ -382,6 +382,12 @@ const shouldShow = computed(() => {
 // ─── Radial quick-action items ──────────────────────────────────────────────
 const radialItems = [
   {
+    id: 'suburb',
+    label: 'Suburb Explorer',
+    prompt: 'Take me to the suburb explorer',
+    svg: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  },
+  {
     id: 'events',
     label: 'Find events',
     prompt: 'Find free events near me this week',
@@ -414,9 +420,9 @@ const displayedSuggestions = computed(() => {
 
 // ─── Radial positioning math ────────────────────────────────────────────────
 function getRadialStyle(index, total) {
-  const radius = 108
-  const startDeg = -175
-  const endDeg = -95
+  const radius = 128
+  const startDeg = -185
+  const endDeg = -85
   const step = total > 1 ? (endDeg - startDeg) / (total - 1) : 0
   const deg = startDeg + step * index
   const rad = (deg * Math.PI) / 180
@@ -603,8 +609,8 @@ function describeRoute(route) {
   bottom: 32px;
   right: 32px;
   z-index: 9998;
-  width: 230px;
-  height: 230px;
+  width: 280px;
+  height: 280px;
   pointer-events: none;
   display: flex;
   align-items: flex-end;
@@ -1356,8 +1362,8 @@ function describeRoute(route) {
   .cl-fab-cluster {
     bottom: 18px;
     right: 18px;
-    width: 200px;
-    height: 200px;
+    width: 240px;
+    height: 240px;
   }
 
   .cl-fab {
