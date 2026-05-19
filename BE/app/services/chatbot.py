@@ -65,8 +65,8 @@ def _get_groq_api_key() -> Optional[str]:
 SUGGESTED_PROMPTS_BY_ROUTE = {
     "/home": [
         "Find free events this week",
+        "Explore my suburb on the map",
         "Is now a good time to go out?",
-        "What can this site help me with?",
     ],
     "/discover": [
         "Show only free events",
@@ -79,19 +79,14 @@ SUGGESTED_PROMPTS_BY_ROUTE = {
         "Take me to events instead",
     ],
     "/best-time": [
-        "Show conditions right now",
-        "Show the weekly view",
-        "Find a welcoming space nearby",
-    ],
-    "/best-time/now": [
         "What do these scores mean?",
         "Find a park with toilets",
-        "Plan a journey from here",
+        "Show me a welcoming space nearby",
     ],
-    "/best-time/week": [
-        "When is the quietest day?",
-        "Find events at the quiet times",
-        "Show me live conditions instead",
+    "/suburb-explorer": [
+        "Show me Carlton",
+        "Which suburbs have the best transit?",
+        "Compare two suburbs near me",
     ],
     "/checkin": [
         "What does this check do?",
@@ -103,24 +98,9 @@ SUGGESTED_PROMPTS_BY_ROUTE = {
         "Find events that might help",
         "Take me to the journey planner",
     ],
-    "/welcoming-spaces": [
-        "Show me libraries nearby",
-        "What is a welcoming space?",
-        "Find events in this suburb",
-    ],
-    "/about": [
-        "How does this site work?",
-        "Find events near me",
-        "Plan a journey",
-    ],
-    "/resources": [
-        "Find events near me",
-        "Plan a journey",
-        "Take me back home",
-    ],
     "_default": [
         "Find free events near me",
-        "Plan a journey",
+        "Explore my suburb",
         "Is now a good time to go out?",
     ],
 }
@@ -299,6 +279,8 @@ def _default_reply_for_action(action: dict) -> str:
         return "I'll show you welcoming places nearby."
     if name == "find_open_spaces":
         return "Let me find some good open spaces."
+    if name == "view_suburb":
+        return "Let me open that suburb on the map for you."
     return "Here you go."
 
 

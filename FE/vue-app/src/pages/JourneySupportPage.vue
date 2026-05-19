@@ -43,6 +43,8 @@
         </div>
       </transition>
 
+<<<<<<< HEAD
+=======
       <!-- ─── TOP TOOLBAR: layer toggles (visible in all phases) ───
       <transition name="toolbar-slide">
         <div v-show="mapReady" class="float-toolbar">
@@ -62,6 +64,7 @@
         </div>
       </transition> -->
 
+>>>>>>> origin/release/iteration-3
       <!-- Right-side floating controls -->
       <div v-show="mapReady" class="float-controls">
         <button class="ctrl-btn" @click="recenter" title="Recenter">
@@ -172,13 +175,28 @@
             </div>
 
             <!-- Time row -->
-            <div class="form-row form-row-time">
-              <div class="form-pin pin-time">🕐</div>
-              <div class="form-input-wrap">
-                <label class="form-label">Arrive by</label>
-                <input v-model="arriveBy" type="datetime-local" class="form-input" />
+            <div class="time-block">
+              <div class="form-row form-row-time">
+                <div class="form-pin pin-time">🕐</div>
+                <div class="form-input-wrap">
+                  <label class="form-label">Arrive by</label>
+                  <input
+                    ref="arriveByInputEl"
+                    v-model="arriveBy"
+                    type="datetime-local"
+                    class="form-input"
+                  />
+                </div>
+                <button class="time-picker-btn" type="button" @click="openTimePicker" aria-label="Open date and time picker" title="Pick date and time">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                </button>
               </div>
-              <button class="time-pill" :class="{ active: !arriveBy }" @click="arriveBy = ''">Leave now</button>
+              <button class="time-pill time-pill-below" :class="{ active: !arriveBy }" @click="arriveBy = ''">Leave now</button>
             </div>
 
             <button class="form-submit" :disabled="!canSearch || isSearching" @click="findRoute">
@@ -410,7 +428,6 @@ const canUse3D = computed(() => !!GOOGLE_MAPS_MAP_ID && GOOGLE_MAPS_MAP_ID !== '
 let userMarker = null
 let destMarker = null
 let routePolylines = []
-let layerMarkers = { toilets: [], landmarks: [], greenspaces: [], stops: [] }
 let stepHighlightMarker = null
 let infoWindow = null
 
@@ -430,6 +447,7 @@ const toInputEl = ref(null)
 const toFocused = ref(false)
 const toSuggestions = ref([])
 let toDebounce = null
+const arriveByInputEl = ref(null)
 
 const arriveBy = ref('')
 const isLocating = ref(false)
@@ -458,17 +476,6 @@ const totalWalkText = computed(() => {
   if (r.walk_minutes != null) return `${r.walk_minutes} min`
   return '—'
 })
-
-// ─── Layer overlay state ───
-const layerDefs = [
-  { id: 'toilets',     icon: '🚻', label: 'Toilets',     color: '#fde2c4', fg: '#a85a1f' },
-  { id: 'greenspaces', icon: '🌳', label: 'Green spaces', color: '#dff3dc', fg: '#286c2a' },
-  { id: 'landmarks',   icon: '🏛️', label: 'Landmarks',   color: '#dceafd', fg: '#1d4ed8' },
-  { id: 'stops',       icon: '🚏', label: 'Transit',     color: '#f3e6fb', fg: '#6b21a8' }
-]
-const layerState = reactive({ toilets: false, greenspaces: false, landmarks: false, stops: false })
-const layerLoading = reactive({ toilets: false, greenspaces: false, landmarks: false, stops: false })
-const layerData = reactive({ toilets: [], greenspaces: [], landmarks: [], stops: [] })
 
 // ─── Computed gates ───
 const canSwap = computed(() => fromLat.value != null && toLat.value != null)
@@ -755,114 +762,6 @@ function legColor(kind) {
   }
 }
 
-// ═════════ LAYER OVERLAYS ═════════
-function clearLayer(id) {
-  for (const m of (layerMarkers[id] || [])) m.map = null
-  layerMarkers[id] = []
-}
-
-async function loadLayer(id) {
-  if (!map.value) return
-  if (layerData[id].length) return
-  layerLoading[id] = true
-  try {
-    const center = getMapCenter()
-    let items = []
-    if (id === 'toilets') {
-      const res = await api.fetchToilets({ lat: center.lat, lon: center.lng, radius_m: 1500, limit: 30 })
-      items = res?.toilets || res?.items || res || []
-    } else if (id === 'greenspaces') {
-      const res = await api.fetchGreenSpaces({ lat: center.lat, lon: center.lng, radius_km: 2, limit: 30 })
-      items = res?.greenspaces || res?.spaces || res?.items || res || []
-    } else if (id === 'landmarks') {
-      const res = await api.fetchLandmarks({ lat: center.lat, lon: center.lng, radius_km: 2, limit: 40 })
-      items = res?.landmarks || res?.items || res || []
-    } else if (id === 'stops') {
-      const res = await api.fetchNearbyStops({ lat: center.lat, lon: center.lng, radius_m: 1200, limit: 40 })
-      items = res?.stops || res?.items || res || []
-    }
-    layerData[id] = Array.isArray(items) ? items : []
-  } catch (e) {
-    console.warn(`[Journey] Failed to load layer ${id}:`, e)
-    layerData[id] = []
-  } finally {
-    layerLoading[id] = false
-  }
-}
-
-async function renderLayer(id) {
-  if (!map.value) return
-  clearLayer(id)
-  if (!layerState[id] || !layerData[id].length) return
-  const { AdvancedMarkerElement } = await getMarkerLib()
-  const def = layerDefs.find(l => l.id === id)
-  const color = def?.color || '#fff'
-
-  for (const item of layerData[id]) {
-    const lat = item.lat ?? item.latitude ?? item.centroid_lat
-    const lng = item.lng ?? item.lon ?? item.longitude ?? item.centroid_lng
-    if (lat == null || lng == null) continue
-
-    const content = makePinHTML({ icon: def.icon, color, size: 'sm' })
-    const m = new AdvancedMarkerElement({
-      position: { lat, lng },
-      map: map.value,
-      content,
-      zIndex: 50
-    })
-    m.addListener('click', () => openLayerInfo(item, id, m))
-    layerMarkers[id].push(m)
-  }
-}
-
-function openLayerInfo(item, kind, marker) {
-  if (!infoWindow) return
-  const name = item.name || item.stop_name || item.title || 'Place'
-  const sub = item.suburb_name || item.suburb || item.address || item.theme || ''
-  const distance = item.distance_km != null ? `${(+item.distance_km).toFixed(2)} km` : ''
-  const access = item.is_accessible || item.accessibility ? '♿ Accessible' : ''
-
-  const content = `
-    <div class="cl-info">
-      <div class="cl-info-icon" style="background:${(layerDefs.find(l => l.id === kind)?.color) || '#eee'}">
-        ${(layerDefs.find(l => l.id === kind)?.icon) || '📍'}
-      </div>
-      <div class="cl-info-body">
-        <strong>${escapeHtml(name)}</strong>
-        ${sub ? `<small>${escapeHtml(sub)}</small>` : ''}
-        ${distance ? `<small>${distance} away</small>` : ''}
-        ${access ? `<small class="cl-info-tag">${access}</small>` : ''}
-      </div>
-    </div>
-  `
-  infoWindow.setContent(content)
-  infoWindow.open({ map: map.value, anchor: marker })
-}
-
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]))
-}
-
-async function toggleLayer(id) {
-  layerState[id] = !layerState[id]
-  if (layerState[id]) {
-    await loadLayer(id)
-    await renderLayer(id)
-  } else {
-    clearLayer(id)
-  }
-}
-
-function getMapCenter() {
-  if (toLat.value != null && toLon.value != null) return { lat: toLat.value, lng: toLon.value }
-  if (resonanceStore.userLat && resonanceStore.userLon) return { lat: resonanceStore.userLat, lng: resonanceStore.userLon }
-  if (map.value) {
-    const c = map.value.getCenter()
-    return { lat: c.lat(), lng: c.lng() }
-  }
-  return MELBOURNE_FALLBACK
-}
-
 // ═════════ MAP CONTROLS ═════════
 function recenter() {
   if (!map.value) return
@@ -899,6 +798,17 @@ function zoomIn() {
 function zoomOut() {
   if (!map.value) return
   map.value.setZoom((map.value.getZoom() || 13) - 1)
+}
+
+function openTimePicker() {
+  const el = arriveByInputEl.value
+  if (!el) return
+  el.focus()
+  if (typeof el.showPicker === 'function') {
+    el.showPicker()
+  } else {
+    el.click()
+  }
 }
 
 // ═════════ FORM / AUTOCOMPLETE ═════════
@@ -1451,7 +1361,6 @@ onBeforeUnmount(() => {
   if (userMarker) userMarker.map = null
   if (destMarker) destMarker.map = null
   if (stepHighlightMarker) stepHighlightMarker.map = null
-  for (const id of Object.keys(layerMarkers)) clearLayer(id)
   clearRoutePolylines()
   clearCurrentStepHighlight()
   if (infoWindow) infoWindow.close()
@@ -1461,16 +1370,6 @@ onBeforeUnmount(() => {
 
 watch(selectedRouteIdx, () => {
   if (phase.value !== 'plan') renderRoutesOnMap()
-})
-
-watch(() => [toLat.value, toLon.value], async () => {
-  for (const id of Object.keys(layerData)) {
-    layerData[id] = []
-    if (layerState[id]) {
-      await loadLayer(id)
-      await renderLayer(id)
-    }
-  }
 })
 </script>
 
@@ -1560,53 +1459,6 @@ watch(() => [toLat.value, toLon.value], async () => {
 .overlay-fade-enter-active, .overlay-fade-leave-active { transition: opacity 0.4s; }
 .overlay-fade-enter-from, .overlay-fade-leave-to { opacity: 0; }
 
-/* ─── Floating toolbar (top of map) ─── */
-.float-toolbar {
-  position: absolute; top: 92px; left: 50%; transform: translateX(calc(-50% + 220px));
-  z-index: 20;
-  display: flex; gap: 8px;
-  background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  padding: 8px; border-radius: 999px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.08), 0 0 0 1px rgba(29,113,105,0.08);
-  max-width: calc(100vw - 540px);
-  overflow-x: auto;
-}
-.toolbar-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 8px 14px 8px 8px; border: none; background: transparent;
-  border-radius: 999px; cursor: pointer;
-  font-size: 13.5px; font-weight: 600; color: #3a5a3e;
-  transition: background 0.2s, color 0.2s, transform 0.15s;
-  white-space: nowrap;
-}
-.toolbar-pill:hover { background: rgba(10, 155, 138, 0.08); }
-.toolbar-pill.active {
-  background: linear-gradient(135deg, #0a9b8a, #088478); color: white;
-  box-shadow: 0 4px 12px rgba(10, 155, 138, 0.32);
-}
-.toolbar-pill.active .pill-icon { background: rgba(255,255,255,0.25) !important; color: white !important; }
-.pill-icon {
-  width: 26px; height: 26px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 14px; transition: background 0.2s;
-}
-.pill-label { font-size: 13.5px; }
-.pill-count {
-  font-size: 11px; font-weight: 800; padding: 2px 7px;
-  background: rgba(255,255,255,0.3); border-radius: 999px;
-  min-width: 22px; text-align: center;
-}
-.toolbar-pill:not(.active) .pill-count {
-  background: rgba(10, 155, 138, 0.12); color: #0a9b8a;
-}
-.pill-spinner {
-  width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent;
-  border-radius: 50%; animation: spin 0.8s linear infinite;
-}
-
-.toolbar-slide-enter-active, .toolbar-slide-leave-active { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s; }
-.toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translate(calc(-50% + 220px), -28px); opacity: 0; }
-
 /* ─── Floating map controls (right side) ─── */
 .float-controls {
   position: absolute; top: 32px; right: 24px; z-index: 20;
@@ -1694,7 +1546,8 @@ watch(() => [toLat.value, toLon.value], async () => {
   box-shadow: 0 0 0 4px rgba(10, 155, 138, 0.1);
 }
 .form-row + .form-row { margin-top: 0; }
-.form-row-time { margin-top: 12px; }
+.time-block { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.form-row-time { margin-top: 0; }
 
 .form-pin {
   flex-shrink: 0; width: 24px; display: flex; align-items: center; justify-content: center;
@@ -1717,7 +1570,37 @@ watch(() => [toLat.value, toLon.value], async () => {
   font-family: inherit; outline: none; line-height: 1.3;
 }
 .form-input::placeholder { color: #9eaba0; font-weight: 400; }
-.form-input[type="datetime-local"] { font-size: 14px; }
+.form-input[type="datetime-local"] {
+  font-size: 14px;
+  padding-right: 8px;
+}
+.form-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  pointer-events: none;
+}
+.time-picker-btn {
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid rgba(29, 113, 105, 0.15);
+  background: #f3f7f4;
+  color: #0f1e12;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+.time-picker-btn:hover {
+  border-color: #0a9b8a;
+  background: rgba(10, 155, 138, 0.1);
+  color: #0a9b8a;
+}
+.time-picker-btn:focus-visible {
+  outline: 3px solid rgba(10, 155, 138, 0.35);
+  outline-offset: 2px;
+}
 
 .form-locate {
   width: 38px; height: 38px;
@@ -1786,6 +1669,7 @@ watch(() => [toLat.value, toLon.value], async () => {
   font-size: 13px; font-weight: 700; cursor: pointer;
   transition: all 0.18s;
 }
+.time-pill-below { align-self: flex-end; }
 .time-pill:hover { border-color: #0a9b8a; color: #0a9b8a; }
 .time-pill.active {
   background: #0a9b8a; border-color: #0a9b8a; color: white;
@@ -2139,9 +2023,7 @@ watch(() => [toLat.value, toLon.value], async () => {
 /* ─── Responsive ─── */
 @media (max-width: 1024px) {
   .float-panel { width: 380px; left: 16px; top: 86px; }
-  .float-toolbar { transform: translateX(calc(-50% + 198px)); max-width: calc(100vw - 470px); }
   .float-bottom { transform: translateX(calc(-50% + 198px)); }
-  .toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translate(calc(-50% + 198px), -28px); opacity: 0; }
   .slide-up-enter-from, .slide-up-leave-to { transform: translate(calc(-50% + 198px), 28px); opacity: 0; }
 }
 

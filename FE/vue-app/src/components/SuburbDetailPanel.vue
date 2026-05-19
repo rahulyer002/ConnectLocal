@@ -56,6 +56,18 @@
 
     <!-- ── LOADED CONTENT ─────────────────────────────────── -->
     <div v-else-if="inference" class="panel-content">
+      <!-- Full-panel loading overlay: shown while data is refreshing for a
+           newly-selected suburb. Covers everything so the user sees a clear
+           "wait" state, instead of stale numbers + uncatched-up animations. -->
+      <transition name="panel-loader-fade">
+        <div v-if="isRefreshing" class="panel-loader" aria-live="polite" aria-busy="true">
+          <div class="panel-loader-card">
+            <div class="panel-loader-spinner" aria-hidden="true"></div>
+            <p class="panel-loader-text">Loading suburb…</p>
+          </div>
+        </div>
+      </transition>
+
       <!-- Header (fixed) -->
       <header class="head">
         <div class="head-text">
@@ -115,37 +127,22 @@
         <!-- NARRATIVE -->
         <p v-if="narrative" class="narrative">{{ narrative }}</p>
 
-        <!-- PROFILE BARS -->
+        <!-- PROFILE — simplified: single residents stat, no misleading bars -->
         <section class="block">
           <h3 class="block-title">Profile</h3>
-          <div class="bars">
-            <div class="bar-row">
-              <p class="bar-label">Residents aged 65+</p>
-              <p class="bar-value">{{ formatNum(inference.counts?.elderly_total) }}</p>
-              <div class="bar-track">
-                <div class="bar-fill" :style="{ width: animated ? barWidth(inference.counts?.elderly_total, 3000) : '0%' }">
-                  <span class="bar-thumb" aria-hidden="true"></span>
-                </div>
-              </div>
+          <div class="profile-stat">
+            <div class="profile-stat-line">
+              <span class="profile-stat-label">Residents aged 65+</span>
+              <span class="profile-stat-value">
+                {{ formatNum(inference.counts?.elderly_total) }}
+                <span class="profile-stat-secondary" v-if="inference.counts?.elderly_pct != null">
+                  · {{ formatNum(inference.counts?.elderly_pct, 1) }}% of suburb
+                </span>
+              </span>
             </div>
-
-            <div class="bar-row">
-              <p class="bar-label">Share of suburb</p>
-              <p class="bar-value">{{ formatNum(inference.counts?.elderly_pct, 1) }}%</p>
-              <div class="bar-track">
-                <div class="bar-fill" :style="{ width: animated ? barWidth(inference.counts?.elderly_pct, 25) : '0%' }">
-                  <span class="bar-thumb" aria-hidden="true"></span>
-                </div>
-              </div>
-            </div>
-
-            <div class="bar-row">
-              <p class="bar-label">Distance from CBD</p>
-              <p class="bar-value">{{ inference.counts?.dist_to_cbd_km ?? '—' }} km</p>
-              <div class="bar-track">
-                <div class="bar-fill bar-fill-inverse" :style="{ width: animated ? barWidth(inference.counts?.dist_to_cbd_km, 40) : '0%' }">
-                  <span class="bar-thumb" aria-hidden="true"></span>
-                </div>
+            <div class="bar-track">
+              <div class="bar-fill" :style="{ width: animated ? barWidth(inference.counts?.elderly_total, 3000) : '0%' }">
+                <span class="bar-thumb" aria-hidden="true"></span>
               </div>
             </div>
           </div>
@@ -173,6 +170,21 @@
 
             <!-- SCORE BREAKDOWN -->
             <div v-if="activeTab === 'breakdown'" key="breakdown" class="tab-pane">
+              <div class="score-header">
+                <p class="score-header-text">How this suburb scores across six measures</p>
+                <button
+                  type="button"
+                  class="score-info-btn"
+                  @click="showScoreInfo = true"
+                  aria-label="What do these scores mean?"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 16v-4M12 8h.01"/>
+                  </svg>
+                  What do these mean?
+                </button>
+              </div>
               <div class="rings-grid">
                 <div
                   v-for="(row, i) in subScoreRows"
@@ -337,35 +349,51 @@
                   <p class="stat-lbl">Accessible toilets</p>
                 </div>
               </div>
-
-              <div v-if="wcStopRatio" class="wc-bar">
-                <div class="wc-bar-head">
-                  <span class="wc-bar-label">Wheelchair-friendly stops</span>
-                  <span class="wc-bar-value">{{ wcStopRatio.wc }} of {{ wcStopRatio.total }}</span>
-                </div>
-                <div class="bar-track">
-                  <div class="bar-fill" :style="{ width: animated ? wcStopRatio.pct + '%' : '0%' }">
-                    <span class="bar-thumb" aria-hidden="true"></span>
-                  </div>
-                </div>
-                <p class="wc-bar-caption">{{ wcStopRatio.note }}</p>
-              </div>
             </div>
 
           </transition>
         </div>
       </div>
 
+      <!-- Score info overlay (modal) -->
+      <transition name="overlay-fade">
+        <div
+          v-if="showScoreInfo"
+          class="score-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="About the suburb scores"
+          @click.self="showScoreInfo = false"
+        >
+          <div class="score-overlay-card">
+            <header class="score-overlay-head">
+              <h3 class="score-overlay-title">About the scores</h3>
+              <button
+                class="score-overlay-close"
+                type="button"
+                aria-label="Close"
+                @click="showScoreInfo = false"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </header>
+            <p class="score-overlay-intro">
+              Each score is a 0–100 measure of how well this suburb supports older Australians who want to stay socially connected. Higher is better.
+            </p>
+            <ul class="score-explain-list">
+              <li v-for="d in SCORE_EXPLAINERS" :key="d.key">
+                <p class="explain-name">{{ d.label }}</p>
+                <p class="explain-text">{{ d.text }}</p>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </transition>
+
       <!-- Action bar (fixed) -->
       <footer class="action-bar">
-        <button class="action-btn" type="button" @click="$emit('find-events')">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
-          Events
-        </button>
-        <button class="action-btn" type="button" @click="$emit('plan-journey')">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M6 16V9a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4"/></svg>
-          Journey
-        </button>
         <button class="action-btn action-primary" type="button" @click="$emit('view-on-map')">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 22 7-7-7-7-7 7 7 7Z M5 15 12 8l7 7"/></svg>
           View on map
@@ -399,9 +427,9 @@ const SMALL_RING_SIZE = 76
 const SMALL_STROKE    = 6
 
 const TABS = [
-  { key: 'breakdown', label: 'Score' },
   { key: 'places',    label: 'Places' },
   { key: 'comfort',   label: 'Comfort' },
+  { key: 'breakdown', label: 'Score' },
 ]
 
 const SUB_SCORE_DEFS = [
@@ -413,6 +441,22 @@ const SUB_SCORE_DEFS = [
   { key: 'social',    label: 'Social' },
 ]
 
+// Plain-English explainers shown in the Score info overlay.
+const SCORE_EXPLAINERS = [
+  { key: 'rest',      label: 'Rest stops',
+    text: 'How many benches and seating spots are around, so you can stop and catch your breath on the way somewhere.' },
+  { key: 'relief',    label: 'Toilets',
+    text: 'How easy it is to find an accessible public toilet without going far out of your way.' },
+  { key: 'amenities', label: 'Amenities',
+    text: 'The mix of nearby services — shops, cafés, community spaces — that make a suburb practical for daily outings.' },
+  { key: 'shade',     label: 'Tree shade',
+    text: 'How much tree cover the streets have. More shade means more comfortable walking on warm days.' },
+  { key: 'transit',   label: 'Transit',
+    text: 'How well buses, trams and trains serve the suburb. Higher is more frequent and more places you can reach.' },
+  { key: 'social',    label: 'Social',
+    text: 'How many neighbours aged 65+ live here. A higher score means a stronger community of people in a similar life stage.' },
+]
+
 const suburbIdRef = computed(() => props.suburbId)
 const { data: inference, error, isLoading, run } = useSuburbInference(suburbIdRef)
 
@@ -421,14 +465,24 @@ const snapshotApi = useApi(async (signal) => {
   return jsonFetcher(`${BASE}/api/suburbs/${props.suburbId}/snapshot`, { signal })
 }, { autoRetry: 1, timeoutMs: 12_000 })
 
-const activeTab = ref('breakdown')
+const activeTab = ref('places')
 const animated  = ref(false)
 const bodyEl    = ref(null)
+const showScoreInfo = ref(false)
+
+// True when EITHER request is in flight AND we already have a previous
+// suburb's data on screen. This drives the full-panel overlay so the user
+// gets an obvious "loading" state while the rings and bars catch up.
+const isRefreshing = computed(() => {
+  const inferenceLoading = !!isLoading?.value
+  const snapshotLoading  = !!snapshotApi.isLoading?.value
+  return (inferenceLoading || snapshotLoading) && !!inference.value
+})
 
 watch(() => props.suburbId, async (id) => {
   if (id == null) return
   animated.value = false
-  activeTab.value = 'breakdown'
+  activeTab.value = 'places'
   if (bodyEl.value) bodyEl.value.scrollTop = 0
   await run()
   await snapshotApi.run()
@@ -506,18 +560,6 @@ const peopleRatio = computed(() => {
   return Math.max(2, Math.round(100 / pct))
 })
 
-const wcStopRatio = computed(() => {
-  const total = inference.value?.counts?.stop_count
-  const wc    = inference.value?.counts?.wc_stop_count
-  if (!total) return null
-  const pct = wc ? Math.round((wc / total) * 100) : 0
-  let note = ''
-  if (pct >= 60)      note = 'Well served — most stops have step-free access.'
-  else if (pct >= 25) note = 'Reasonable coverage. Check your specific stop.'
-  else                note = 'A known gap — many stops are not step-free.'
-  return { wc, total, pct, note }
-})
-
 const eventsCount = computed(() => {
   const s = snapshotApi.data?.value
   const ev = s?.events?.events || s?.events || []
@@ -539,20 +581,28 @@ const nowTitle = computed(() => {
   const crowd  = s?.crowd?.level || s?.crowd_level
   const temp   = s?.weather?.temperature_c ?? s?.weather?.temp
   const cond   = s?.weather?.summary || s?.weather?.description
-  const safe   = s?.safety?.verdict || 'Unknown'
+  const safe   = s?.safety?.verdict
   const parts = []
   if (crowd)  parts.push(String(crowd).toLowerCase())
   if (temp != null) parts.push(`${Math.round(temp)}°C${cond ? ', ' + cond.toLowerCase() : ''}`)
-  if (safe)   parts.push(`${String(safe).toLowerCase()} to go`)
+  // Only append a safety phrase if we actually have a verdict — "unknown to go"
+  // reads as broken English.
+  if (safe && safe.toLowerCase() !== 'unknown') {
+    parts.push(`${String(safe).toLowerCase()} to go`)
+  }
   return parts.length ? `Right now: ${parts.join(' · ')}` : 'Conditions unavailable.'
 })
 
 const nowSub = computed(() => {
+  // If we're still waiting on the network, say so.
+  if (snapshotApi.isLoading?.value) return 'Checking current conditions…'
   const ns = nowState.value
   if (ns === 'safe')    return 'Good time for a short, gentle outing.'
   if (ns === 'caution') return 'Take it easy — bring water and watch the heat.'
   if (ns === 'poor')    return 'Maybe stay in today. Try again later.'
-  return 'Weather feed loading…'
+  // Data is here but we don't have a verdict to give — fall through gracefully
+  // instead of perma-displaying a loading message.
+  return 'No live conditions available right now.'
 })
 
 const hasGap = computed(() => {
@@ -591,7 +641,9 @@ function formatNum(n, decimals = 0) {
   --surface:    #FFFFFF;
 
   /* Critical: explicit height + flex + overflow:hidden so the
-     scrollable .body inside knows when to scroll */
+     scrollable .body inside knows when to scroll.
+     position: relative anchors the score-overlay modal inside the panel. */
+  position: relative;
   height: 100%;
   width: 100%;
   background: var(--surface);
@@ -609,7 +661,56 @@ function formatNum(n, decimals = 0) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Anchors the .panel-loader overlay to the panel itself */
+  position: relative;
 }
+
+/* ================================================================== */
+/*  Full-panel loading overlay (new suburb selected, data refreshing) */
+/* ================================================================== */
+.panel-loader {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.86);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.panel-loader-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 28px;
+}
+.panel-loader-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--teal-soft);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: panel-loader-spin 0.8s linear infinite;
+}
+@keyframes panel-loader-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-loader-spinner { animation-duration: 2s; }
+}
+.panel-loader-text {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: calc(15px * var(--font-scale));
+  color: var(--teal-deep);
+  font-weight: 600;
+}
+.panel-loader-fade-enter-active,
+.panel-loader-fade-leave-active { transition: opacity 0.22s ease; }
+.panel-loader-fade-enter-from,
+.panel-loader-fade-leave-to { opacity: 0; }
 
 /* ================================================================== */
 /*  STATES (empty / error / loading)                                  */
@@ -894,6 +995,36 @@ function formatNum(n, decimals = 0) {
   gap: 4px 12px;
   align-items: center;
 }
+/* v6: simplified profile stat — replaces the three bar-row trio */
+.profile-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.profile-stat-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.profile-stat-label {
+  font-size: calc(13px * var(--font-scale));
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.profile-stat-value {
+  font-family: Georgia, serif;
+  font-size: calc(17px * var(--font-scale));
+  font-weight: 700;
+  color: var(--teal);
+}
+.profile-stat-secondary {
+  font-family: system-ui, sans-serif;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-left: 4px;
+}
 .bar-label {
   margin: 0;
   font-size: calc(13px * var(--font-scale));
@@ -996,6 +1127,141 @@ function formatNum(n, decimals = 0) {
 /* ================================================================== */
 /*  SCORE BREAKDOWN — Ring grid — faster fade-in (0.3s, 30ms stagger) */
 /* ================================================================== */
+.score-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0 8px;
+  flex-wrap: wrap;
+}
+.score-header-text {
+  margin: 0;
+  font-size: calc(13px * var(--font-scale));
+  color: var(--ink-2);
+}
+.score-info-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--mint);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 600;
+  color: var(--teal-deep);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.score-info-btn:hover {
+  background: var(--teal-soft);
+  border-color: #5DCAA5;
+}
+.score-info-btn svg { color: var(--teal); }
+
+/* Score info overlay (modal) — fixed to viewport, centered on the page */
+.score-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 30, 18, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.score-overlay-card {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.score-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+.score-overlay-title {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: calc(19px * var(--font-scale));
+  color: var(--ink);
+}
+.score-overlay-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-2);
+  padding: 4px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.score-overlay-close:hover {
+  background: var(--mint);
+  color: var(--teal-deep);
+}
+.score-overlay-intro {
+  margin: 0;
+  padding: 14px 20px 10px;
+  font-size: calc(13.5px * var(--font-scale));
+  color: var(--ink-2);
+  line-height: 1.55;
+  flex: 0 0 auto;
+}
+.score-explain-list {
+  list-style: none;
+  padding: 6px 20px 20px;
+  margin: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.score-explain-list li {
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.explain-name {
+  margin: 0 0 3px;
+  font-family: Georgia, serif;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.explain-text {
+  margin: 0;
+  font-size: calc(13px * var(--font-scale));
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+/* Overlay enter/leave */
+.overlay-fade-enter-active,
+.overlay-fade-leave-active { transition: opacity 0.2s; }
+.overlay-fade-enter-active .score-overlay-card,
+.overlay-fade-leave-active .score-overlay-card { transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
+.overlay-fade-enter-from,
+.overlay-fade-leave-to { opacity: 0; }
+.overlay-fade-enter-from .score-overlay-card { transform: translateY(8px) scale(0.97); }
+.overlay-fade-leave-to .score-overlay-card { transform: translateY(4px) scale(0.99); }
+
 .rings-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1258,58 +1524,29 @@ function formatNum(n, decimals = 0) {
   color: var(--muted);
 }
 
-.wc-bar {
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-}
-.wc-bar-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 10px;
-}
-.wc-bar-label {
-  font-size: calc(12px * var(--font-scale));
-  color: var(--ink-2);
-  font-weight: 500;
-}
-.wc-bar-value {
-  font-family: Georgia, serif;
-  font-size: calc(14px * var(--font-scale));
-  font-weight: 700;
-  color: var(--teal);
-}
-.wc-bar-caption {
-  margin: 10px 0 0;
-  font-size: calc(11px * var(--font-scale));
-  color: var(--muted);
-  line-height: 1.5;
-}
-
 /* ================================================================== */
 /*  ACTION BAR (fixed bottom)                                         */
 /* ================================================================== */
 .action-bar {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  padding: 14px 18px;
+  display: flex;
+  /* Right padding leaves room for the floating chatbot so the button
+     doesn't sit underneath it */
+  padding: 14px 110px 14px 18px;
   background: var(--surface);
   border-top: 1px solid var(--line);
-  flex: 0 0 auto;       /* never shrinks */
+  flex: 0 0 auto;
 }
 .action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 11px 10px;
+  padding: 11px 18px;
   background: var(--mint);
   color: var(--teal-deep);
   border: 1px solid var(--line);
   border-radius: 11px;
+  flex: 1;
   font-size: calc(12px * var(--font-scale));
   font-weight: 600;
   font-family: inherit;

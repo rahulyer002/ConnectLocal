@@ -53,9 +53,21 @@ def get_suburb_profile(db: Session, suburb_name: str) -> dict | None:
 
 
 def search_suburbs(db: Session, query: str, limit: int = 10) -> list[dict]:
-    rows = db.query(Suburb).filter(
-        func.lower(Suburb.suburb_name).contains(query.lower().strip())
-    ).limit(limit).all()
+    """
+    Find suburbs whose name STARTS WITH the user's query (case-insensitive).
+    "carl" → Carlton, Carlton North. NOT Macleod (contains 'cl') or Caulfield.
+    Ordered alphabetically so the user sees a predictable list.
+    """
+    q = (query or "").lower().strip()
+    if not q:
+        return []
+    rows = (
+        db.query(Suburb)
+        .filter(func.lower(Suburb.suburb_name).startswith(q))
+        .order_by(Suburb.suburb_name.asc())
+        .limit(limit)
+        .all()
+    )
 
     return [
         {

@@ -14,6 +14,11 @@ the user's request doesn't match any other action.
 
 # Routes the chatbot is allowed to navigate to. Keep this in sync with
 # vue-router definitions in FE/vue-app/src/router/index.js
+#
+# Note: /best-time/now, /best-time/week, /welcoming-spaces all redirect to
+# /best-time#step-* — kept out of this list so the model navigates to the
+# canonical path. Use check_best_time, find_welcoming_places etc. to land
+# on the right section of the unified Best Time page.
 ALLOWED_ROUTES = [
     "/home",
     "/discover",
@@ -22,9 +27,7 @@ ALLOWED_ROUTES = [
     "/checkin-form",
     "/results",
     "/best-time",
-    "/best-time/now",
-    "/best-time/week",
-    "/welcoming-spaces",
+    "/suburb-explorer",
 ]
 
 ACTIONS = [
@@ -215,6 +218,45 @@ ACTIONS = [
     {
         "type": "function",
         "function": {
+            "name": "view_suburb",
+            "description": (
+                "Open the Suburb Explorer for a specific suburb. The Suburb "
+                "Explorer is an interactive map where the user can see scores, "
+                "amenities, transit, and other details for any Melbourne suburb. "
+                "Use this when the user wants to 'look at', 'explore', 'see "
+                "details for', 'check stats for', or 'view on the map' a suburb."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "suburb": {
+                        "type": "string",
+                        "description": (
+                            "Melbourne suburb name e.g. 'Carlton'. The chatbot "
+                            "should always extract a specific suburb name; do "
+                            "not call this action without one."
+                        ),
+                    },
+                    "metric": {
+                        "type": "string",
+                        "enum": [
+                            "outing_score", "transit_score", "amenity_score",
+                            "safety_score", "comfort_score", "population",
+                        ],
+                        "description": (
+                            "Which metric to highlight on the map. Optional — "
+                            "omit unless the user asked specifically (e.g. "
+                            "'how good is transit in Carlton')."
+                        ),
+                    },
+                },
+                "required": ["suburb"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "explain_page",
             "description": (
                 "Answer a question about what something on the site means or "
@@ -270,6 +312,7 @@ NEEDS_CONFIRMATION = {
     "check_best_time":      True,
     "find_welcoming_places": True,
     "find_open_spaces":     True,
+    "view_suburb":          True,   # navigates to /suburb-explorer
     "explain_page":         False,  # text-only response
     "unknown":              False,  # shows suggestions
 }

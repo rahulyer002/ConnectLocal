@@ -37,7 +37,6 @@
             <span v-if="event.category" class="tag tag-category" role="listitem" :style="{ fontSize: scaledPx(13) }">{{ event.category }}</span>
           </div>
           <h1 class="hero-title" :style="{ fontSize: scaledPx(64) }">{{ event.name }}</h1>
-          <p v-if="event.source" class="hero-organiser" :style="{ fontSize: scaledPx(17) }">by {{ event.source }}</p>
         </div>
       </header>
 
@@ -111,7 +110,9 @@
             I would like to go - show me how to get there
           </button>
           <a v-if="event.url" class="btn-primary" :href="event.url" target="_blank" rel="noopener noreferrer" :style="{ fontSize: scaledPx(16) }">Open original event page</a>
-          <RouterLink to="/discover" class="btn-secondary" :style="{ fontSize: scaledPx(16) }">Back to activities</RouterLink>
+          <RouterLink to="/discover" class="btn-secondary" :style="{ fontSize: scaledPx(16) }">
+            Back to activities
+          </RouterLink>
         </div>
       </main>
     </template>
@@ -125,7 +126,6 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import { resonanceStore } from '../stores/resonanceStore'
-import { searchSuburbs } from '../composables/useResonanceApi'
 
 const store = resonanceStore
 const route = useRoute()
@@ -135,6 +135,8 @@ const BASE_URL = import.meta.env.VITE_ACTIVITIES_API_URL || 'https://connectloca
 const event = ref(null)
 const isLoading = ref(false)
 const loadError = ref('')
+const locationError = ref('')
+const isLocating = ref(false)
 import { uiStore } from '../stores/uiStore'
 const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
@@ -210,6 +212,7 @@ const goToJourney = (space) => {
     locationError.value = 'Geolocation is not supported by your browser.'
     return
   }
+
 
   navigator.geolocation.getCurrentPosition(
     (pos) => {
@@ -321,7 +324,9 @@ onBeforeUnmount(() => {
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 36px rgba(10,155,138,0.38); }
 .btn-primary:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
 
+
 .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 16px 24px; border-radius: 12px; background: white; border: 1.5px solid rgba(29,113,105,0.2); color: #3a5a3e; font-size: 16px; font-weight: 700; text-decoration: none; font-family: system-ui,sans-serif; transition: all 0.25s; }
+
 .btn-secondary:hover { border-color: #0a9b8a; color: #0a9b8a; }
 .btn-secondary:focus-visible { outline: 3px solid #0a9b8a; outline-offset: 3px; }
 

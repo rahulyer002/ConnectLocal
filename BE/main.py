@@ -77,7 +77,6 @@ app.include_router(trees_router.router,  prefix="/api/trees",         tags=["Tre
 app.include_router(routes_router.router, prefix="/api/routes",        tags=["Transport Routes"])
 app.include_router(inference.router, prefix="/api/inference", tags=["Inference"])
 
-
 @app.get("/")
 async def root():
     return {
@@ -87,6 +86,7 @@ async def root():
             "epic_1_2": "Events + Suburb/Landmark/OpenSpace data",
             "epic_3": "Journey planning — /api/journey",
             "epic_4": "Resonance engine — /api/resonance, /api/safety, /api/greenspace",
+            "epic_5": "AI chatbot — /api/chatbot",
             "epic_6": "Suburb Explorer — /api/suburbs/map + /api/suburbs/{id}/snapshot",
         },
         "new_datasets": [
@@ -95,9 +95,7 @@ async def root():
             "GTFS routes — /api/routes/*",
             "Per-suburb composition — /api/suburbs/{id}/*",
         ],
-            "epic_5": "AI chatbot — /api/chatbot",
-        }
-    
+    }
 
 
 @app.get("/health")

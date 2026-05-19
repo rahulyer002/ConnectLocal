@@ -25,14 +25,14 @@
           >×</button>
 
           <ul
-            v-if="searchOpen && search.query.value.trim().length >= 2"
+            v-if="searchOpen && search.query.value.trim().length >= 1"
             class="se-search-results"
             role="listbox"
           >
             <li v-if="search.isLoading.value" class="se-result-msg">Searching…</li>
             <li v-else-if="search.error.value" class="se-result-msg err">{{ search.error.value }}</li>
             <li v-else-if="!search.results.value.length" class="se-result-msg">
-              No matches for "{{ search.query.value }}".
+              No Melbourne suburbs match "{{ search.query.value }}". Try a different name.
             </li>
             <template v-else>
               <li
@@ -406,6 +406,8 @@ function goToJourney() {
   min-width: 220px;
   max-width: 480px;
   transition: border-color 0.15s, box-shadow 0.15s;
+  /* Sit above Leaflet panes (max 700) and the "Showing X" pill (800) */
+  z-index: 1500;
 }
 .se-search.open {
   border-color: var(--teal);
@@ -445,8 +447,9 @@ function goToJourney() {
   margin: 0;
   max-height: 320px;
   overflow-y: auto;
-  z-index: 30;
-  box-shadow: 0 8px 24px rgba(15, 110, 86, 0.12);
+  /* Above the search input's own stacking context — above Leaflet, above pills */
+  z-index: 1600;
+  box-shadow: 0 8px 24px rgba(15, 110, 86, 0.18);
 }
 .se-result {
   display: flex;
@@ -492,12 +495,13 @@ function goToJourney() {
 }
 
 /* ──────────────────────────────────────────────────────────────── */
-/*  "Showing X" map view control — top-left, prominent              */
+/*  "Showing X" map view control — top-RIGHT so it doesn't overlap   */
+/*  with Leaflet's top-left +/- zoom controls                        */
 /* ──────────────────────────────────────────────────────────────── */
 .map-view-ctrl {
   position: absolute;
   top: 18px;
-  left: 18px;
+  right: 18px;
   z-index: 800;
 }
 .mvc-btn {
@@ -539,7 +543,7 @@ function goToJourney() {
 .mvc-menu {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  right: 0;
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 14px;

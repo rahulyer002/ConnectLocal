@@ -575,6 +575,9 @@ function describePendingAction(action) {
     case 'find_open_spaces':
       return `I'd like to show you outdoor spaces${args.with_toilets ? ' with toilets' : ''}${args.suburb ? ` near ${args.suburb}` : ''}. Allow?`
 
+    case 'view_suburb':
+      return `I'd like to open ${args.suburb || 'that suburb'} in the explorer${args.metric ? ` showing ${args.metric.replace('_', ' ')}` : ''}. Allow?`
+
     default:
       return "I'd like to take an action for you. Allow?"
   }
@@ -589,11 +592,7 @@ function describeRoute(route) {
     '/checkin-form': 'the check-in form',
     '/results': 'your results page',
     '/best-time': 'the Best Time page',
-    '/best-time/now': 'the live Best Time view',
-    '/best-time/week': 'the weekly Best Time view',
-    '/welcoming-spaces': 'welcoming spaces',
-    '/resources': 'support resources',
-    '/about': 'the about page',
+    '/suburb-explorer': 'the Suburb Explorer',
   }
 
   return labels[route] || `the ${route} page`
