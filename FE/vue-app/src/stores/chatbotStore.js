@@ -12,10 +12,13 @@ import { reactive } from 'vue'
 
 // Per-route suggested prompts — what the user sees when the panel first opens
 // on a given page. The bot can override these later via the API response.
+//
+// v5: stale routes (/best-time/now, /best-time/week, /welcoming-spaces) all
+// redirect to /best-time so we don't need separate entries. Added /suburb-explorer.
 const SUGGESTIONS_BY_ROUTE = {
   '/home': [
     'Find free events near me',
-    'Plan a journey somewhere',
+    'Explore my suburb on the map',
     'Is now a good time to go out?',
   ],
   '/discover': [
@@ -29,24 +32,14 @@ const SUGGESTIONS_BY_ROUTE = {
     'Take me back to events',
   ],
   '/best-time': [
-    'Show conditions right now',
-    'Show the weekly view',
-    'Find a welcoming space nearby',
-  ],
-  '/best-time/now': [
     'What do these scores mean?',
     'Find a park with toilets',
-    'Plan a journey from here',
+    'Show me a welcoming space nearby',
   ],
-  '/best-time/week': [
-    'When is the quietest day?',
-    'Find events at the quiet times',
-    'Show me live conditions instead',
-  ],
-  '/welcoming-spaces': [
-    'What is a welcoming space?',
-    'Show me libraries',
-    'Find events nearby',
+  '/suburb-explorer': [
+    'Show me Carlton',
+    'Which suburbs have the best transit?',
+    'Take me back to events',
   ],
   '/checkin': [
     'What does this check do?',
@@ -57,16 +50,6 @@ const SUGGESTIONS_BY_ROUTE = {
     'What does my score mean?',
     'Find events that might help',
     'Take me to the journey planner',
-  ],
-  '/resources': [
-    'Find events near me',
-    'Plan a journey to one of these',
-    'Take me back home',
-  ],
-  '/about': [
-    'How does this site work?',
-    'Find events near me',
-    'Plan a journey',
   ],
 }
 
