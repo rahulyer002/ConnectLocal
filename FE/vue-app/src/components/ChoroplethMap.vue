@@ -203,6 +203,9 @@ function drawGeoLayer() {
     const b = geoLayer.getBounds()
     if (b.isValid()) map.fitBounds(b, { padding: [16, 16], maxZoom: 11 })
   } catch {}
+  // If a selection was set before the layer finished loading (e.g. arrived via
+  // ?id=… in the URL), zoom to it now that the geometries are available.
+  if (props.selectedSuburbId != null) zoomToSelectedSuburb()
 }
 
 function restyleAll() {
@@ -214,8 +217,42 @@ function restyleAll() {
   })
 }
 
+// Fly the map to the selected suburb's bounds. Called whenever
+// selectedSuburbId becomes non-null (from search, map click, panel peer, or URL),
+// and also after geoJSON first loads if a selection already exists.
+//
+// We use fitBounds so very small suburbs zoom in close (~ z 13) and very large
+// suburbs only zoom in as far as they fit comfortably. The maxZoom cap stops
+// pin-prick suburbs from going so deep that the surrounding context vanishes.
+function zoomToSelectedSuburb() {
+  if (!map || !geoLayer || !props.selectedSuburbId) return
+  let targetLayer = null
+  geoLayer.eachLayer((layer) => {
+    if (Number(layer.feature?.properties?.suburb_id) === props.selectedSuburbId) {
+      targetLayer = layer
+    }
+  })
+  if (!targetLayer) return
+  try {
+    const b = targetLayer.getBounds()
+    if (b.isValid()) {
+      map.flyToBounds(b, {
+        padding: [40, 40],
+        maxZoom: 13,
+        duration: 0.6,
+      })
+    }
+  } catch {}
+}
+
 watch(() => props.selectedMetric,   restyleAll)
-watch(() => props.selectedSuburbId, restyleAll)
+watch(() => props.selectedSuburbId, (id) => {
+  restyleAll()
+  // Fly to the suburb whenever the selection changes (search pick, map click,
+  // peer pick from the side panel, URL change). Skipped when id is null
+  // (clear selection — keep current view).
+  if (id != null) zoomToSelectedSuburb()
+})
 watch(rankingsData, () => {
   rebuildScoreMap()
   restyleAll()
@@ -229,9 +266,12 @@ let resizeObs = null
 onMounted(async () => {
   map = L.map(mapEl.value, {
     zoomControl:           true,
-    // scrollWheelZoom stays false — we handle pinch via our own wheel
-    // listener below so that regular page-scroll still works.
-    scrollWheelZoom:       false,
+    // Wheel zoom is on by default — Leaflet handles plain scroll-wheel,
+    // ctrl/cmd+wheel and trackpad pinch (which the OS delivers as wheel +
+    // ctrlKey) all through the same handler, zooming toward the cursor.
+    scrollWheelZoom:       true,
+    wheelDebounceTime:     40,
+    wheelPxPerZoomLevel:   90,
     doubleClickZoom:       true,
     boxZoom:               false,
     attributionControl:    false,
@@ -252,15 +292,6 @@ onMounted(async () => {
 
   map.on('click', () => emit('select', null))
 
-  // ─── Pinch-to-zoom on trackpads ───────────────────────────────────────
-  // Browsers deliver trackpad pinch gestures as wheel events with
-  // `ctrlKey: true` (this is a long-standing convention; the OS sets it,
-  // not the user's keyboard). We listen for those specifically so that:
-  //   • Trackpad pinch → zoom the map
-  //   • Cmd/Ctrl + scroll wheel → zoom the map
-  //   • Regular scroll wheel alone → page scrolls normally
-  mapEl.value.addEventListener('wheel', onWheelPinch, { passive: false })
-
   // Window-level +/- and arrow-key zoom so the user doesn't have to click the
   // map first to give it focus. Ignored when the user is typing in an input.
   window.addEventListener('keydown', onWindowKey)
@@ -272,22 +303,6 @@ onMounted(async () => {
 
   await reload()
 })
-
-function onWheelPinch(e) {
-  if (!map) return
-  // Trackpad pinch comes through as wheel + ctrlKey. Plain scroll won't have it.
-  if (!e.ctrlKey && !e.metaKey) return
-  e.preventDefault()
-  // deltaY is negative on pinch-out (zoom in), positive on pinch-in (zoom out).
-  // Scale the step by deltaY so a fast pinch zooms more than a gentle one.
-  const delta = -e.deltaY / 120        // wheel "ticks" → roughly 1 zoom step per tick
-  const stepped = Math.max(-2, Math.min(2, delta))
-  // Zoom toward the cursor, not the map center, so the gesture feels natural.
-  const rect = mapEl.value.getBoundingClientRect()
-  const point = L.point(e.clientX - rect.left, e.clientY - rect.top)
-  const latlng = map.containerPointToLatLng(point)
-  map.setZoomAround(latlng, map.getZoom() + stepped, { animate: false })
-}
 
 function onWindowKey(e) {
   if (!map) return
@@ -327,9 +342,6 @@ function onWindowKey(e) {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onWindowKey)
-  if (mapEl.value) {
-    try { mapEl.value.removeEventListener('wheel', onWheelPinch) } catch {}
-  }
   if (resizeObs) { try { resizeObs.disconnect() } catch {} }
   if (map)       { try { map.remove() } catch {} }
 })
