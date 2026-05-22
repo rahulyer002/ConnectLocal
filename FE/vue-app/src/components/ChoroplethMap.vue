@@ -66,6 +66,17 @@ const DOMAINS = {
   elderly_pct:     { range: [0, 30],  unit: '%' },
 }
 
+// Per-metric plain-English labels. Each value is what the corresponding end
+// of the legend gradient *means*, not a raw number. First-time users
+// shouldn't have to know that "100" means "fully connected".
+const LEGEND_LABELS = {
+  outing_score:    { low: 'Less connected',  high: 'More connected' },
+  score_amenities: { low: 'Few amenities',   high: 'Lots of amenities' },
+  score_transit:   { low: 'Light transit',   high: 'Strong transit' },
+  score_social:    { low: 'Fewer locals 65+', high: 'Many locals 65+' },
+  elderly_pct:     { low: 'Lower share 65+', high: 'Higher share 65+' },
+}
+
 const mapEl       = ref(null)
 const initialLoad = ref(true)
 const loadError   = ref(null)
@@ -75,14 +86,8 @@ let geoLayer = null
 let geojson  = null
 const scoreById = new Map()
 
-const legendLow  = computed(() => {
-  const d = DOMAINS[props.selectedMetric] || DOMAINS.outing_score
-  return `${d.range[0]}${d.unit}`
-})
-const legendHigh = computed(() => {
-  const d = DOMAINS[props.selectedMetric] || DOMAINS.outing_score
-  return `${d.range[1]}${d.unit}`
-})
+const legendLow  = computed(() => LEGEND_LABELS[props.selectedMetric]?.low  ?? 'Low')
+const legendHigh = computed(() => LEGEND_LABELS[props.selectedMetric]?.high ?? 'High')
 
 function metricValue(rec, metric = props.selectedMetric) {
   if (!rec) return null
@@ -198,6 +203,9 @@ function drawGeoLayer() {
     const b = geoLayer.getBounds()
     if (b.isValid()) map.fitBounds(b, { padding: [16, 16], maxZoom: 11 })
   } catch {}
+  // If a selection was set before the layer finished loading (e.g. arrived via
+  // ?id=… in the URL), zoom to it now that the geometries are available.
+  if (props.selectedSuburbId != null) zoomToSelectedSuburb()
 }
 
 function restyleAll() {
@@ -209,8 +217,42 @@ function restyleAll() {
   })
 }
 
+// Fly the map to the selected suburb's bounds. Called whenever
+// selectedSuburbId becomes non-null (from search, map click, panel peer, or URL),
+// and also after geoJSON first loads if a selection already exists.
+//
+// We use fitBounds so very small suburbs zoom in close (~ z 13) and very large
+// suburbs only zoom in as far as they fit comfortably. The maxZoom cap stops
+// pin-prick suburbs from going so deep that the surrounding context vanishes.
+function zoomToSelectedSuburb() {
+  if (!map || !geoLayer || !props.selectedSuburbId) return
+  let targetLayer = null
+  geoLayer.eachLayer((layer) => {
+    if (Number(layer.feature?.properties?.suburb_id) === props.selectedSuburbId) {
+      targetLayer = layer
+    }
+  })
+  if (!targetLayer) return
+  try {
+    const b = targetLayer.getBounds()
+    if (b.isValid()) {
+      map.flyToBounds(b, {
+        padding: [40, 40],
+        maxZoom: 13,
+        duration: 0.6,
+      })
+    }
+  } catch {}
+}
+
 watch(() => props.selectedMetric,   restyleAll)
-watch(() => props.selectedSuburbId, restyleAll)
+watch(() => props.selectedSuburbId, (id) => {
+  restyleAll()
+  // Fly to the suburb whenever the selection changes (search pick, map click,
+  // peer pick from the side panel, URL change). Skipped when id is null
+  // (clear selection — keep current view).
+  if (id != null) zoomToSelectedSuburb()
+})
 watch(rankingsData, () => {
   rebuildScoreMap()
   restyleAll()
@@ -224,17 +266,35 @@ let resizeObs = null
 onMounted(async () => {
   map = L.map(mapEl.value, {
     zoomControl:           true,
-    scrollWheelZoom:       false,
+    // Wheel zoom is on by default — Leaflet handles plain scroll-wheel,
+    // ctrl/cmd+wheel and trackpad pinch (which the OS delivers as wheel +
+    // ctrlKey) all through the same handler, zooming toward the cursor.
+    scrollWheelZoom:       true,
+    wheelDebounceTime:     40,
+    wheelPxPerZoomLevel:   90,
     doubleClickZoom:       true,
     boxZoom:               false,
     attributionControl:    false,
     zoomSnap:              0.25,
     preferCanvas:          true,
+    // Enable Leaflet's built-in keyboard: arrows pan, +/- zoom (when map has focus)
+    keyboard:              true,
+    keyboardPanDelta:      80,
+    // Touch pinch zoom on mobile/tablet
+    touchZoom:             true,
+    bounceAtZoomLimits:    false,
   })
-  // Greater Melbourne approximate bounds
-  map.fitBounds([[-38.43, 144.59], [-37.40, 145.84]], { padding: [0, 0] })
+  // Tighter initial view focused on metro Melbourne where most suburbs sit.
+  // This matches the "default zoom" the user requested — covers from Sunbury
+  // in the north down to Frankston in the south, and Werribee to Lilydale
+  // east–west — without showing the wide regional Greater Melbourne extent.
+  map.fitBounds([[-38.10, 144.75], [-37.65, 145.40]], { padding: [12, 12] })
 
   map.on('click', () => emit('select', null))
+
+  // Window-level +/- and arrow-key zoom so the user doesn't have to click the
+  // map first to give it focus. Ignored when the user is typing in an input.
+  window.addEventListener('keydown', onWindowKey)
 
   try {
     resizeObs = new ResizeObserver(() => map.invalidateSize())
@@ -244,7 +304,44 @@ onMounted(async () => {
   await reload()
 })
 
+function onWindowKey(e) {
+  if (!map) return
+  // Don't hijack typing
+  const t = e.target
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+
+  switch (e.key) {
+    case '+':
+    case '=':       // unshifted + on US keyboards
+      map.zoomIn()
+      e.preventDefault()
+      break
+    case '-':
+    case '_':       // shift+- still works
+      map.zoomOut()
+      e.preventDefault()
+      break
+    case 'ArrowUp':
+      map.panBy([0, -80])
+      e.preventDefault()
+      break
+    case 'ArrowDown':
+      map.panBy([0, 80])
+      e.preventDefault()
+      break
+    case 'ArrowLeft':
+      map.panBy([-80, 0])
+      e.preventDefault()
+      break
+    case 'ArrowRight':
+      map.panBy([80, 0])
+      e.preventDefault()
+      break
+  }
+}
+
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onWindowKey)
   if (resizeObs) { try { resizeObs.disconnect() } catch {} }
   if (map)       { try { map.remove() } catch {} }
 })

@@ -105,7 +105,7 @@
                   v-model="fromText"
                   type="text"
                   class="form-input"
-                  placeholder="Your starting point"
+                  placeholder="Suburb, address, place name…"
                   @input="onFromInput"
                   @focus="onFromFocus"
                   @blur="onFromBlur"
@@ -121,12 +121,21 @@
                 </span>
                 <span v-else class="mini-spinner"></span>
               </button>
-              <div v-if="fromFocused && fromSuggestions.length" class="form-dropdown">
-                <button v-for="(s, i) in fromSuggestions" :key="i" class="dropdown-item" @mousedown.prevent="pickFromSuggestion(s)">
+              <div
+                v-if="fromFocused && fromText.trim().length >= 2 && (fromSuggestions.length || fromSearchError)"
+                class="form-dropdown"
+              >
+                <p v-if="fromSearchError" class="dropdown-error" role="alert">{{ fromSearchError }}</p>
+                <button
+                  v-for="(s, i) in fromSuggestions"
+                  :key="s.id || i"
+                  class="dropdown-item"
+                  @mousedown.prevent="pickFromSuggestion(s)"
+                >
                   <span class="suggest-icon">📍</span>
                   <span class="suggest-name">
-                    <strong>{{ s.suburb_name }}</strong>
-                    <small v-if="s.state">{{ s.state }}</small>
+                    <strong>{{ s.name || s.suburb_name }}</strong>
+                    <small v-if="s.address">{{ s.address }}</small>
                   </span>
                 </button>
               </div>
@@ -153,32 +162,154 @@
                   v-model="toText"
                   type="text"
                   class="form-input"
-                  placeholder="Where do you want to go?"
+                  placeholder="A suburb, café, park, address — anywhere"
                   @input="onToInput"
                   @focus="onToFocus"
                   @blur="onToBlur"
                   ref="toInputEl"
                 />
               </div>
-              <div v-if="toFocused && toSuggestions.length" class="form-dropdown">
-                <button v-for="(s, i) in toSuggestions" :key="i" class="dropdown-item" @mousedown.prevent="pickToSuggestion(s)">
+              <div
+                v-if="toFocused && toText.trim().length >= 2 && (toSuggestions.length || toSearchError)"
+                class="form-dropdown"
+              >
+                <p v-if="toSearchError" class="dropdown-error" role="alert">{{ toSearchError }}</p>
+                <button
+                  v-for="(s, i) in toSuggestions"
+                  :key="s.id || i"
+                  class="dropdown-item"
+                  @mousedown.prevent="pickToSuggestion(s)"
+                >
                   <span class="suggest-icon">📍</span>
                   <span class="suggest-name">
-                    <strong>{{ s.suburb_name }}</strong>
-                    <small v-if="s.state">{{ s.state }}</small>
+                    <strong>{{ s.name || s.suburb_name }}</strong>
+                    <small v-if="s.address">{{ s.address }}</small>
                   </span>
                 </button>
               </div>
             </div>
 
-            <!-- Time row -->
-            <div class="form-row form-row-time">
-              <div class="form-pin pin-time">🕐</div>
-              <div class="form-input-wrap">
-                <label class="form-label">Arrive by</label>
-                <input v-model="arriveBy" type="datetime-local" class="form-input" />
+            <!-- ── When row + inline picker popup ── -->
+            <div class="when-wrap" ref="whenWrapEl">
+              <div class="form-row when-row" :class="{ focused: whenPickerOpen }" @click="toggleWhenPicker">
+                <div class="form-pin pin-when">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 2"/>
+                  </svg>
+                </div>
+                <div class="form-input-wrap">
+                  <label class="form-label">When</label>
+                  <p class="form-input when-value">{{ whenBarText }}</p>
+                </div>
+                <svg class="when-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
               </div>
-              <button class="time-pill" :class="{ active: !arriveBy }" @click="arriveBy = ''">Leave now</button>
+
+              <!-- Popup — anchored under the bar, NOT a full overlay -->
+              <transition name="when-pop">
+                <div
+                  v-if="whenPickerOpen"
+                  class="when-pop"
+                  role="dialog"
+                  aria-label="Choose departure time"
+                  @click.stop
+                >
+                  <header class="when-pop-head">
+                    <h3 class="when-pop-title">When are you travelling?</h3>
+                    <button type="button" class="when-pop-close" @click="closeWhenPicker" aria-label="Close">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </header>
+
+                  <!-- Mode toggle -->
+                  <div class="time-mode-toggle" role="tablist" aria-label="Departure mode">
+                    <button
+                      type="button"
+                      role="tab"
+                      class="time-mode"
+                      :class="{ active: timeMode === 'now' }"
+                      :aria-selected="timeMode === 'now'"
+                      @click="pickLeaveNow"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M12 7v5l3 2"/>
+                      </svg>
+                      Leave now
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      class="time-mode"
+                      :class="{ active: timeMode === 'arrive' }"
+                      :aria-selected="timeMode === 'arrive'"
+                      @click="setTimeMode('arrive')"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="17" rx="2"/>
+                        <path d="M16 2v4M8 2v4M3 10h18"/>
+                      </svg>
+                      Arrive by a time
+                    </button>
+                  </div>
+
+                  <!-- Day + time chips -->
+                  <div v-if="timeMode === 'arrive'" class="time-picker-card">
+                    <div class="time-picker-section">
+                      <p class="time-picker-label">Day</p>
+                      <div class="time-chip-row">
+                        <button
+                          v-for="d in dayChoices"
+                          :key="d.iso"
+                          type="button"
+                          class="time-chip"
+                          :class="{ active: d.iso === selectedDay }"
+                          @click="selectedDay = d.iso"
+                        >
+                          <span class="chip-top">{{ d.short }}</span>
+                          <span class="chip-bottom">{{ d.sub }}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="time-picker-section">
+                      <p class="time-picker-label">Time</p>
+                      <div class="time-chip-grid">
+                        <button
+                          v-for="h in hourChoices"
+                          :key="h.value"
+                          type="button"
+                          class="time-chip time-chip-hour"
+                          :class="{ active: h.value === selectedHour }"
+                          @click="pickArriveHour(h.value)"
+                        >
+                          {{ h.label }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <p v-if="arriveByHumanLabel" class="time-picker-summary">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5"/>
+                      </svg>
+                      Arriving <strong>{{ arriveByHumanLabel }}</strong>
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="when-pop-done"
+                    :disabled="timeMode === 'arrive' && !arriveByHumanLabel"
+                    @click="closeWhenPicker"
+                  >
+                    Done
+                  </button>
+                </div>
+              </transition>
             </div>
 
             <button class="form-submit" :disabled="!canSearch || isSearching" @click="findRoute">
@@ -383,6 +514,7 @@ import MainLayout from '../layouts/MainLayout.vue'
 import { uiStore } from '../stores/uiStore'
 import { resonanceStore } from '../stores/resonanceStore'
 import { useJourneyApi, searchSuburbs, decodePolyline, extractPath } from '../composables/useJourneyApi'
+// import { useNominatimSearch } from '../composables/useNominatimSearch'
 
 const route = useRoute()
 const router = useRouter()
@@ -410,7 +542,6 @@ const canUse3D = computed(() => !!GOOGLE_MAPS_MAP_ID && GOOGLE_MAPS_MAP_ID !== '
 let userMarker = null
 let destMarker = null
 let routePolylines = []
-let layerMarkers = { toilets: [], landmarks: [], greenspaces: [], stops: [] }
 let stepHighlightMarker = null
 let infoWindow = null
 
@@ -421,6 +552,7 @@ const fromLon = ref(null)
 const fromInputEl = ref(null)
 const fromFocused = ref(false)
 const fromSuggestions = ref([])
+const fromSearchError = ref('')  // v8: shown in dropdown when search fails or no matches
 let fromDebounce = null
 
 const toText = ref('')
@@ -429,12 +561,213 @@ const toLon = ref(null)
 const toInputEl = ref(null)
 const toFocused = ref(false)
 const toSuggestions = ref([])
+const toSearchError = ref('')    // v8: shown in dropdown when search fails or no matches
 let toDebounce = null
+const arriveByInputEl = ref(null)
+
+// v8: Google-Maps-style place search backed by OpenStreetMap Nominatim.
+// Returns normalised results: { id, name, address, lat, lon, kind }
+async function nominatimSearch(text) {
+  const p = new URLSearchParams({
+    q: text,
+    format: 'jsonv2',
+    addressdetails: '1',
+    limit: '8',
+    countrycodes: 'au',
+    'accept-language': 'en',
+    viewbox: '144.55,-37.40,145.85,-38.45',  // Melbourne bbox — soft bias
+    bounded: '0',
+  })
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?${p}`)
+  if (!r.ok) throw new Error(`Search failed (${r.status})`)
+  const items = await r.json()
+  if (!Array.isArray(items)) return []
+  return items.reduce((out, it) => {
+    const lat = Number(it?.lat), lon = Number(it?.lon)
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return out
+    const a = it?.address || {}
+    let name = a.amenity || a.shop || a.building || a.tourism
+    if (!name && a.house_number) name = `${a.house_number} ${a.road || ''}`.trim()
+    if (!name) name = a.road || a.suburb || a.town || a.city || a.locality
+                    || a.neighbourhood || it.name || (it.display_name || '').split(',')[0]
+    if (!name) return out
+    out.push({ id: String(it.place_id), name: String(name).trim(), address: it.display_name || '', lat, lon })
+    return out
+  }, [])
+}
 
 const arriveBy = ref('')
 const isLocating = ref(false)
 const isSearching = ref(false)
 const searchError = ref('')
+
+// ─── v9: Custom date/time picker state ─────────────────────────────────
+// Replaces the native datetime-local input which looked browser-specific
+// and inconsistent. Uses team-branded chip controls instead.
+const timeMode    = ref('now')      // 'now' | 'arrive'
+const selectedDay = ref('')         // ISO date 'YYYY-MM-DD'
+const selectedHour = ref(null)      // 0–23 (matches user's 24h clock)
+
+// Build 'YYYY-MM-DD' from a Date using LOCAL components.
+// toISOString() converts to UTC first, which in Melbourne (UTC+10/+11) shifts
+// the date back one day for local-midnight Dates. That caused the picker to
+// show "today" while actually meaning yesterday.
+function localIsoDate(d) {
+  const y  = d.getFullYear()
+  const m  = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+// Next 7 days as choosable chips. First two get friendly labels.
+const dayChoices = computed(() => {
+  const days = []
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    const iso = localIsoDate(d)
+    const short = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : DOW[d.getDay()]
+    const sub   = i < 2 ? `${DOW[d.getDay()]} ${d.getDate()}` : `${d.getDate()} ${d.toLocaleString('en-AU', { month: 'short' })}`
+    days.push({ iso, short, sub })
+  }
+  return days
+})
+
+// 5 AM through 10 PM in 1-hour steps — practical hours people travel
+const hourChoices = computed(() => {
+  const list = []
+  for (let h = 5; h <= 22; h++) {
+    let label
+    if (h === 0)        label = '12 AM'
+    else if (h === 12)  label = '12 PM'
+    else if (h < 12)    label = `${h} AM`
+    else                label = `${h - 12} PM`
+    list.push({ value: h, label })
+  }
+  return list
+})
+
+// Switching modes resets sensible defaults
+function setTimeMode(mode) {
+  timeMode.value = mode
+  if (mode === 'now') {
+    selectedDay.value  = ''
+    selectedHour.value = null
+  } else {
+    // Default to today + next sensible hour
+    if (!selectedDay.value) selectedDay.value = localIsoDate(new Date())
+    if (selectedHour.value == null) {
+      const next = new Date()
+      next.setMinutes(0); next.setSeconds(0); next.setMilliseconds(0)
+      next.setHours(next.getHours() + 1)
+      const h = next.getHours()
+      // Clamp to our chip range so the highlighted chip is always visible
+      selectedHour.value = Math.min(22, Math.max(5, h))
+    }
+  }
+}
+
+// arriveBy stays the source of truth that the rest of the page uses.
+// When the user changes day/hour, we recompute it. When timeMode is 'now',
+// arriveBy is empty (which the existing search code already treats as "now").
+watch([timeMode, selectedDay, selectedHour], () => {
+  if (timeMode.value !== 'arrive' || !selectedDay.value || selectedHour.value == null) {
+    arriveBy.value = ''
+    return
+  }
+  // Build a local datetime string in the same shape datetime-local used,
+  // so the existing `new Date(arriveBy.value).toISOString()` call still works.
+  const hh = String(selectedHour.value).padStart(2, '0')
+  arriveBy.value = `${selectedDay.value}T${hh}:00`
+})
+
+// Human-friendly summary shown under the chip grid
+const arriveByHumanLabel = computed(() => {
+  if (timeMode.value !== 'arrive' || !arriveBy.value) return ''
+  const d = new Date(arriveBy.value)
+  if (isNaN(d.getTime())) return ''
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const that = new Date(d); that.setHours(0, 0, 0, 0)
+  const diffDays = Math.round((that - today) / 86400000)
+  let dayPart = ''
+  if (diffDays === 0)      dayPart = 'today'
+  else if (diffDays === 1) dayPart = 'tomorrow'
+  else                     dayPart = d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' })
+  const h = d.getHours()
+  let timePart
+  if (h === 0)        timePart = '12 AM'
+  else if (h === 12)  timePart = '12 PM'
+  else if (h < 12)    timePart = `${h} AM`
+  else                timePart = `${h - 12} PM`
+  return `${dayPart} at ${timePart}`
+})
+
+// ─── When-bar overlay state ───
+const whenPickerOpen = ref(false)
+const whenWrapEl = ref(null)
+const nowTick = ref(Date.now())   // refreshes the "Leave now" label live
+let nowTickTimer = null
+
+// Live-updating text for the "Leave now" mode: shows current day + hour
+const leaveNowText = computed(() => {
+  // depend on nowTick so this recomputes every minute
+  void nowTick.value
+  const d = new Date()
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const that = new Date(d); that.setHours(0, 0, 0, 0)
+  const diffDays = Math.round((that - today) / 86400000)
+  let dayPart
+  if (diffDays === 0)      dayPart = 'today'
+  else if (diffDays === 1) dayPart = 'tomorrow'
+  else                     dayPart = d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' })
+  const h = d.getHours()
+  const m = String(d.getMinutes()).padStart(2, '0')
+  let hh
+  if (h === 0)        hh = `12:${m} AM`
+  else if (h === 12)  hh = `12:${m} PM`
+  else if (h < 12)    hh = `${h}:${m} AM`
+  else                hh = `${h - 12}:${m} PM`
+  return `Leave now · ${dayPart} at ${hh}`
+})
+
+// What the WHEN bar shows
+const whenBarText = computed(() => {
+  if (timeMode.value === 'arrive' && arriveByHumanLabel.value) {
+    return `Arrive by ${arriveByHumanLabel.value}`
+  }
+  return leaveNowText.value
+})
+
+function openWhenPicker() {
+  whenPickerOpen.value = true
+}
+
+function closeWhenPicker() {
+  whenPickerOpen.value = false
+}
+
+function toggleWhenPicker() {
+  whenPickerOpen.value = !whenPickerOpen.value
+}
+
+// Wrap setTimeMode('now') so the picker closes when the user taps Leave now
+function pickLeaveNow() {
+  setTimeMode('now')
+  closeWhenPicker()
+}
+
+// Wrap hour selection so the picker closes after a complete pick (day + hour set)
+function pickArriveHour(value) {
+  selectedHour.value = value
+  // Only close if both a day and hour are now chosen — leaves room for the
+  // user to change their mind on the day before closing.
+  if (selectedDay.value && value != null) {
+    setTimeout(() => closeWhenPicker(), 180)
+  }
+}
 
 const recentDestinations = ref(loadRecents())
 
@@ -458,17 +791,6 @@ const totalWalkText = computed(() => {
   if (r.walk_minutes != null) return `${r.walk_minutes} min`
   return '—'
 })
-
-// ─── Layer overlay state ───
-const layerDefs = [
-  { id: 'toilets',     icon: '🚻', label: 'Toilets',     color: '#fde2c4', fg: '#a85a1f' },
-  { id: 'greenspaces', icon: '🌳', label: 'Green spaces', color: '#dff3dc', fg: '#286c2a' },
-  { id: 'landmarks',   icon: '🏛️', label: 'Landmarks',   color: '#dceafd', fg: '#1d4ed8' },
-  { id: 'stops',       icon: '🚏', label: 'Transit',     color: '#f3e6fb', fg: '#6b21a8' }
-]
-const layerState = reactive({ toilets: false, greenspaces: false, landmarks: false, stops: false })
-const layerLoading = reactive({ toilets: false, greenspaces: false, landmarks: false, stops: false })
-const layerData = reactive({ toilets: [], greenspaces: [], landmarks: [], stops: [] })
 
 // ─── Computed gates ───
 const canSwap = computed(() => fromLat.value != null && toLat.value != null)
@@ -755,114 +1077,6 @@ function legColor(kind) {
   }
 }
 
-// ═════════ LAYER OVERLAYS ═════════
-function clearLayer(id) {
-  for (const m of (layerMarkers[id] || [])) m.map = null
-  layerMarkers[id] = []
-}
-
-async function loadLayer(id) {
-  if (!map.value) return
-  if (layerData[id].length) return
-  layerLoading[id] = true
-  try {
-    const center = getMapCenter()
-    let items = []
-    if (id === 'toilets') {
-      const res = await api.fetchToilets({ lat: center.lat, lon: center.lng, radius_m: 1500, limit: 30 })
-      items = res?.toilets || res?.items || res || []
-    } else if (id === 'greenspaces') {
-      const res = await api.fetchGreenSpaces({ lat: center.lat, lon: center.lng, radius_km: 2, limit: 30 })
-      items = res?.greenspaces || res?.spaces || res?.items || res || []
-    } else if (id === 'landmarks') {
-      const res = await api.fetchLandmarks({ lat: center.lat, lon: center.lng, radius_km: 2, limit: 40 })
-      items = res?.landmarks || res?.items || res || []
-    } else if (id === 'stops') {
-      const res = await api.fetchNearbyStops({ lat: center.lat, lon: center.lng, radius_m: 1200, limit: 40 })
-      items = res?.stops || res?.items || res || []
-    }
-    layerData[id] = Array.isArray(items) ? items : []
-  } catch (e) {
-    console.warn(`[Journey] Failed to load layer ${id}:`, e)
-    layerData[id] = []
-  } finally {
-    layerLoading[id] = false
-  }
-}
-
-async function renderLayer(id) {
-  if (!map.value) return
-  clearLayer(id)
-  if (!layerState[id] || !layerData[id].length) return
-  const { AdvancedMarkerElement } = await getMarkerLib()
-  const def = layerDefs.find(l => l.id === id)
-  const color = def?.color || '#fff'
-
-  for (const item of layerData[id]) {
-    const lat = item.lat ?? item.latitude ?? item.centroid_lat
-    const lng = item.lng ?? item.lon ?? item.longitude ?? item.centroid_lng
-    if (lat == null || lng == null) continue
-
-    const content = makePinHTML({ icon: def.icon, color, size: 'sm' })
-    const m = new AdvancedMarkerElement({
-      position: { lat, lng },
-      map: map.value,
-      content,
-      zIndex: 50
-    })
-    m.addListener('click', () => openLayerInfo(item, id, m))
-    layerMarkers[id].push(m)
-  }
-}
-
-function openLayerInfo(item, kind, marker) {
-  if (!infoWindow) return
-  const name = item.name || item.stop_name || item.title || 'Place'
-  const sub = item.suburb_name || item.suburb || item.address || item.theme || ''
-  const distance = item.distance_km != null ? `${(+item.distance_km).toFixed(2)} km` : ''
-  const access = item.is_accessible || item.accessibility ? '♿ Accessible' : ''
-
-  const content = `
-    <div class="cl-info">
-      <div class="cl-info-icon" style="background:${(layerDefs.find(l => l.id === kind)?.color) || '#eee'}">
-        ${(layerDefs.find(l => l.id === kind)?.icon) || '📍'}
-      </div>
-      <div class="cl-info-body">
-        <strong>${escapeHtml(name)}</strong>
-        ${sub ? `<small>${escapeHtml(sub)}</small>` : ''}
-        ${distance ? `<small>${distance} away</small>` : ''}
-        ${access ? `<small class="cl-info-tag">${access}</small>` : ''}
-      </div>
-    </div>
-  `
-  infoWindow.setContent(content)
-  infoWindow.open({ map: map.value, anchor: marker })
-}
-
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]))
-}
-
-async function toggleLayer(id) {
-  layerState[id] = !layerState[id]
-  if (layerState[id]) {
-    await loadLayer(id)
-    await renderLayer(id)
-  } else {
-    clearLayer(id)
-  }
-}
-
-function getMapCenter() {
-  if (toLat.value != null && toLon.value != null) return { lat: toLat.value, lng: toLon.value }
-  if (resonanceStore.userLat && resonanceStore.userLon) return { lat: resonanceStore.userLat, lng: resonanceStore.userLon }
-  if (map.value) {
-    const c = map.value.getCenter()
-    return { lat: c.lat(), lng: c.lng() }
-  }
-  return MELBOURNE_FALLBACK
-}
-
 // ═════════ MAP CONTROLS ═════════
 function recenter() {
   if (!map.value) return
@@ -902,29 +1116,39 @@ function zoomOut() {
 }
 
 // ═════════ FORM / AUTOCOMPLETE ═════════
+// v8: Switched from internal suburb list to Nominatim — supports any place
+// (houses, buildings, addresses, toilets, parks, landmarks) across Australia,
+// not just our hand-curated Melbourne suburbs.
 async function onFromInput() {
   fromLat.value = null; fromLon.value = null
   if (fromDebounce) clearTimeout(fromDebounce)
-  if (!fromText.value.trim() || fromText.value.trim().length < 2) {
+  const text = fromText.value.trim()
+  if (!text || text.length < 2) {
     fromSuggestions.value = []
+    fromSearchError.value = ''
     return
   }
   fromDebounce = setTimeout(async () => {
     try {
-      const res = await searchSuburbs(fromText.value.trim(), 6)
-      fromSuggestions.value = (res?.suburbs || res || []).slice(0, 6)
-    } catch { fromSuggestions.value = [] }
-  }, 220)
+      const items = await nominatimSearch(text)
+      fromSuggestions.value = items
+      fromSearchError.value = items.length ? '' : `No places match "${text}". Try a different search.`
+    } catch (e) {
+      fromSuggestions.value = []
+      fromSearchError.value = "Couldn't search right now. Please try again."
+    }
+  }, 280)
 }
 
 function onFromFocus() { fromFocused.value = true }
 function onFromBlur() { setTimeout(() => { fromFocused.value = false }, 180) }
 
 function pickFromSuggestion(s) {
-  fromText.value = s.suburb_name || s.name
-  fromLat.value = s.centroid_lat ?? s.lat ?? s.latitude
-  fromLon.value = s.centroid_lng ?? s.lng ?? s.lon ?? s.longitude
+  fromText.value = s.name || s.suburb_name
+  fromLat.value = s.lat ?? s.centroid_lat ?? s.latitude
+  fromLon.value = s.lon ?? s.centroid_lng ?? s.lng ?? s.longitude
   fromSuggestions.value = []
+  fromSearchError.value = ''
   fromFocused.value = false
   if (mapReady.value && fromLat.value != null) {
     placeUserMarker(fromLat.value, fromLon.value)
@@ -933,32 +1157,40 @@ function pickFromSuggestion(s) {
 }
 
 function clearFrom() {
-  fromText.value = ''; fromLat.value = null; fromLon.value = null; fromSuggestions.value = []
+  fromText.value = ''; fromLat.value = null; fromLon.value = null
+  fromSuggestions.value = []; fromSearchError.value = ''
 }
 
 async function onToInput() {
   toLat.value = null; toLon.value = null
   if (toDebounce) clearTimeout(toDebounce)
-  if (!toText.value.trim() || toText.value.trim().length < 2) {
+  const text = toText.value.trim()
+  if (!text || text.length < 2) {
     toSuggestions.value = []
+    toSearchError.value = ''
     return
   }
   toDebounce = setTimeout(async () => {
     try {
-      const res = await searchSuburbs(toText.value.trim(), 6)
-      toSuggestions.value = (res?.suburbs || res || []).slice(0, 6)
-    } catch { toSuggestions.value = [] }
-  }, 220)
+      const items = await nominatimSearch(text)
+      toSuggestions.value = items
+      toSearchError.value = items.length ? '' : `No places match "${text}". Try a different search.`
+    } catch (e) {
+      toSuggestions.value = []
+      toSearchError.value = "Couldn't search right now. Please try again."
+    }
+  }, 280)
 }
 
 function onToFocus() { toFocused.value = true }
 function onToBlur() { setTimeout(() => { toFocused.value = false }, 180) }
 
 function pickToSuggestion(s) {
-  toText.value = s.suburb_name || s.name
-  toLat.value = s.centroid_lat ?? s.lat ?? s.latitude
-  toLon.value = s.centroid_lng ?? s.lng ?? s.lon ?? s.longitude
+  toText.value = s.name || s.suburb_name
+  toLat.value = s.lat ?? s.centroid_lat ?? s.latitude
+  toLon.value = s.lon ?? s.centroid_lng ?? s.lng ?? s.longitude
   toSuggestions.value = []
+  toSearchError.value = ''
   toFocused.value = false
   if (mapReady.value && toLat.value != null) {
     placeDestMarker(toLat.value, toLon.value, toText.value)
@@ -966,7 +1198,8 @@ function pickToSuggestion(s) {
 }
 
 function clearTo() {
-  toText.value = ''; toLat.value = null; toLon.value = null; toSuggestions.value = []
+  toText.value = ''; toLat.value = null; toLon.value = null
+  toSuggestions.value = []; toSearchError.value = ''
 }
 
 function swapEndpoints() {
@@ -1423,7 +1656,22 @@ async function applyQueryState() {
     toText.value = q.to_name || q.place || 'Destination'
   }
 
-  if (q.arrive_by) arriveBy.value = q.arrive_by
+  if (q.arrive_by) {
+    // Chatbot may pass either a full ISO string or 'HH:MM' (today's HH:MM).
+    let iso = q.arrive_by
+    if (/^\d{1,2}:\d{2}$/.test(iso)) {
+      // 'HH:MM' → treat as today (local-time date, not UTC)
+      const today = localIsoDate(new Date())
+      iso = `${today}T${iso.padStart(5, '0')}:00`
+    }
+    const d = new Date(iso)
+    if (!isNaN(d.getTime())) {
+      timeMode.value     = 'arrive'
+      selectedDay.value  = localIsoDate(d)
+      selectedHour.value = d.getHours()
+      // The watcher will set arriveBy.value to the normalised string
+    }
+  }
 
   if (mapReady.value) {
     if (fromLat.value != null) await placeUserMarker(fromLat.value, fromLon.value)
@@ -1442,35 +1690,44 @@ async function applyQueryState() {
 }
 
 // ═════════ LIFECYCLE ═════════
+function onWhenKey(e) {
+  if (e.key === 'Escape' && whenPickerOpen.value) closeWhenPicker()
+}
+
+function onWhenOutside(e) {
+  if (!whenPickerOpen.value) return
+  const wrap = whenWrapEl.value
+  if (wrap && !wrap.contains(e.target)) closeWhenPicker()
+}
+
 onMounted(async () => {
   await nextTick()
   await initMap()
+  // Refresh the "Leave now" label every 30s so the displayed time stays current
+  nowTickTimer = setInterval(() => { nowTick.value = Date.now() }, 30000)
+  window.addEventListener('keydown', onWhenKey)
+  // Use capture so we catch clicks before any v-if removes the target
+  document.addEventListener('mousedown', onWhenOutside, true)
+  document.addEventListener('touchstart', onWhenOutside, true)
 })
 
 onBeforeUnmount(() => {
   if (userMarker) userMarker.map = null
   if (destMarker) destMarker.map = null
   if (stepHighlightMarker) stepHighlightMarker.map = null
-  for (const id of Object.keys(layerMarkers)) clearLayer(id)
   clearRoutePolylines()
   clearCurrentStepHighlight()
   if (infoWindow) infoWindow.close()
   // Clean up the global callback to avoid leaks on hot-reload
   delete window.__onGoogleMapsLoaded
+  if (nowTickTimer) clearInterval(nowTickTimer)
+  window.removeEventListener('keydown', onWhenKey)
+  document.removeEventListener('mousedown', onWhenOutside, true)
+  document.removeEventListener('touchstart', onWhenOutside, true)
 })
 
 watch(selectedRouteIdx, () => {
   if (phase.value !== 'plan') renderRoutesOnMap()
-})
-
-watch(() => [toLat.value, toLon.value], async () => {
-  for (const id of Object.keys(layerData)) {
-    layerData[id] = []
-    if (layerState[id]) {
-      await loadLayer(id)
-      await renderLayer(id)
-    }
-  }
 })
 </script>
 
@@ -1479,7 +1736,6 @@ watch(() => [toLat.value, toLon.value], async () => {
 
 .journey-page {
   position: relative;
-  min-height: 100vh;
   background: #f2faf0;
   color: #1a2e1e;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -1500,7 +1756,7 @@ watch(() => [toLat.value, toLon.value], async () => {
 .journey-canvas {
   position: relative;
   width: 100%;
-  height: calc(100vh - 78px);
+  height: calc(100vh - 64px);
 }
 
 .map-canvas {
@@ -1559,53 +1815,6 @@ watch(() => [toLat.value, toLon.value], async () => {
 
 .overlay-fade-enter-active, .overlay-fade-leave-active { transition: opacity 0.4s; }
 .overlay-fade-enter-from, .overlay-fade-leave-to { opacity: 0; }
-
-/* ─── Floating toolbar (top of map) ─── */
-.float-toolbar {
-  position: absolute; top: 92px; left: 50%; transform: translateX(calc(-50% + 220px));
-  z-index: 20;
-  display: flex; gap: 8px;
-  background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  padding: 8px; border-radius: 999px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.08), 0 0 0 1px rgba(29,113,105,0.08);
-  max-width: calc(100vw - 540px);
-  overflow-x: auto;
-}
-.toolbar-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 8px 14px 8px 8px; border: none; background: transparent;
-  border-radius: 999px; cursor: pointer;
-  font-size: 13.5px; font-weight: 600; color: #3a5a3e;
-  transition: background 0.2s, color 0.2s, transform 0.15s;
-  white-space: nowrap;
-}
-.toolbar-pill:hover { background: rgba(10, 155, 138, 0.08); }
-.toolbar-pill.active {
-  background: linear-gradient(135deg, #0a9b8a, #088478); color: white;
-  box-shadow: 0 4px 12px rgba(10, 155, 138, 0.32);
-}
-.toolbar-pill.active .pill-icon { background: rgba(255,255,255,0.25) !important; color: white !important; }
-.pill-icon {
-  width: 26px; height: 26px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 14px; transition: background 0.2s;
-}
-.pill-label { font-size: 13.5px; }
-.pill-count {
-  font-size: 11px; font-weight: 800; padding: 2px 7px;
-  background: rgba(255,255,255,0.3); border-radius: 999px;
-  min-width: 22px; text-align: center;
-}
-.toolbar-pill:not(.active) .pill-count {
-  background: rgba(10, 155, 138, 0.12); color: #0a9b8a;
-}
-.pill-spinner {
-  width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent;
-  border-radius: 50%; animation: spin 0.8s linear infinite;
-}
-
-.toolbar-slide-enter-active, .toolbar-slide-leave-active { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s; }
-.toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translate(calc(-50% + 220px), -28px); opacity: 0; }
 
 /* ─── Floating map controls (right side) ─── */
 .float-controls {
@@ -1694,7 +1903,8 @@ watch(() => [toLat.value, toLon.value], async () => {
   box-shadow: 0 0 0 4px rgba(10, 155, 138, 0.1);
 }
 .form-row + .form-row { margin-top: 0; }
-.form-row-time { margin-top: 12px; }
+.time-block { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.form-row-time { margin-top: 0; }
 
 .form-pin {
   flex-shrink: 0; width: 24px; display: flex; align-items: center; justify-content: center;
@@ -1717,7 +1927,256 @@ watch(() => [toLat.value, toLon.value], async () => {
   font-family: inherit; outline: none; line-height: 1.3;
 }
 .form-input::placeholder { color: #9eaba0; font-weight: 400; }
-.form-input[type="datetime-local"] { font-size: 14px; }
+/* ═══════════════════════════════════════════════════════════════════════
+   v9: TEAM-BRANDED date/time picker
+   Replaces the native datetime-local + ad-hoc pill UI with consistent
+   chip-based controls that match the rest of the journey planner.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Segmented toggle — Leave now / Arrive by */
+.time-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 4px;
+  background: #f3f7f4;
+  border: 1px solid rgba(29, 113, 105, 0.1);
+  border-radius: 14px;
+}
+.time-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 10px;
+  font-family: system-ui, sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #3a5a3e;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.time-mode:hover {
+  color: #0a9b8a;
+}
+.time-mode.active {
+  background: white;
+  color: #066258;
+  border-color: rgba(10, 155, 138, 0.2);
+  box-shadow: 0 2px 6px rgba(10, 155, 138, 0.12);
+}
+.time-mode svg { flex-shrink: 0; }
+
+/* Card that contains the day + time picker */
+.time-picker-card {
+  margin-top: 12px;
+  padding: 16px;
+  background: white;
+  border: 1px solid rgba(29, 113, 105, 0.12);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.time-picker-section { display: flex; flex-direction: column; gap: 8px; }
+.time-picker-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #6a8e6e;
+  text-transform: uppercase;
+}
+
+/* Horizontal scrollable day row */
+.time-chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  /* Soft scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(29, 113, 105, 0.25) transparent;
+}
+.time-chip-row::-webkit-scrollbar { height: 5px; }
+.time-chip-row::-webkit-scrollbar-thumb { background: rgba(29, 113, 105, 0.25); border-radius: 3px; }
+
+/* Grid for hour chips */
+.time-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .time-chip-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Individual chip — used for both day and hour */
+.time-chip {
+  flex-shrink: 0;
+  min-width: 72px;
+  padding: 10px 12px;
+  background: white;
+  border: 1.5px solid #e5ede2;
+  border-radius: 10px;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a2e1e;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.2;
+}
+.time-chip:hover {
+  border-color: #0a9b8a;
+  color: #0a9b8a;
+  background: rgba(10, 155, 138, 0.04);
+}
+.time-chip.active {
+  background: linear-gradient(135deg, #0a9b8a, #066258);
+  border-color: #0a9b8a;
+  color: white;
+  box-shadow: 0 4px 12px rgba(10, 155, 138, 0.32);
+}
+.time-chip.active .chip-bottom { color: rgba(255, 255, 255, 0.85); }
+.time-chip:focus-visible {
+  outline: 3px solid rgba(10, 155, 138, 0.35);
+  outline-offset: 2px;
+}
+.chip-top { font-size: 14px; font-weight: 700; }
+.chip-bottom { font-size: 11px; color: #6a8e6e; font-weight: 500; }
+
+.time-chip-hour {
+  min-width: 0;
+  padding: 12px 8px;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+/* Human-friendly confirmation line */
+.time-picker-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px;
+  background: rgba(10, 155, 138, 0.08);
+  border-radius: 10px;
+  font-size: 14px;
+  color: #066258;
+  font-family: system-ui, sans-serif;
+}
+.time-picker-summary svg { color: #0a9b8a; flex-shrink: 0; }
+.time-picker-summary strong { font-weight: 700; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   WHEN bar + anchored popup picker
+   ═══════════════════════════════════════════════════════════════════════ */
+.when-wrap { position: relative; margin-top: 12px; }
+
+.when-row { cursor: pointer; user-select: none; }
+.when-row:hover {
+  border-color: rgba(10, 155, 138, 0.4);
+  background: white;
+}
+.when-row.focused {
+  border-color: #0a9b8a;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(10, 155, 138, 0.1);
+}
+.pin-when {
+  color: #0a9b8a;
+  display: flex; align-items: center; justify-content: center;
+}
+.when-value {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #0f1e12;
+  line-height: 1.3;
+}
+.when-chevron {
+  color: #6b8470;
+  flex-shrink: 0;
+  margin-right: 8px;
+  transition: transform 0.2s;
+}
+.when-row.focused .when-chevron { transform: rotate(180deg); color: #0a9b8a; }
+
+/* Anchored popup — sits directly under the bar */
+.when-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: white;
+  border: 1px solid rgba(29, 113, 105, 0.14);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.when-pop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+}
+.when-pop-title {
+  font-family: Georgia, serif;
+  font-size: 17px;
+  color: #0f1e12;
+  margin: 0;
+  line-height: 1.2;
+}
+.when-pop-close {
+  width: 28px; height: 28px;
+  border: none; background: rgba(0, 0, 0, 0.05);
+  border-radius: 50%; cursor: pointer; color: #3a5a3e;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.when-pop-close:hover { background: rgba(10, 155, 138, 0.12); color: #066258; }
+
+.when-pop-done {
+  padding: 11px 16px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0a9b8a, #066258);
+  color: white;
+  font-family: system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(10, 155, 138, 0.28);
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.when-pop-done:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(10, 155, 138, 0.38);
+}
+.when-pop-done:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Popup enter/leave transition */
+.when-pop-enter-active,
+.when-pop-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+.when-pop-enter-from,
+.when-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+}
 
 .form-locate {
   width: 38px; height: 38px;
@@ -1752,9 +2211,20 @@ watch(() => [toLat.value, toLon.value], async () => {
 }
 .dropdown-item:hover { background: rgba(10, 155, 138, 0.08); }
 .suggest-icon { font-size: 16px; }
-.suggest-name { display: flex; flex-direction: column; gap: 2px; }
+.suggest-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .suggest-name strong { font-size: 14.5px; color: #0f1e12; font-weight: 600; }
-.suggest-name small { font-size: 12px; color: #6b8470; }
+.suggest-name small {
+  font-size: 12px; color: #6b8470;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dropdown-error {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  color: #b3502a;
+  font-weight: 500;
+  font-family: system-ui, sans-serif;
+}
 
 .form-swap-rail {
   display: flex; justify-content: center; padding: 4px 0;
@@ -1778,19 +2248,6 @@ watch(() => [toLat.value, toLon.value], async () => {
   background: #0a9b8a; color: white; transform: rotate(180deg);
 }
 .form-swap-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.time-pill {
-  flex-shrink: 0; padding: 7px 14px;
-  border: 1.5px solid #e5ede2; background: white;
-  color: #3a5a3e; border-radius: 999px;
-  font-size: 13px; font-weight: 700; cursor: pointer;
-  transition: all 0.18s;
-}
-.time-pill:hover { border-color: #0a9b8a; color: #0a9b8a; }
-.time-pill.active {
-  background: #0a9b8a; border-color: #0a9b8a; color: white;
-  box-shadow: 0 3px 8px rgba(10, 155, 138, 0.28);
-}
 
 .form-submit {
   width: 100%; margin-top: 16px;
@@ -2139,9 +2596,7 @@ watch(() => [toLat.value, toLon.value], async () => {
 /* ─── Responsive ─── */
 @media (max-width: 1024px) {
   .float-panel { width: 380px; left: 16px; top: 86px; }
-  .float-toolbar { transform: translateX(calc(-50% + 198px)); max-width: calc(100vw - 470px); }
   .float-bottom { transform: translateX(calc(-50% + 198px)); }
-  .toolbar-slide-enter-from, .toolbar-slide-leave-to { transform: translate(calc(-50% + 198px), -28px); opacity: 0; }
   .slide-up-enter-from, .slide-up-leave-to { transform: translate(calc(-50% + 198px), 28px); opacity: 0; }
 }
 

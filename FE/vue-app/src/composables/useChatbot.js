@@ -1,16 +1,16 @@
-// useChatbot Composable — v4.2
+// useChatbot Composable — v5
 // ─────────────────────────────────────────────────────────────────────────
-// v4.2 fixes:
-//   • API base now matches the rest of the app (VITE_ACTIVITIES_API_URL)
-//     instead of hardcoded localhost:8000
-//   • Error messages now surface the real failure (network/CORS/404)
-//     instead of a generic "having trouble connecting"
+// v5 changes:
+//   • New `view_suburb` action — opens /suburb-explorer for a named suburb
+//   • Stale routes consolidated — /best-time/now, /best-time/week,
+//     /welcoming-spaces all now navigate to /best-time with appropriate
+//     hash anchor (#step-where / #step-when / #step-community)
+//   • geocodeSuburb now returns suburb_id (needed by SuburbExplorerPage)
 //
-// v4 features retained:
-//   • Geocodes suburbs via /api/suburbs/search before navigating
-//   • Updates resonanceStore so BestTime/Welcoming pages auto-refetch
-//   • Closes the chatbot panel after navigation actions
-//   • Param names match what each receiving page already reads
+// v4.2 features retained:
+//   • API base from VITE_API_BASE_URL with sensible fallback chain
+//   • Verbose error messages on backend failure
+//   • Geocodes suburbs, updates resonanceStore, closes panel after action
 
 import { useRouter } from 'vue-router'
 import { chatbotStore } from '../stores/chatbotStore'
@@ -105,7 +105,9 @@ export function useChatbot() {
     chatbotStore.addAssistantMessage("Okay, I won't do that. Anything else I can help with?")
   }
 
-  // ─── Helper: geocode a suburb name to { lat, lon, name } ────────────────
+  // ─── Helper: geocode a suburb name to { id, lat, lon, name } ───────────
+  // The suburb_id is needed for /suburb-explorer?id=<n>. The lat/lon are
+  // for resonanceStore + other pages.
   async function geocodeSuburb(suburbName) {
     if (!suburbName) return null
     try {
@@ -120,7 +122,12 @@ export function useChatbot() {
       const lat = first.centroid_lat ?? first.lat
       const lon = first.centroid_lng ?? first.lng ?? first.lon
       if (lat == null || lon == null) return null
-      return { lat, lon, name: first.suburb_name ?? first.name ?? suburbName }
+      return {
+        id: first.suburb_id ?? first.id ?? null,
+        lat,
+        lon,
+        name: first.suburb_name ?? first.name ?? suburbName,
+      }
     } catch (e) {
       console.warn('[chatbot] geocodeSuburb failed for', suburbName, e)
       return null
@@ -198,9 +205,9 @@ export function useChatbot() {
         break
 
       case 'check_best_time': {
-        // v4.3: routes are /best-time/now and /best-time/week (with slashes),
-        // not /best-time-now / /best-time-week — see router/index.js
-        const path = args.scope === 'week' ? '/best-time/week' : '/best-time/now'
+        // v5: routes /best-time/now and /best-time/week were consolidated into
+        // /best-time with hash anchors. Just navigate to /best-time and let
+        // the page handle the section.
         const query = {}
         if (args.suburb) {
           query.suburb = args.suburb
@@ -211,11 +218,13 @@ export function useChatbot() {
             applyLocationToStore(geo)
           }
         }
-        router.push({ path, query })
+        const hash = args.scope === 'week' ? '#step-when' : '#step-where'
+        router.push({ path: '/best-time', query, hash })
         break
       }
 
       case 'find_welcoming_places': {
+        // v5: welcoming spaces is now a section of /best-time, not its own page.
         const query = {}
         if (args.suburb) {
           query.suburb = args.suburb
@@ -226,7 +235,7 @@ export function useChatbot() {
             applyLocationToStore(geo)
           }
         }
-        router.push({ path: '/welcoming-spaces', query })
+        router.push({ path: '/best-time', query, hash: '#step-community' })
         break
       }
 
@@ -243,6 +252,28 @@ export function useChatbot() {
         }
         if (args.with_toilets) query.toilets = 'true'
         router.push({ path: '/best-time', query })
+        break
+      }
+
+      case 'view_suburb': {
+        // v5: opens the Suburb Explorer for a specific suburb.
+        // Looks up suburb_id via geocodeSuburb and passes it as `?id=`,
+        // which is what SuburbExplorerPage.vue reads on mount.
+        const query = {}
+        if (args.suburb) {
+          const geo = await geocodeSuburb(args.suburb)
+          if (geo?.id != null) {
+            query.id = String(geo.id)
+            applyLocationToStore(geo)
+          } else {
+            // No match — pass the suburb name and let the page surface a
+            // gentle "couldn't find that suburb" state, or fall back to
+            // showing the explorer without a preselection.
+            query.suburb = args.suburb
+          }
+        }
+        if (args.metric) query.metric = args.metric
+        router.push({ path: '/suburb-explorer', query })
         break
       }
 

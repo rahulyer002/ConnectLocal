@@ -44,49 +44,51 @@
       </header>
 
       <main class="main-wrap" id="main-content">
-        <div
-          v-for="question in currentQuestions"
-          :key="question.id"
-          class="question-card"
-          role="region"
-          :aria-label="`Question ${question.id} of ${questions.length}`"
-        >
-          <p class="q-eyebrow" :style="{ fontSize: scaledPx(12) }">
-            Statement {{ question.id }}
-          </p>
+        <div class="questions-grid">
+          <div
+            v-for="question in currentQuestions"
+            :key="question.id"
+            class="question-card"
+            role="region"
+            :aria-label="`Question ${question.id} of ${questions.length}`"
+          >
+            <p class="q-eyebrow" :style="{ fontSize: scaledPx(12) }">
+              Statement {{ question.id }}
+            </p>
 
-          <h2 class="q-text" :style="{ fontSize: scaledPx(34) }">
-            {{ question.text }}
-          </h2>
+            <h2 class="q-text" :style="{ fontSize: scaledPx(34) }">
+              {{ question.text }}
+            </h2>
 
-          <div class="options" role="group" :aria-label="`Answer options for statement ${question.id}`">
-            <button
-              v-for="option in options"
-              :key="option.value"
-              class="option-btn"
-              :class="{ selected: answers[question.id - 1] === option.value }"
-              :aria-pressed="answers[question.id - 1] === option.value"
-              @click="selectAnswer(question.id - 1, option.value)"
-              :style="{ fontSize: scaledPx(17) }"
-            >
-              <span class="option-indicator" aria-hidden="true">
-                <svg
-                  v-if="answers[question.id - 1] === option.value"
-                  viewBox="0 0 24 24"
-                  width="14"
-                  height="14"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M20 6L9 17l-5-5"/>
-                </svg>
-              </span>
+            <div class="options" role="group" :aria-label="`Answer options for statement ${question.id}`">
+              <button
+                v-for="option in options"
+                :key="option.value"
+                class="option-btn"
+                :class="{ selected: answers[question.id - 1] === option.value }"
+                :aria-pressed="answers[question.id - 1] === option.value"
+                @click="selectAnswer(question.id - 1, option.value)"
+                :style="{ fontSize: scaledPx(17) }"
+              >
+                <span class="option-indicator" aria-hidden="true">
+                  <svg
+                    v-if="answers[question.id - 1] === option.value"
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                </span>
 
-              <span class="option-label">{{ option.label }}</span>
-            </button>
+                <span class="option-label">{{ option.label }}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -353,13 +355,16 @@ function finishCheckIn() {
 .progress-label { font-size: 14px; color: #6a8e6e; font-weight: 500; }
 .progress-label strong { color: #0a9b8a; font-weight: 700; }
 
-.main-wrap { position: relative; z-index: 2; max-width: 820px; margin: 0 auto; padding: 52px 52px 100px; }
+.main-wrap { position: relative; z-index: 2; max-width: 1200px; margin: 0 auto; padding: 52px 52px 100px; }
+.questions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 32px; }
 
 .question-card {
   background: white; border: 1px solid rgba(29,113,105,0.12);
   border-radius: 20px; padding: 48px;
   box-shadow: 0 16px 48px rgba(0,0,0,0.06);
-  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   animation: card-in 0.4s cubic-bezier(0.22,1,0.36,1);
 }
 @keyframes card-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
@@ -367,7 +372,7 @@ function finishCheckIn() {
 .q-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #0a9b8a; margin-bottom: 16px; }
 .q-text { font-family: Georgia,serif; font-size: clamp(22px,3.5vw,36px); font-weight: 700; line-height: 1.3; color: #0f1e12; margin-bottom: 36px; }
 
-.options { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+.options { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; margin-top: auto; }
 
 .option-btn {
   display: flex; align-items: center; gap: 14px;
@@ -421,7 +426,8 @@ function finishCheckIn() {
 
 @media (max-width: 900px) {
   .hero-band { padding: 40px 20px 56px; margin-top: 0; }
-  .main-wrap { padding: 32px 20px 80px; }
+  .main-wrap { padding: 32px 20px 80px; max-width: 820px; }
+  .questions-grid { grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px; }
   .question-card { padding: 28px 20px; }
   .options { grid-template-columns: 1fr; }
   .dot-track { display: none; }

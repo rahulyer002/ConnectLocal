@@ -371,9 +371,10 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
-
+import { useRouter, useRoute } from 'vue-router'
 const router = useRouter()
+const route = useRoute()
+const AUTH_KEY = 'connectlocal_logged_in'
 
 /* ── Mouse parallax ──────────────────────────────────────────── */
 const mouse = ref({ x: 0, y: 0 })
@@ -418,9 +419,13 @@ async function handleLogin() {
     username.value.trim().toLowerCase() === VALID_USER &&
     password.value === VALID_PASS
   ) {
+    sessionStorage.setItem(AUTH_KEY, 'true')
+
     isSuccess.value = true
     await new Promise(r => setTimeout(r, 800))
-    router.push('/home')
+
+    const redirectPath = route.query.redirect || '/home'
+    router.replace(String(redirectPath))
   } else {
     isLoading.value = false
     errorMsg.value  = 'Incorrect details. Try the demo credentials shown above.'

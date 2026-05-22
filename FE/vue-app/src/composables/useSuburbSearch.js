@@ -11,7 +11,7 @@ const BASE = import.meta.env.VITE_API_BASE_URL
   || 'https://connectlocal.duckdns.org'
 
 const DEBOUNCE_MS = 250
-const MIN_QUERY_CHARS = 2
+const MIN_QUERY_CHARS = 1
 
 export function useSuburbSearch() {
   const query     = ref('')
@@ -43,7 +43,13 @@ export function useSuburbSearch() {
           `${BASE}/api/suburbs/search?q=${encodeURIComponent(text)}&limit=8`,
           { signal: controller.signal },
         )
-        results.value = data?.suburbs || []
+        const all = data?.suburbs || []
+        // Safety net: filter to prefix matches only, in case the backend
+        // still does a contains-match. "carl" should match Carlton, not Macleod.
+        const lowerQ = text.toLowerCase()
+        results.value = all.filter((s) =>
+          (s?.suburb_name || '').toLowerCase().startsWith(lowerQ)
+        )
         error.value = null
       } catch (e) {
         if (e?.name !== 'AbortError') {

@@ -36,9 +36,40 @@
               type="text"
               aria-label="Enter suburb or postcode in Melbourne"
               placeholder="Enter suburb or postcode in Melbourne"
-              @focus="handleLocationInputFocus"
+              @input="onLocationInput"
+              @focus="onLocationInputFocus"
+              @blur="onLocationInputBlur"
               :style="{ fontSize: scaledPx(17) }"
+              autocomplete="off"
             />
+
+            <!-- Autocomplete dropdown -->
+            <ul
+              v-if="locationFocused && locationInput.trim().length >= 1"
+              class="location-suggest"
+              role="listbox"
+            >
+              <li v-if="locationSearchError" class="location-suggest-msg err">
+                {{ locationSearchError }}
+              </li>
+              <li v-else-if="!locationSuggestions.length" class="location-suggest-msg">
+                No Melbourne suburbs match "{{ locationInput }}". Try a different name.
+              </li>
+              <template v-else>
+                <li
+                  v-for="s in locationSuggestions"
+                  :key="s.suburb_id || s.suburb_name"
+                  class="location-suggest-item"
+                  role="option"
+                  tabindex="0"
+                  @mousedown.prevent="pickLocationSuggestion(s)"
+                  @keydown.enter="pickLocationSuggestion(s)"
+                >
+                  <span class="suggest-ic" aria-hidden="true">📍</span>
+                  <span class="suggest-text">{{ s.suburb_name }}</span>
+                </li>
+              </template>
+            </ul>
           </div>
           <div class="location-btns">
             <button
@@ -66,6 +97,16 @@
             </button>
           </div>
         </form>
+
+        <!-- Visible inline error message (only when dropdown isn't already showing it) -->
+        <p
+          v-if="locationSearchError && !locationFocused"
+          class="location-error"
+          role="alert"
+          :style="{ fontSize: scaledPx(14) }"
+        >
+          ⚠ {{ locationSearchError }}
+        </p>
 
         <p class="location-note" role="note" :style="{ fontSize: scaledPx(14) }">
           Using search (not Locate) may return a representative point of the suburb or postcode, not your exact position.
@@ -190,6 +231,7 @@
               class="details-link"
               :style="{ fontSize: scaledPx(15) }"
               :aria-label="`View details for ${activity.title}`"
+              @click="saveDiscoverState"
             >
               View details
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -260,6 +302,7 @@ const CLOSE_KM = 5
 const UI_PAGE_SIZE = 3
 const FETCH_LIMIT = UI_PAGE_SIZE
 const MELBOURNE_NOT_FOUND = 'The location you specified was not found in Melbourne.'
+const DISCOVER_STATE_KEY = 'connectlocal-discover-state'
 
 const locationInput = ref('')
 const nearbyLabel = ref('your area')
@@ -274,6 +317,14 @@ const locationLat = ref(null)
 const locationLon = ref(null)
 const locationQueryMode = ref('suburb')
 const totalHint = ref(null)
+const scrollY = ref(0)
+
+// v8: live suggestions + visible error for the location search bar
+const locationSuggestions = ref([])
+const locationFocused     = ref(false)
+const locationSearchError = ref('')   // shown to user when search fails
+let locationSearchDebounce = null
+let locationSearchAbort    = null
 import { uiStore } from '../stores/uiStore'
 const scaledPx = (base) => `${(base * uiStore.textScale) / 100}px`
 
@@ -365,6 +416,7 @@ const fetchActivities = async (page = currentPage.value) => {
     totalHint.value = total(p) ?? totalHint.value
     activities.value = arr(p).map(normalize)
     currentPage.value = page
+    saveDiscoverState()
   } catch {
     loadError.value = 'Unable to load activities right now. Please try again later.'
     activities.value = []
@@ -380,10 +432,65 @@ const setLocation = (text, suburb = '', lat = null, lon = null) => {
   locationLon.value = lon
   hasLocationConfirmed.value = true
   setDetectedLocation(text)
+  saveDiscoverState()
 }
+
 const handleLocationInputFocus = () => { if (locationInput.value === MELBOURNE_NOT_FOUND) locationInput.value = '' }
 const parseAddress = (a = {}) => ({ suburb: a.suburb || a.neighbourhood || a.city_district || a.town || a.village || a.city || '', postcode: a.postcode || '' })
 const formatSuburbPostcode = ({ suburb, postcode }) => [suburb, postcode].filter(Boolean).join(' , ').trim()
+
+const saveDiscoverState = () => {
+  try {
+    const state = {
+      locationInput: locationInput.value,
+      nearbyLabel: nearbyLabel.value,
+      locationLat: locationLat.value,
+      locationLon: locationLon.value,
+      locationQueryMode: locationQueryMode.value,
+      hasLocationConfirmed: hasLocationConfirmed.value,
+      currentPage: currentPage.value,
+      totalHint: totalHint.value,
+      activeFilters: {
+        free: activeFilters.free,
+        thisWeek: activeFilters.thisWeek,
+        closeHome: activeFilters.closeHome
+      }
+    }
+
+    sessionStorage.setItem(DISCOVER_STATE_KEY, JSON.stringify(state))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+const restoreDiscoverState = () => {
+  try {
+    const raw = sessionStorage.getItem(DISCOVER_STATE_KEY)
+    if (!raw) return false
+
+    const state = JSON.parse(raw)
+    if (!state) return false
+
+    locationInput.value = state.locationInput || ''
+    nearbyLabel.value = state.nearbyLabel || 'your area'
+    locationLat.value = state.locationLat ?? null
+    locationLon.value = state.locationLon ?? null
+    locationQueryMode.value = state.locationQueryMode || 'suburb'
+    hasLocationConfirmed.value = !!state.hasLocationConfirmed
+    currentPage.value = state.currentPage || 1
+    totalHint.value = state.totalHint ?? null
+
+    if (state.activeFilters) {
+      activeFilters.free = !!state.activeFilters.free
+      activeFilters.thisWeek = !!state.activeFilters.thisWeek
+      activeFilters.closeHome = !!state.activeFilters.closeHome
+    }
+
+    return true
+  } catch {
+    return false
+  }
+}
 
 const getLocation = () => {
   if (!navigator.geolocation) { locationInput.value = MELBOURNE_NOT_FOUND; setDetectedUnavailable(); return }
@@ -408,12 +515,99 @@ const getLocation = () => {
   )
 }
 
+// ─── Suburb autocomplete dropdown (live) ─────────────────────────────────
+// Hits the internal /api/suburbs/search endpoint (prefix-match, see
+// data_service.search_suburbs) so the user can pick from a dropdown instead
+// of typing a full suburb name. Filters to prefix matches client-side too
+// as a safety net.
+async function onLocationInput() {
+  // Any edit invalidates the previously-applied location
+  locationLat.value = null
+  locationLon.value = null
+  locationSearchError.value = ''
+
+  const q = locationInput.value.trim()
+  if (locationSearchDebounce) clearTimeout(locationSearchDebounce)
+  if (locationSearchAbort)    { try { locationSearchAbort.abort() } catch {} }
+
+  if (q.length < 1) {
+    locationSuggestions.value = []
+    return
+  }
+  locationSearchDebounce = setTimeout(async () => {
+    locationSearchAbort = new AbortController()
+    try {
+      const r = await fetch(
+        `${BASE_URL}/api/suburbs/search?q=${encodeURIComponent(q)}&limit=8`,
+        { signal: locationSearchAbort.signal },
+      )
+      if (!r.ok) {
+        locationSearchError.value = "Couldn't reach the suburb search right now."
+        locationSuggestions.value = []
+        return
+      }
+      const data = await r.json()
+      const all = data?.suburbs || data || []
+      const lowerQ = q.toLowerCase()
+      // Safety net: prefix match only
+      locationSuggestions.value = (Array.isArray(all) ? all : []).filter(s =>
+        (s?.suburb_name || '').toLowerCase().startsWith(lowerQ)
+      )
+    } catch (e) {
+      if (e?.name !== 'AbortError') {
+        locationSearchError.value = "Couldn't search suburbs. Check your connection and try again."
+      }
+    }
+  }, 250)
+}
+
+function onLocationInputFocus() {
+  handleLocationInputFocus?.()
+  locationFocused.value = true
+}
+function onLocationInputBlur() {
+  // Slight delay so a mousedown on a suggestion fires before we hide
+  setTimeout(() => { locationFocused.value = false }, 180)
+}
+
+function pickLocationSuggestion(s) {
+  if (!s) return
+  const lat = s.centroid_lat ?? s.lat
+  const lon = s.centroid_lng ?? s.lng ?? s.lon
+  const name = s.suburb_name || s.name || locationInput.value
+  // Apply directly — no need to round-trip through Nominatim
+  setLocation(name, name, lat, lon)
+  locationQueryMode.value = 'latlon'
+  locationSearchError.value = ''
+  locationSuggestions.value = []
+  locationFocused.value = false
+  fetchActivities()
+}
+
 const applyManualLocation = async () => {
   const q = locationInput.value.trim()
   if (!q) return
-  const fail = () => { hasLocationConfirmed.value = false; locationLat.value = null; locationLon.value = null; locationInput.value = MELBOURNE_NOT_FOUND; setDetectedUnavailable() }
-  if (!isValidLocationInput(q)) { fail(); return }
-  if (isPostcodeInput(q) && !isVictoriaPostcodeRange(q)) { fail(); return }
+  locationSearchError.value = ''
+
+  // If the user typed something and we already have matching suggestions,
+  // use the first one (most prefix-relevant). Cheaper + clearer than another
+  // network round-trip to Nominatim.
+  if (locationSuggestions.value.length) {
+    pickLocationSuggestion(locationSuggestions.value[0])
+    return
+  }
+
+  // Fall back to Nominatim for postcodes or names not in our suburb DB.
+  const fail = (msg) => {
+    hasLocationConfirmed.value = false
+    locationLat.value = null
+    locationLon.value = null
+    locationSearchError.value = msg || `We couldn't find "${q}" in Melbourne. Try a different suburb or postcode.`
+    setDetectedUnavailable()
+  }
+  if (!isValidLocationInput(q))                          { fail("Please enter a Melbourne suburb name or VIC postcode (e.g. Carlton or 3053)."); return }
+  if (isPostcodeInput(q) && !isVictoriaPostcodeRange(q)) { fail(`"${q}" isn't a Victorian postcode. VIC postcodes are 3xxx.`); return }
+
   isApplying.value = true
   try {
     const queryText = isPostcodeInput(q) ? `${q}, Victoria, Australia` : `${q}, Melbourne, Victoria, Australia`
@@ -429,12 +623,22 @@ const applyManualLocation = async () => {
       if (!isInMelbourne(item?.address || {}, item?.display_name || '')) return false
       return normalizePlace(f.suburb) === normalizePlace(q)
     })
-    if (!top) { fail() } else {
+    if (!top) {
+      fail(`We couldn't find "${q}" in Melbourne. Check spelling or try a nearby suburb.`)
+    } else {
       const f = parseAddress(top.address || {})
       const value = formatSuburbPostcode(f)
-      if (!value) { fail() } else { setLocation(value, f.suburb || value, n(top.lat), n(top.lon)); locationQueryMode.value = 'suburb'; await fetchActivities() }
+      if (!value) {
+        fail(`"${q}" doesn't look like a recognised Melbourne suburb.`)
+      } else {
+        setLocation(value, f.suburb || value, n(top.lat), n(top.lon))
+        locationQueryMode.value = 'suburb'
+        await fetchActivities()
+      }
     }
-  } catch { fail() }
+  } catch {
+    fail("Couldn't reach the location service. Check your connection and try again.")
+  }
   isApplying.value = false
 }
 
@@ -494,9 +698,22 @@ async function applyChatbotQuery() {
 watch(activities, () => { if (currentPage.value > totalPages.value) currentPage.value = totalPages.value })
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll, { passive: true })
+
   const applied = await applyChatbotQuery()
-  if (!applied) getLocation()
+  if (applied) {
+    saveDiscoverState()
+    return
+  }
+
+  const restored = restoreDiscoverState()
+  if (restored && hasLocationConfirmed.value) {
+    await fetchActivities(currentPage.value)
+    return
+  }
+
+  getLocation()
 })
+
 onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 </script>
 
@@ -527,6 +744,7 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 
 /* Hero */
 .hero {
+  position: relative;
   padding: 80px 52px 80px;
 }
 .hero-bg-word {
@@ -536,8 +754,13 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
   color: rgba(10,155,138,0.055);
   white-space: nowrap; pointer-events: none; user-select: none; letter-spacing: -0.04em;
 }
-.hero-inner { position: relative; z-index: 2; max-width: 900px; }
-
+.hero-inner {
+  position: relative;
+  z-index: 2;
+  width: min(980px, 100%);
+  max-width: 980px;
+  margin: 0 auto;
+}
 .hero-eyebrow {
   display: inline-flex; align-items: center; gap: 12px;
   font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
@@ -563,7 +786,15 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
   margin-bottom: 14px;
   max-width: 760px;
 }
-.location-input-wrap { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px; }
+.location-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 200px;
+  /* Anchor the autocomplete dropdown */
+  position: relative;
+}
 .location-icon { color: #0a9b8a; flex-shrink: 0; }
 .location-input {
   border: none; outline: none; background: transparent;
@@ -584,6 +815,61 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', handleScroll) })
 .change-btn { background: #0a9b8a; color: white; }
 .change-btn:hover { background: #056b5e; }
 .loc-btn:disabled { opacity: 0.55; cursor: wait; }
+
+/* Autocomplete dropdown */
+.location-suggest {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -10px;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid rgba(29,113,105,0.2);
+  border-radius: 14px;
+  padding: 6px;
+  list-style: none;
+  margin: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 1500;
+  box-shadow: 0 8px 24px rgba(15, 110, 86, 0.18);
+}
+.location-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  color: #1a2e1e;
+  transition: background 0.1s;
+}
+.location-suggest-item:hover,
+.location-suggest-item:focus {
+  background: #f0faf0;
+  outline: none;
+}
+.suggest-ic { font-size: 16px; flex-shrink: 0; }
+.suggest-text { font-weight: 600; }
+.location-suggest-msg {
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #6a8e6e;
+}
+.location-suggest-msg.err { color: #b91c1c; }
+
+/* Inline error message under the search bar */
+.location-error {
+  margin: 6px 0 14px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #991b1b;
+  font-weight: 500;
+  font-size: 14px;
+  max-width: 760px;
+}
 
 .location-note { font-size: 13px; color: #8aaa8e; margin-bottom: 28px; max-width: 620px; line-height: 1.5; }
 

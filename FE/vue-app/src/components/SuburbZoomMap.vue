@@ -226,10 +226,16 @@ async function renderLayer(layerKey) {
   const items = await fetchLayer(layerKey)
   const icon  = makeIcon(def)
 
+  // v6: clip markers to the suburb polygon. Backend joins POIs to suburbs by
+  // centroid, but at boundary edges some points sit visually outside the
+  // dashed line. Filter those here so the map reads correctly.
+  const polygonRings = getSuburbRings()
+
   let plotted = 0
   for (const item of items) {
     const c = getCoords(item)
     if (!c) continue
+    if (polygonRings.length && !pointInPolygon(c, polygonRings)) continue
     const marker = L.marker(c, { icon, riseOnHover: true })
     const name = def.nameOf(item)
     marker.on('click', () => {
@@ -248,6 +254,45 @@ async function renderLayer(layerKey) {
     plotted++
   }
   layerCounts[layerKey] = plotted
+}
+
+// ─── Point-in-polygon helpers ─────────────────────────────────────────────
+// Returns the polygon's outer rings as arrays of [lat, lon] pairs. Handles
+// both Polygon and MultiPolygon GeoJSON features. Holes are ignored —
+// they're rarely meaningful for suburb boundaries.
+function getSuburbRings() {
+  const f = props.suburbFeature
+  if (!f) return []
+  const geom = f.geometry || f
+  if (!geom) return []
+  const out = []
+  if (geom.type === 'Polygon') {
+    out.push(geom.coordinates[0].map(([lon, lat]) => [lat, lon]))
+  } else if (geom.type === 'MultiPolygon') {
+    for (const poly of geom.coordinates) {
+      out.push(poly[0].map(([lon, lat]) => [lat, lon]))
+    }
+  }
+  return out
+}
+
+// Ray-casting test. `pt` is [lat, lon], `rings` is array of polygons
+// (each polygon = array of [lat, lon]). Returns true if point lies in
+// ANY of the rings.
+function pointInPolygon(pt, rings) {
+  const [lat, lon] = pt
+  for (const ring of rings) {
+    let inside = false
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [yi, xi] = ring[i]
+      const [yj, xj] = ring[j]
+      const intersect = ((yi > lat) !== (yj > lat))
+        && (lon < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi)
+      if (intersect) inside = !inside
+    }
+    if (inside) return true
+  }
+  return false
 }
 
 async function toggleLayer(layerKey) {
