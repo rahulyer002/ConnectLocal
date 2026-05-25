@@ -13,10 +13,14 @@ import SuburbExplorerPage from '../pages/SuburbExplorerPage.vue'
 
 const AUTH_KEY = 'connectlocal_logged_in'
 
+
+const DISABLE_LOGIN = true
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/login' },
+    // EXPO: root sends users straight to /home (was '/login')
+    { path: '/', redirect: DISABLE_LOGIN ? '/home' : '/login' },
 
     {
       path: '/login',
@@ -45,6 +49,13 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
+  // EXPO: skip the auth check entirely so every page is reachable without
+  // logging in. Flip DISABLE_LOGIN to false (above) to restore the guard.
+  if (DISABLE_LOGIN) {
+    next()
+    return
+  }
+
   const isPublicPage = to.meta.public === true
   const isLoggedIn = sessionStorage.getItem(AUTH_KEY) === 'true'
 
