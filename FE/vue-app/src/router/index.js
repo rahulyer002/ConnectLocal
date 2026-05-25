@@ -13,6 +13,7 @@ import SuburbExplorerPage from '../pages/SuburbExplorerPage.vue'
 
 const AUTH_KEY = 'connectlocal_logged_in'
 
+
 const DISABLE_LOGIN = true
 
 const router = createRouter({
